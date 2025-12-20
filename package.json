@@ -21,6 +21,7 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
     "gl-matrix": "^3.4.4"
   }
 }

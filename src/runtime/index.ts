@@ -1,6 +1,6 @@
 import VertexShaderSource from './shaders/shader.vert?raw';
 import FragmentShaderSource from './shaders/shader.frag?raw';
-import { mat4, quat, vec3, glMatrix } from 'gl-matrix';
+import { mat4, quat, vec3, glMatrix, mat3 } from 'gl-matrix';
 
 export interface Color3 {
   r: number;
@@ -22,6 +22,7 @@ export interface TextureCoordinate {
 interface GeometryDefinition {
   vertexPositions: Vector3[];
   vertexColors: Color3[];
+  vertexNormals: Vector3[];
   textureCoordinates: TextureCoordinate[];
   faces: number[][];
 }
@@ -56,6 +57,17 @@ async function fetchBytes(url: string): Promise<Uint8Array<ArrayBuffer>> {
     return response.bytes();
   } else {
     throw new Error(`Failed to get: ${url}`);
+  }
+}
+
+// @TODO
+export class Light {
+  public position: Vector3;
+  public color: Color3;
+
+  public constructor(position: Vector3, color: Color3) {
+    this.position = position;
+    this.color = color;
   }
 }
 
@@ -126,10 +138,12 @@ export class Mesh {
   private _positionTmp = vec3.create();
   private _scaleTmp = vec3.create();
   private _rotationTmp = quat.create();
+  private _normalTmp = mat3.create();
 
   public constructor(gl: WebGL2RenderingContext, geometry: GeometryDefinition, shader: ShaderProgram, texture: Texture) {
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
     const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexColors.flatMap(c => [c.r, c.g, c.b])));
+    const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexNormals.flatMap((n) => [n.x, n.y, n.z])));
     const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.faces.flat()));
     const textureCoordinateBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.textureCoordinates.flatMap((t) => [t.u, t.v])));
 
@@ -142,6 +156,7 @@ export class Mesh {
 
     gl.enableVertexAttribArray(shader.vertexPositionAttribute);
     gl.enableVertexAttribArray(shader.vertexColorAttribute);
+    gl.enableVertexAttribArray(shader.vertexNormalAttribute);
     gl.enableVertexAttribArray(shader.vertexTextureCoordinateAttribute);
 
     // Vertex positions
@@ -159,6 +174,17 @@ export class Mesh {
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
     gl.vertexAttribPointer(
       shader.vertexColorAttribute,
+      3,
+      gl.FLOAT,
+      false,
+      3 * Float32Array.BYTES_PER_ELEMENT,
+      0,
+    );
+
+    // Vertex normals
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.vertexAttribPointer(
+      shader.vertexNormalAttribute,
       3,
       gl.FLOAT,
       false,
@@ -205,13 +231,20 @@ export class Mesh {
     );
 
     gl.useProgram(this.shader.program);
+    // World matrix
     gl.uniformMatrix4fv(this.shader.worldMatrixUniform, false, this._worldMatrixTmp);
 
+    // Texture
     const textureIndex = 0;
     gl.activeTexture(gl.TEXTURE0 + textureIndex);
     gl.bindTexture(gl.TEXTURE_2D, this.texture.texture);
     gl.uniform1i(this.shader.textureSamplerUniform, textureIndex);
 
+    // Lighting
+    mat3.normalFromMat4(this._normalTmp, this._worldMatrixTmp);
+    gl.uniformMatrix3fv(this.shader.normalMatrixUniform, false, this._normalTmp);
+
+    // Draw
     gl.bindVertexArray(this.vao);
     gl.drawElements(gl.TRIANGLES, this.definition.faces.length * 3, gl.UNSIGNED_SHORT, 0);
     gl.bindVertexArray(null);
@@ -368,8 +401,10 @@ export class ShaderProgram {
   public readonly program: WebGLProgram;
   public readonly vertexPositionAttribute: number;
   public readonly vertexColorAttribute: number;
+  public readonly vertexNormalAttribute: number;
   public readonly vertexTextureCoordinateAttribute: number;
   public readonly worldMatrixUniform: WebGLUniformLocation;
+  public readonly normalMatrixUniform: WebGLUniformLocation;
   public readonly textureSamplerUniform: WebGLUniformLocation;
 
   public constructor(gl: WebGL2RenderingContext) {
@@ -409,15 +444,19 @@ export class ShaderProgram {
 
     this.vertexPositionAttribute = gl.getAttribLocation(this.program, 'vertexPosition');
     this.vertexColorAttribute = gl.getAttribLocation(this.program, 'vertexColor');
+    this.vertexNormalAttribute = gl.getAttribLocation(this.program, 'vertexNormal');
     this.vertexTextureCoordinateAttribute = gl.getAttribLocation(this.program, 'textureCoord');
 
     this.worldMatrixUniform = gl.getUniformLocation(this.program, 'worldMatrix')!;
+    this.normalMatrixUniform = gl.getUniformLocation(this.program, 'normalMatrix')!;
     this.textureSamplerUniform = gl.getUniformLocation(this.program, 'sampler')!;
 
     if (
       this.vertexPositionAttribute < 0 ||
       this.vertexColorAttribute < 0 ||
+      this.vertexNormalAttribute < 0 ||
       !this.worldMatrixUniform ||
+      !this.normalMatrixUniform ||
       !this.textureSamplerUniform
     ) {
       throw new Error(`Failed to look up attribute / uniform locations`);
@@ -433,11 +472,11 @@ export class Runtime {
   private readonly gl: WebGL2RenderingContext;
 
   private camera: Camera | undefined;
-  private debugObject: GameObject | undefined;
+  private debugObjects: GameObject[] | undefined;
 
   public constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const gl = this.canvas.getContext('webgl2', { antialias: false });
+    const gl = this.canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
     if (gl === null) {
       throw new Error(`WebGL2 not supported`);
     }
@@ -454,14 +493,43 @@ export class Runtime {
     const shader = new ShaderProgram(gl);
 
     const debugMesh = new Mesh(gl, cartridge.geometry[0], shader, stoneTexture);
-    this.debugObject = new GameObject(debugMesh);
+    this.debugObjects = [
+      (() => {
+        const object = new GameObject(debugMesh);
+        object.position.x = -1.5;
+        return object;
+      })(),
+      (() => {
+        const object = new GameObject(debugMesh);
+        object.position.x = 1.5;
+        return object;
+      })(),
+      (() => {
+        const object = new GameObject(debugMesh);
+        object.position.z = -1.5;
+        return object;
+      })(),
+      (() => {
+        const object = new GameObject(debugMesh);
+        object.position.z = 1.5;
+        return object;
+      })(),
+      (() => {
+        const object = new GameObject(debugMesh);
+        object.position.y = -1;
+        object.scale.x = 4;
+        object.scale.z = 4;
+        return object;
+      })(),
+    ];
+
 
     const cameraUbo = new Ubo(gl, CameraUboIndex, CameraUboPropertyNames, shader);
     this.camera = new Camera(70, this.canvas.width / this.canvas.height, cameraUbo);
   }
 
   public run(): void {
-    if (!this.camera || !this.debugObject) {
+    if (!this.camera || !this.debugObjects) {
       throw new Error('Cartridge not loaded');
     }
     const { gl } = this;
@@ -473,13 +541,13 @@ export class Runtime {
     let debug_cameraAngle = 0;
     const draw = (): void => {
       const camera = this.camera!;
-      const debugObject = this.debugObject!;
+      const debugObjects = this.debugObjects!;
 
       const thisFrameTime = performance.now();
       const dt = (thisFrameTime - lastFrameTime) / 1000;
       lastFrameTime = thisFrameTime;
 
-      gl.clearColor(0.42, 0.02, 0.02, 1);
+      gl.clearColor(0.05, 0.05, 0.2, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
@@ -490,17 +558,19 @@ export class Runtime {
       // debugObject.rotation.y += 30 * dt;
       // debugObject.rotation.y = debugObject.rotation.y % 360;
 
-      debug_cameraAngle += dt * glMatrix.toRadian(30);
+      debug_cameraAngle += dt * glMatrix.toRadian(15);
 
       camera.position = {
-        x: 2 * Math.sin(debug_cameraAngle),
-        y: Math.sin(debug_cameraAngle),
-        z: 2 * Math.cos(debug_cameraAngle),
+        x: 3.5 * Math.sin(debug_cameraAngle),
+        y: 2 * Math.sin(debug_cameraAngle) + 1,
+        z: 3.5 * Math.cos(debug_cameraAngle),
       };
       camera.pointAt({ x: 0, y: 0, z: 0 });
 
       camera.recalculateViewProjectionMatrix(gl);
-      debugObject.draw(gl);
+      for (const debugObject of debugObjects) {
+        debugObject.draw(gl);
+      }
 
       requestAnimationFrame(draw);
     };

@@ -1,6 +1,10 @@
 import './style.css';
 import { Runtime, type CartridgeDefinition } from './runtime';
+import { DebugModule } from './util/DebugModule';
 
+DebugModule.register();
+
+const WHITE = { r: 1, g: 1, b: 1 };
 const cartridge: CartridgeDefinition = {
   geometry: [{
     vertexPositions: [
@@ -121,6 +125,51 @@ const cartridge: CartridgeDefinition = {
       { r: 1.0, g: 0.0, b: 0.0 }, // +X, -Y, -Z = Red
       { r: 1.0, g: 0.0, b: 1.0 }, // +X, -Y, +Z = Magenta
       { r: 0.0, g: 0.0, b: 1.0 }, // -X, -Y, +Z = Blue
+
+
+      // WHITE, WHITE, WHITE, WHITE,
+      // WHITE, WHITE, WHITE, WHITE,
+      // WHITE, WHITE, WHITE, WHITE,
+      // WHITE, WHITE, WHITE, WHITE,
+      // WHITE, WHITE, WHITE, WHITE,
+      // WHITE, WHITE, WHITE, WHITE,
+    ],
+    vertexNormals: [
+      // Front face (pointing towards +Z)
+      { x: 0.0, y: 0.0, z: 1.0 },
+      { x: 0.0, y: 0.0, z: 1.0 },
+      { x: 0.0, y: 0.0, z: 1.0 },
+      { x: 0.0, y: 0.0, z: 1.0 },
+
+      // Right face (pointing towards +X)
+      { x: 1.0, y: 0.0, z: 0.0 },
+      { x: 1.0, y: 0.0, z: 0.0 },
+      { x: 1.0, y: 0.0, z: 0.0 },
+      { x: 1.0, y: 0.0, z: 0.0 },
+
+      // Back face (pointing towards -Z)
+      { x: 0.0, y: 0.0, z: -1.0 },
+      { x: 0.0, y: 0.0, z: -1.0 },
+      { x: 0.0, y: 0.0, z: -1.0 },
+      { x: 0.0, y: 0.0, z: -1.0 },
+
+      // Left face (pointing towards -X)
+      { x: -1.0, y: 0.0, z: 0.0 },
+      { x: -1.0, y: 0.0, z: 0.0 },
+      { x: -1.0, y: 0.0, z: 0.0 },
+      { x: -1.0, y: 0.0, z: 0.0 },
+
+      // Top face (pointing towards +Y)
+      { x: 0.0, y: 1.0, z: 0.0 },
+      { x: 0.0, y: 1.0, z: 0.0 },
+      { x: 0.0, y: 1.0, z: 0.0 },
+      { x: 0.0, y: 1.0, z: 0.0 },
+
+      // Bottom face (pointing towards -Y)
+      { x: 0.0, y: -1.0, z: 0.0 },
+      { x: 0.0, y: -1.0, z: 0.0 },
+      { x: 0.0, y: -1.0, z: 0.0 },
+      { x: 0.0, y: -1.0, z: 0.0 },
     ],
   }],
 };
