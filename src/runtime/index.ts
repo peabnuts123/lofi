@@ -24,14 +24,22 @@ export interface CartridgeDefinition {
   geometry: GeometryDefinition[],
 }
 
-function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, data: AllowSharedBufferSource, usage: GLenum = gl.STATIC_DRAW): WebGLBuffer {
-  if (bufferType != gl.ARRAY_BUFFER && bufferType !== gl.ELEMENT_ARRAY_BUFFER) {
-    throw new Error(`Invalid buffer type. Expected either 'ARRAY_BUFFER' or 'ELEMENT_ARRAY_BUFFER'`);
+function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, data: AllowSharedBufferSource, usage?: GLenum): WebGLBuffer;
+function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, size: GLsizeiptr, usage?: GLenum): WebGLBuffer;
+function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage: GLenum = gl.STATIC_DRAW): WebGLBuffer {
+  const AllowedBufferTypes: (keyof WebGL2RenderingContext)[] = [
+    'ARRAY_BUFFER',
+    'ELEMENT_ARRAY_BUFFER',
+    'UNIFORM_BUFFER',
+  ];
+  if (!AllowedBufferTypes.some((allowedBufferType) => bufferType === gl[allowedBufferType])) {
+    throw new Error(`Invalid buffer type. Expected one of: ${AllowedBufferTypes.join(', ')}`);
   }
 
   const buffer = gl.createBuffer();
   gl.bindBuffer(bufferType, buffer);
-  gl.bufferData(bufferType, data, usage);
+  gl.bufferData(bufferType, dataOrSize as BufferSource, usage); // @NOTE Type laundering
+  gl.bindBuffer(bufferType, null);
 
   return buffer;
 }
@@ -97,7 +105,6 @@ export class Mesh {
     position: Vector3,
     rotationEuler: Vector3,
     scale: Vector3,
-    camera: Camera,
   ): void {
     quat.fromEuler(this._rotationTmp, rotationEuler.x, rotationEuler.y, rotationEuler.z);
     vec3.set(this._scaleTmp, scale.x, scale.y, scale.z);
@@ -111,8 +118,6 @@ export class Mesh {
     );
 
     gl.useProgram(this.shader.program);
-    // @TODO where the heck should this go
-    gl.uniformMatrix4fv(this.shader.viewProjectionMatrixUniform, false, camera.viewProjectionMatrix);
     gl.uniformMatrix4fv(this.shader.worldMatrixUniform, false, this._worldMatrixTmp);
     gl.bindVertexArray(this.vao);
     gl.drawElements(gl.TRIANGLES, this.definition.faces.length * 3, gl.UNSIGNED_SHORT, 0);
@@ -131,10 +136,17 @@ export class GameObject {
     this.mesh = mesh;
   }
 
-  public draw(gl: WebGL2RenderingContext, camera: Camera): void {
-    this.mesh.draw(gl, this.position, this.rotation, this.scale, camera);
+  public draw(gl: WebGL2RenderingContext): void {
+    this.mesh.draw(gl, this.position, this.rotation, this.scale);
   }
 }
+
+// @TODO IDK man.
+const CameraUboDefinition = {
+  viewProjectionMatrix: null,
+};
+export type CameraUboPropertyName = keyof typeof CameraUboDefinition;
+export const CameraUboPropertyNames = Object.keys(CameraUboDefinition) as CameraUboPropertyName[];
 
 export class Camera {
   public fov: number;
@@ -143,10 +155,12 @@ export class Camera {
   public rotation: Vector3 = { x: 0, y: 0, z: 0 };
   public near: number = 0.1;
   public far: number = 100;
+  public readonly ubo: Ubo<CameraUboPropertyName>;
 
-  public constructor(fov: number, aspectRatio: number) {
+  public constructor(fov: number, aspectRatio: number, ubo: Ubo<CameraUboPropertyName>) {
     this.fov = fov;
     this.aspectRatio = aspectRatio;
+    this.ubo = ubo;
   }
 
   public readonly viewProjectionMatrix = mat4.create();
@@ -155,7 +169,7 @@ export class Camera {
   private readonly _viewMatrixTmp = mat4.create();
   private readonly _projectionMatrixTmp = mat4.create();
 
-  public recalculateViewProjectionMatrix(): void {
+  public recalculateViewProjectionMatrix(gl: WebGL2RenderingContext): void {
     quat.fromEuler(
       this._rotationTmp,
       this.rotation.x,
@@ -179,6 +193,7 @@ export class Camera {
     );
 
     mat4.multiply(this.viewProjectionMatrix, this._projectionMatrixTmp, this._viewMatrixTmp);
+    this.ubo.setProperty(gl, 'viewProjectionMatrix', new Float32Array(this.viewProjectionMatrix));
   }
 
   public pointAt(target: Vector3): void {
@@ -194,12 +209,72 @@ export class Camera {
   }
 }
 
+interface UboBufferProperty {
+  index: number;
+  offset: number;
+}
+export class Ubo<TPropertyName extends string> {
+  private buffer: WebGLBuffer;
+  private propertyInfo: Record<TPropertyName, UboBufferProperty>;
+
+  public constructor(gl: WebGL2RenderingContext, uboIndex: number, propertyNames: TPropertyName[], referenceShader: ShaderProgram) {
+    // Look up UBO size in bytes
+    const blockIndex = gl.getUniformBlockIndex(referenceShader.program, "Camera");
+    const blockSize = gl.getActiveUniformBlockParameter(
+      referenceShader.program,
+      blockIndex,
+      gl.UNIFORM_BLOCK_DATA_SIZE,
+    ) as GLuint;
+
+    // Create uniform buffer
+    this.buffer = createBuffer(gl, gl.UNIFORM_BUFFER, blockSize, gl.DYNAMIC_DRAW);
+    // Set uniform buffer index
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, uboIndex, this.buffer);
+
+    // Look up property indices
+    const uboVariableIndices = gl.getUniformIndices(
+      referenceShader.program,
+      propertyNames,
+    );
+    if (!uboVariableIndices) {
+      throw new Error(`Failed to look up uniform indices for property names: ${propertyNames.join(',')}`);
+    }
+    // Look up property byte offsets
+    const uboVariableOffsets = gl.getActiveUniforms(
+      referenceShader.program,
+      uboVariableIndices,
+      gl.UNIFORM_OFFSET,
+    ) as GLuint[];
+    if (!uboVariableOffsets) {
+      throw new Error(`Failed to look up uniform offsets for property names: ${propertyNames.join(',')}`);
+    }
+
+    // Aggregate indices + offsets into dictionary
+    this.propertyInfo = propertyNames.reduce((curr, next, index) => {
+      curr[next] = {
+        index: uboVariableIndices[index],
+        offset: uboVariableOffsets[index],
+      };
+      return curr;
+    }, {} as Record<TPropertyName, UboBufferProperty>);
+  }
+
+  public setProperty<TValue extends AllowSharedBufferSource>(gl: WebGL2RenderingContext, propertyName: TPropertyName, value: TValue): void {
+    gl.bindBuffer(gl.UNIFORM_BUFFER, this.buffer);
+    gl.bufferSubData(
+      gl.UNIFORM_BUFFER,
+      this.propertyInfo[propertyName].offset,
+      value,
+    );
+    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+  }
+}
+
 export class ShaderProgram {
   public readonly program: WebGLProgram;
   public readonly vertexPositionAttribute: number;
   public readonly vertexColorAttribute: number;
   public readonly worldMatrixUniform: WebGLUniformLocation;
-  public readonly viewProjectionMatrixUniform: WebGLUniformLocation;
 
   public constructor(gl: WebGL2RenderingContext) {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -240,13 +315,12 @@ export class ShaderProgram {
     this.vertexColorAttribute = gl.getAttribLocation(this.program, 'vertexColor');
 
     this.worldMatrixUniform = gl.getUniformLocation(this.program, 'worldMatrix')!;
-    this.viewProjectionMatrixUniform = gl.getUniformLocation(this.program, 'viewProjectionMatrix')!;
 
     if (
       this.vertexPositionAttribute < 0 ||
       this.vertexColorAttribute < 0 ||
-      !this.worldMatrixUniform ||
-      !this.viewProjectionMatrixUniform) {
+      !this.worldMatrixUniform
+    ) {
       throw new Error(`Failed to look up attribute / uniform locations`);
     }
   }
@@ -270,13 +344,15 @@ export class Runtime {
   }
 
   public loadCartridge(cartridge: CartridgeDefinition): void {
-    const shader = new ShaderProgram(this.gl);
-    const debugMesh = new Mesh(this.gl, cartridge.geometry[0], shader);
+    const { gl } = this;
+
+    const shader = new ShaderProgram(gl);
+
+    const debugMesh = new Mesh(gl, cartridge.geometry[0], shader);
     this.debugObject = new GameObject(debugMesh);
-    this.camera = new Camera(90, this.canvas.width / this.canvas.height);
-    this.camera.position.z = 5;
-    this.camera.position = { x: 1, y: 1, z: 1 };
-    this.camera.pointAt({ x: 0, y: 0, z: 0 });
+
+    const cameraUbo = new Ubo(gl, 0, CameraUboPropertyNames, shader);
+    this.camera = new Camera(90, this.canvas.width / this.canvas.height, cameraUbo);
   }
 
   public run(): void {
@@ -285,6 +361,7 @@ export class Runtime {
     }
 
     let lastFrameTime = performance.now();
+    let debug_cameraAngle = 0;
     const draw = (): void => {
       const { gl } = this;
       const camera = this.camera!;
@@ -302,11 +379,20 @@ export class Runtime {
       // gl.frontFace(gl.CCW);
       // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
-      debugObject.rotation.y += 30 * dt;
-      debugObject.rotation.y = debugObject.rotation.y % 360;
+      // debugObject.rotation.y += 30 * dt;
+      // debugObject.rotation.y = debugObject.rotation.y % 360;
 
-      camera.recalculateViewProjectionMatrix();
-      debugObject.draw(gl, camera);
+      debug_cameraAngle += dt * glMatrix.toRadian(30);
+
+      camera.position = {
+        x: 2 * Math.sin(debug_cameraAngle),
+        y: Math.sin(debug_cameraAngle),
+        z: 2 * Math.cos(debug_cameraAngle),
+      };
+      camera.pointAt({ x: 0, y: 0, z: 0 });
+
+      camera.recalculateViewProjectionMatrix(gl);
+      debugObject.draw(gl);
 
       requestAnimationFrame(draw);
     };

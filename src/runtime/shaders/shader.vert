@@ -5,7 +5,11 @@ in vec3 vertexColor;
 out vec3 fragmentColor;
 
 uniform mat4 worldMatrix;
-uniform mat4 viewProjectionMatrix;
+
+// @TODO use an #include for this
+layout(std140) uniform Camera {
+  mat4 viewProjectionMatrix;
+};
 
 void main() {
   fragmentColor = vertexColor;
