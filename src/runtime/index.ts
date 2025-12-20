@@ -147,6 +147,7 @@ const CameraUboDefinition = {
 };
 export type CameraUboPropertyName = keyof typeof CameraUboDefinition;
 export const CameraUboPropertyNames = Object.keys(CameraUboDefinition) as CameraUboPropertyName[];
+export const CameraUboIndex = 1;
 
 export class Camera {
   public fov: number;
@@ -323,6 +324,9 @@ export class ShaderProgram {
     ) {
       throw new Error(`Failed to look up attribute / uniform locations`);
     }
+
+    const cameraUboBlockIndex = gl.getUniformBlockIndex(this.program, "Camera");
+    gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
   }
 }
 
@@ -351,7 +355,7 @@ export class Runtime {
     const debugMesh = new Mesh(gl, cartridge.geometry[0], shader);
     this.debugObject = new GameObject(debugMesh);
 
-    const cameraUbo = new Ubo(gl, 0, CameraUboPropertyNames, shader);
+    const cameraUbo = new Ubo(gl, CameraUboIndex, CameraUboPropertyNames, shader);
     this.camera = new Camera(90, this.canvas.width / this.canvas.height, cameraUbo);
   }
 
