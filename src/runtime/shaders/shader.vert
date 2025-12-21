@@ -1,7 +1,4 @@
 #version 300 es
-/* @TODO */
-// in vec3 light0Position;
-// in vec3 light0Color;
 
 in vec3 vertexPosition;
 in vec3 vertexColor;
@@ -20,6 +17,18 @@ layout(std140) uniform Camera {
   mat4 viewProjectionMatrix;
 };
 
+layout(std140) uniform Lighting {
+  vec3 ambientLightColor;
+  vec3 pointLight0Position;
+  vec3 pointLight0Color;
+  vec3 pointLight1Position;
+  vec3 pointLight1Color;
+  vec3 pointLight2Position;
+  vec3 pointLight2Color;
+  vec3 pointLight3Position;
+  vec3 pointLight3Color;
+};
+
 void main() {
   vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0);
   gl_Position = viewProjectionMatrix * worldPosition;
@@ -27,12 +36,22 @@ void main() {
   fragmentTextureCoord = textureCoord;
 
   // Lighting
-  vec3 mockLightPosition = vec3(2, 1, 2);
-  vec3 mockLightColor = vec3(1, 1, 1);
-  vec3 mockAmbientLightColor = vec3(0.3, 0.3, 0.3);
-
   vec3 worldNormal = normalize(normalMatrix * vertexNormal);
-  vec3 lightDir = normalize(mockLightPosition - worldPosition.xyz);
-  float lightingDiffuse = max(dot(worldNormal, lightDir), 0.0);
-  fragmentLighting = mockAmbientLightColor + (lightingDiffuse * mockLightColor);
+  /* - Light 0 */
+  vec3 light0Dir = normalize(pointLight0Position - worldPosition.xyz);
+  float light0Intensity = max(dot(worldNormal, light0Dir), 0.0);
+  /* - Light 1 */
+  vec3 light1Dir = normalize(pointLight1Position - worldPosition.xyz);
+  float light1Intensity = max(dot(worldNormal, light1Dir), 0.0);
+  /* - Light 2 */
+  vec3 light2Dir = normalize(pointLight2Position - worldPosition.xyz);
+  float light2Intensity = max(dot(worldNormal, light2Dir), 0.0);
+  /* - Light 3 */
+  vec3 light3Dir = normalize(pointLight3Position - worldPosition.xyz);
+  float light3Intensity = max(dot(worldNormal, light3Dir), 0.0);
+  fragmentLighting = ambientLightColor
+    + (light0Intensity * pointLight0Color)
+    + (light1Intensity * pointLight1Color)
+    + (light2Intensity * pointLight2Color)
+    + (light3Intensity * pointLight3Color);
 }

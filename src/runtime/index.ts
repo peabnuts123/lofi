@@ -60,8 +60,61 @@ async function fetchBytes(url: string): Promise<Uint8Array<ArrayBuffer>> {
   }
 }
 
-// @TODO
-export class Light {
+export const LightingUboPropertyNames = [
+  'ambientLightColor',
+  'pointLight0Position',
+  'pointLight0Color',
+  'pointLight1Position',
+  'pointLight1Color',
+  'pointLight2Position',
+  'pointLight2Color',
+  'pointLight3Position',
+  'pointLight3Color',
+] as const;
+export type LightingUboPropertyName = (typeof LightingUboPropertyNames)[number];
+const LightingUboIndex = 2;
+export class Lighting {
+  public static readonly MaxPointLights = 4;
+
+  private readonly ubo: Ubo<LightingUboPropertyName>;
+
+  public ambientColor: Color3;
+  public pointLights: PointLight[];
+
+  public constructor(ubo: Ubo<LightingUboPropertyName>) {
+    this.ubo = ubo;
+    this.pointLights = [];
+    this.ambientColor = { r: 0, g: 0, b: 0 };
+  }
+
+  public recalculateLightingData(gl: WebGL2RenderingContext): void {
+    // Ambient light
+    this.ubo.setProperty(gl, 'ambientLightColor', new Float32Array([this.ambientColor.r, this.ambientColor.g, this.ambientColor.b]));
+
+    // Point lights
+    /* Truncate list of lights */
+    if (this.pointLights.length > Lighting.MaxPointLights) {
+      console.error(`More than ${Lighting.MaxPointLights} active in renderer. This is an error. Pruning...`);
+      this.pointLights.splice(Lighting.MaxPointLights);
+    }
+    /* Bind light data */
+    for (let i = 0; i < Lighting.MaxPointLights; i++) {
+      const light = this.pointLights[i];
+      if (light !== undefined) {
+        /* Light is present */
+        this.ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([light.position.x, light.position.y, light.position.z]));
+        this.ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([light.color.r, light.color.g, light.color.b]));
+      } else {
+        /* Light is empty - disable */
+        this.ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([0, 0, 0]));
+        this.ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([0, 0, 0]));
+      }
+    }
+
+  }
+}
+
+export class PointLight {
   public position: Vector3;
   public color: Color3;
 
@@ -267,12 +320,8 @@ export class GameObject {
   }
 }
 
-// @TODO IDK man.
-const CameraUboDefinition = {
-  viewProjectionMatrix: null,
-};
-export type CameraUboPropertyName = keyof typeof CameraUboDefinition;
-export const CameraUboPropertyNames = Object.keys(CameraUboDefinition) as CameraUboPropertyName[];
+export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
+export type CameraUboPropertyName = (typeof CameraUboPropertyNames)[number];
 export const CameraUboIndex = 1;
 
 export class Camera {
@@ -344,9 +393,9 @@ export class Ubo<TPropertyName extends string> {
   private buffer: WebGLBuffer;
   private propertyInfo: Record<TPropertyName, UboBufferProperty>;
 
-  public constructor(gl: WebGL2RenderingContext, uboIndex: number, propertyNames: TPropertyName[], referenceShader: ShaderProgram) {
+  public constructor(gl: WebGL2RenderingContext, uboName: string, uboIndex: number, propertyNames: readonly TPropertyName[], referenceShader: ShaderProgram) {
     // Look up UBO size in bytes
-    const blockIndex = gl.getUniformBlockIndex(referenceShader.program, "Camera");
+    const blockIndex = gl.getUniformBlockIndex(referenceShader.program, uboName);
     const blockSize = gl.getActiveUniformBlockParameter(
       referenceShader.program,
       blockIndex,
@@ -464,6 +513,8 @@ export class ShaderProgram {
 
     const cameraUboBlockIndex = gl.getUniformBlockIndex(this.program, "Camera");
     gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
+    const lightingUboBlockIndex = gl.getUniformBlockIndex(this.program, "Lighting");
+    gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
   }
 }
 
@@ -471,8 +522,11 @@ export class Runtime {
   private readonly canvas: HTMLCanvasElement;
   private readonly gl: WebGL2RenderingContext;
 
+  private isCartridgeLoaded: boolean = false;
   private camera: Camera | undefined;
+  private lighting: Lighting | undefined;
   private debugObjects: GameObject[] | undefined;
+  private debug_lightFacades: GameObject[] | undefined;
 
   public constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -487,10 +541,42 @@ export class Runtime {
   public async loadCartridge(cartridge: CartridgeDefinition): Promise<void> {
     const { gl } = this;
 
+    this.isCartridgeLoaded = false;
+
+
     const stoneTextureBytes = await fetchBytes('/textures/stones.png');
     const stoneTexture = await Texture.fromBytes(gl, stoneTextureBytes);
 
     const shader = new ShaderProgram(gl);
+
+    const lightingUbo = new Ubo(gl, 'Lighting', LightingUboIndex, LightingUboPropertyNames, shader);
+    this.lighting = new Lighting(lightingUbo);
+    this.lighting.ambientColor = { r: 0.1, g: 0.1, b: 0.1 };
+    const LightDistance = 2.5;
+    this.lighting.pointLights.push(new PointLight(
+      {
+        x: LightDistance * Math.sin(2 * Math.PI * 1 / 3),
+        y: 1,
+        z: LightDistance * Math.cos(2 * Math.PI * 1 / 3),
+      },
+      { r: 1, g: 0, b: 0 },
+    ));
+    this.lighting.pointLights.push(new PointLight(
+      {
+        x: LightDistance * Math.sin(2 * Math.PI * 2 / 3),
+        y: 1,
+        z: LightDistance * Math.cos(2 * Math.PI * 2 / 3),
+      },
+      { r: 0, g: 1, b: 0 },
+    ));
+    this.lighting.pointLights.push(new PointLight(
+      {
+        x: LightDistance * Math.sin(2 * Math.PI * 3 / 3),
+        y: 1,
+        z: LightDistance * Math.cos(2 * Math.PI * 3 / 3),
+      },
+      { r: 0, g: 0, b: 1 },
+    ));
 
     const debugMesh = new Mesh(gl, cartridge.geometry[0], shader, stoneTexture);
     this.debugObjects = [
@@ -522,14 +608,26 @@ export class Runtime {
         return object;
       })(),
     ];
+    this.debug_lightFacades = this.lighting.pointLights.map((light) => {
+      const object = new GameObject(debugMesh);
+      object.position = light.position;
+      object.scale = { x: 0.1, y: 0.1, z: 0.1 };
+      return object;
+    });
 
-
-    const cameraUbo = new Ubo(gl, CameraUboIndex, CameraUboPropertyNames, shader);
+    const cameraUbo = new Ubo(gl, 'Camera', CameraUboIndex, CameraUboPropertyNames, shader);
     this.camera = new Camera(70, this.canvas.width / this.canvas.height, cameraUbo);
+    this.camera.position = {
+      x: 0,
+      y: 1,
+      z: 3.5,
+    };
+
+    this.isCartridgeLoaded = true;
   }
 
   public run(): void {
-    if (!this.camera || !this.debugObjects) {
+    if (!this.isCartridgeLoaded) {
       throw new Error('Cartridge not loaded');
     }
     const { gl } = this;
@@ -538,10 +636,36 @@ export class Runtime {
     // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
     let lastFrameTime = performance.now();
+
+    /* @TODO Mostly a bunch of @DEBUG nonsense */
+    const CameraRotationSpeedDegreesPerSecond = 15;
     let debug_cameraAngle = 0;
+
+    const rotationMatrixTmp = mat4.create();
+    const rotationResultTmp = vec3.create();
+    function rotateVector3(vector: Vector3, degrees: number): void {
+      // Construct rotation matrix
+      mat4.fromYRotation(rotationMatrixTmp, glMatrix.toRadian(degrees));
+      // Load into rotation tmp
+      rotationResultTmp[0] = vector.x;
+      rotationResultTmp[1] = vector.y;
+      rotationResultTmp[2] = vector.z;
+      // Multiply by rotation matrix
+      vec3.transformMat4(rotationResultTmp, rotationResultTmp, rotationMatrixTmp);
+      // Read back into vector
+      vector.x = rotationResultTmp[0];
+      vector.y = rotationResultTmp[1];
+      vector.z = rotationResultTmp[2];
+    }
     const draw = (): void => {
+      if (!this.isCartridgeLoaded) {
+        throw new Error('Cartridge not loaded');
+      }
+
       const camera = this.camera!;
       const debugObjects = this.debugObjects!;
+      const debug_lightFacedes = this.debug_lightFacades!;
+      const lighting = this.lighting!;
 
       const thisFrameTime = performance.now();
       const dt = (thisFrameTime - lastFrameTime) / 1000;
@@ -555,21 +679,26 @@ export class Runtime {
       // gl.frontFace(gl.CCW);
       // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
-      // debugObject.rotation.y += 30 * dt;
-      // debugObject.rotation.y = debugObject.rotation.y % 360;
 
-      debug_cameraAngle += dt * glMatrix.toRadian(15);
+      /* @DEBUG Mostly just fancy demoscene stuff */
+      debug_cameraAngle += dt * glMatrix.toRadian(CameraRotationSpeedDegreesPerSecond);
+      rotateVector3(camera.position, dt * CameraRotationSpeedDegreesPerSecond);
+      camera.position.y = Math.sin(debug_cameraAngle) + 2;
+      camera.pointAt({ x: 0, y: -1, z: 0 });
+      for (const light of lighting.pointLights) {
+        rotateVector3(light.position, dt * 25);
+      }
 
-      camera.position = {
-        x: 3.5 * Math.sin(debug_cameraAngle),
-        y: 2 * Math.sin(debug_cameraAngle) + 1,
-        z: 3.5 * Math.cos(debug_cameraAngle),
-      };
-      camera.pointAt({ x: 0, y: 0, z: 0 });
-
+      // Update UBOs
       camera.recalculateViewProjectionMatrix(gl);
+      lighting.recalculateLightingData(gl);
+
+      // Draw scene
       for (const debugObject of debugObjects) {
         debugObject.draw(gl);
+      }
+      for (const obj of debug_lightFacedes) {
+        obj.draw(gl);
       }
 
       requestAnimationFrame(draw);

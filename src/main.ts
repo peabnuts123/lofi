@@ -89,7 +89,8 @@ const cartridge: CartridgeDefinition = {
       { u: 1.0, v: 1.0 },
       { u: 0.0, v: 1.0 },
     ],
-    vertexColors: [
+    // eslint-disable-next-line no-constant-condition
+    vertexColors: /* RGBCube? */false ? [
       // Front face - RGB cube colors based on position
       { r: 0.0, g: 0.0, b: 1.0 }, // -X, -Y, +Z = Blue
       { r: 1.0, g: 0.0, b: 1.0 }, // +X, -Y, +Z = Magenta
@@ -125,14 +126,13 @@ const cartridge: CartridgeDefinition = {
       { r: 1.0, g: 0.0, b: 0.0 }, // +X, -Y, -Z = Red
       { r: 1.0, g: 0.0, b: 1.0 }, // +X, -Y, +Z = Magenta
       { r: 0.0, g: 0.0, b: 1.0 }, // -X, -Y, +Z = Blue
-
-
-      // WHITE, WHITE, WHITE, WHITE,
-      // WHITE, WHITE, WHITE, WHITE,
-      // WHITE, WHITE, WHITE, WHITE,
-      // WHITE, WHITE, WHITE, WHITE,
-      // WHITE, WHITE, WHITE, WHITE,
-      // WHITE, WHITE, WHITE, WHITE,
+    ] : [
+      WHITE, WHITE, WHITE, WHITE,
+      WHITE, WHITE, WHITE, WHITE,
+      WHITE, WHITE, WHITE, WHITE,
+      WHITE, WHITE, WHITE, WHITE,
+      WHITE, WHITE, WHITE, WHITE,
+      WHITE, WHITE, WHITE, WHITE,
     ],
     vertexNormals: [
       // Front face (pointing towards +Z)
