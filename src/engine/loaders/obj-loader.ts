@@ -74,7 +74,7 @@ export class ObjLoader {
         const importer = new ImporterObj();
         importer.Import("model", ".obj", objFile.bytes, {
           onSuccess() { },
-          getFileBuffer(): Uint8Array<ArrayBuffer> | undefined { return undefined; },
+          getFileBuffer(): Uint8Array | undefined { return undefined; },
           getDefaultLineMaterialColor() { return undefined; },
           getDefaultMaterialColor() { return undefined; },
           onComplete() {
@@ -173,7 +173,7 @@ export class ObjLoader {
         };
       } else {
         // Default material / no material
-        groupedMaterialData[materialIndex] ??= {};
+        groupedMaterialData[materialIndex] ??= { name: 'default' };
       }
     }
 
@@ -196,11 +196,13 @@ export class ObjLoader {
         const triangleData = groupedTriangleData[materialIndex];
         const material = groupedMaterialData[materialIndex];
         return {
-          vertexPositions: getVertexProperty(vertexData, (vertex) => vertex.position)!,
-          vertexColors: getVertexProperty(vertexData, (vertex) => vertex.color),
-          vertexNormals: getVertexProperty(vertexData, (vertex) => vertex.normal),
-          textureCoordinates: getVertexProperty(vertexData, (vertex) => vertex.textureCoordinate),
-          faces: triangleData,
+          geometry: {
+            vertexPositions: getVertexProperty(vertexData, (vertex) => vertex.position)!,
+            vertexColors: getVertexProperty(vertexData, (vertex) => vertex.color),
+            vertexNormals: getVertexProperty(vertexData, (vertex) => vertex.normal),
+            textureCoordinates: getVertexProperty(vertexData, (vertex) => vertex.textureCoordinate),
+            triangles: triangleData,
+          },
           material,
         };
       }),

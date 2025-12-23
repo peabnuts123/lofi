@@ -15,26 +15,23 @@ export const LightingUboPropertyNames = [
   'pointLight3Color',
 ] as const;
 export type LightingUboPropertyName = (typeof LightingUboPropertyNames)[number];
-
+export type LightingUbo = Ubo<LightingUboPropertyName>;
 export const LightingUboIndex = 2;
 
 export class Lighting {
   public static readonly MaxPointLights = 4;
 
-  private readonly ubo: Ubo<LightingUboPropertyName>;
-
   public ambientColor: Color3;
   public pointLights: PointLight[];
 
-  public constructor(ubo: Ubo<LightingUboPropertyName>) {
-    this.ubo = ubo;
+  public constructor() {
     this.pointLights = [];
     this.ambientColor = { r: 0, g: 0, b: 0 };
   }
 
-  public recalculateLightingData(gl: WebGL2RenderingContext): void {
+  public bindToUbo(gl: WebGL2RenderingContext, ubo: LightingUbo): void {
     // Ambient light
-    this.ubo.setProperty(gl, 'ambientLightColor', new Float32Array([this.ambientColor.r, this.ambientColor.g, this.ambientColor.b]));
+    ubo.setProperty(gl, 'ambientLightColor', new Float32Array([this.ambientColor.r, this.ambientColor.g, this.ambientColor.b]));
 
     // Point lights
     /* Truncate list of lights */
@@ -47,12 +44,12 @@ export class Lighting {
       const light = this.pointLights[i];
       if (light !== undefined) {
         /* Light is present */
-        this.ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([light.position.x, light.position.y, light.position.z]));
-        this.ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([light.color.r, light.color.g, light.color.b]));
+        ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([light.position.x, light.position.y, light.position.z]));
+        ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([light.color.r, light.color.g, light.color.b]));
       } else {
         /* Light is empty - disable */
-        this.ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([0, 0, 0]));
-        this.ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([0, 0, 0]));
+        ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([0, 0, 0]));
+        ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([0, 0, 0]));
       }
     }
   }

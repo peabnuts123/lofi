@@ -1,164 +1,103 @@
 import { mat4, vec3, glMatrix } from 'gl-matrix';
 
-import { Lighting, LightingUboIndex, LightingUboPropertyNames, PointLight } from '@polyzone/engine/lighting';
-import { Camera, CameraUboIndex, CameraUboPropertyNames } from '@polyzone/engine/camera';
-import { Mesh, type GeometryDefinition } from '@polyzone/engine/models';
+import { PointLight } from '@polyzone/engine/lighting';
+import { Camera } from '@polyzone/engine/camera';
+import { Model, ModelNode, type ModelDefinition } from '@polyzone/engine/models';
 import type { Vector3 } from '@polyzone/engine/util/vector';
-import { Material, Ubo } from '@polyzone/engine/materials';
-import { GameObject } from '@polyzone/engine/objects';
-import { Texture } from '@polyzone/engine/textures';
-
+import { Engine } from '@polyzone/engine/Engine';
+import { Scene } from '@polyzone/engine/scene';
+import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 
 export interface CartridgeDefinition {
-  geometry: GeometryDefinition[],
-}
-
-export async function fetchBytes(url: string): Promise<Uint8Array<ArrayBuffer>> {
-  const response = await fetch(url);
-  if (response.ok) {
-    return response.bytes();
-  } else {
-    throw new Error(`Failed to get: ${url}`);
-  }
+  models: ModelDefinition[];
 }
 
 export class Runtime {
-  private readonly canvas: HTMLCanvasElement;
-  private readonly gl: WebGL2RenderingContext;
-
-  private isCartridgeLoaded: boolean = false;
+  private engine: Engine | undefined;
   private camera: Camera | undefined;
-  private lighting: Lighting | undefined;
-  private debugObjects: GameObject[] | undefined;
-  private debug_lightFacades: GameObject[] | undefined;
+  private lights: PointLight[] | undefined;
 
-  public constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
-    const gl = this.canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
-    if (gl === null) {
-      throw new Error(`WebGL2 not supported`);
-    }
+  public async loadCartridge(canvas: HTMLCanvasElement, cartridge: CartridgeDefinition): Promise<void> {
+    const fileSystem = new WebFileSystem();
+    const engine = this.engine = new Engine(canvas, fileSystem);
+    const scene = new Scene(engine);
+    scene.lighting.ambientColor = { r: 0.1, g: 0.1, b: 0.1 };
 
-    this.gl = gl;
-  }
+    const camera = this.camera = new Camera('camera', 70, canvas.width / canvas.height);
+    camera.position = { x: 0, y: 1, z: 3.5 };
+    scene.addNode(camera);
 
-  public async loadCartridge(cartridge: CartridgeDefinition): Promise<void> {
-    const { gl } = this;
-
-    this.isCartridgeLoaded = false;
-
-
-    const stoneTextureBytes = await fetchBytes('/textures/stones.png');
-    const stoneTexture = await Texture.fromBytes(gl, stoneTextureBytes);
-
-    const stoneMaterial = new Material(gl, "Stone", {}, stoneTexture);
-
-    const lightingUbo = new Ubo(gl, 'Lighting', LightingUboIndex, LightingUboPropertyNames, stoneMaterial.shader);
-    this.lighting = new Lighting(lightingUbo);
-    this.lighting.ambientColor = { r: 0.1, g: 0.1, b: 0.1 };
     const LightDistance = 2.5;
-    this.lighting.pointLights.push(new PointLight(
+    const lights = this.lights = [] as PointLight[];
+    const light0 = new PointLight(
+      'light0',
       {
         x: LightDistance * Math.sin(2 * Math.PI * 1 / 3),
         y: 2,
         z: LightDistance * Math.cos(2 * Math.PI * 1 / 3),
       },
-      // { r: 1, g: 0, b: 0 },
-      { r: 1, g: 1, b: 1 },
-    ));
-    // this.lighting.pointLights.push(new PointLight(
-    //   {
-    //     x: LightDistance * Math.sin(2 * Math.PI * 2 / 3),
-    //     y: 2,
-    //     z: LightDistance * Math.cos(2 * Math.PI * 2 / 3),
-    //   },
-    //   // { r: 0, g: 1, b: 0 },
-    //   { r: 0.8, g: 0.8, b: 0.8 },
-    // ));
-    // this.lighting.pointLights.push(new PointLight(
-    //   {
-    //     x: LightDistance * Math.sin(2 * Math.PI * 3 / 3),
-    //     y: 2,
-    //     z: LightDistance * Math.cos(2 * Math.PI * 3 / 3),
-    //   },
-    //   { r: 0, g: 0, b: 1 },
-    // ));
+      { r: 1, g: 0, b: 0 },
+    );
+    scene.addNode(light0);
+    lights.push(light0);
+    const light1 = new PointLight(
+      'light1',
+      {
+        x: LightDistance * Math.sin(2 * Math.PI * 2 / 3),
+        y: 2,
+        z: LightDistance * Math.cos(2 * Math.PI * 2 / 3),
+      },
+      { r: 0, g: 1, b: 0 },
+    );
+    scene.addNode(light1);
+    lights.push(light1);
+    const light2 = new PointLight(
+      'light2',
+      {
+        x: LightDistance * Math.sin(2 * Math.PI * 3 / 3),
+        y: 2,
+        z: LightDistance * Math.cos(2 * Math.PI * 3 / 3),
+      },
+      { r: 0, g: 0, b: 1 },
+    );
+    scene.addNode(light2);
+    lights.push(light2);
 
-    const debugMesh = new Mesh(gl, cartridge.geometry[0], stoneMaterial);
-    this.debugObjects = [
-      // (() => {
-      //   const object = new GameObject(debugMesh);
-      //   object.position.x = -1.5;
-      //   return object;
-      // })(),
-      // (() => {
-      //   const object = new GameObject(debugMesh);
-      //   object.position.x = 1.5;
-      //   return object;
-      // })(),
-      // (() => {
-      //   const object = new GameObject(debugMesh);
-      //   object.position.z = -1.5;
-      //   return object;
-      // })(),
-      // (() => {
-      //   const object = new GameObject(debugMesh);
-      //   object.position.z = 1.5;
-      //   return object;
-      // })(),
-      (() => {
-        const object = new GameObject(debugMesh);
-        object.position.y = -1;
-        object.scale.x = 4;
-        object.scale.z = 4;
-        return object;
-      })(),
-      ...cartridge.geometry.slice(1).map((geometry) => {
-        const object = new GameObject(
-          new Mesh(
-            gl,
-            geometry,
-            new Material(
-              gl,
-              geometry.material.name ?? "",
-              geometry.material,
-              undefined,
-            ),
-          ),
-        );
-        object.position.y = -0.5;
-        object.scale = { x: 3, y: 3, z: 3 };
-        return object;
-      }),
-    ];
-    this.debug_lightFacades = this.lighting.pointLights.map((light) => {
-      const object = new GameObject(debugMesh);
-      object.position = light.position;
-      object.scale = { x: 0.1, y: 0.1, z: 0.1 };
-      return object;
-    });
+    // Load models
+    const boxModel = await Model.fromDefinition(engine, cartridge.models[0]);
+    const burgerModel = await Model.fromDefinition(engine, cartridge.models[1]);
 
-    const cameraUbo = new Ubo(gl, 'Camera', CameraUboIndex, CameraUboPropertyNames, stoneMaterial.shader);
-    this.camera = new Camera(50, this.canvas.width / this.canvas.height, cameraUbo);
-    this.camera.position = {
-      x: 0,
-      y: 1,
-      z: 3.5,
-    };
+    // Create @DEBUG objects
+    const eastBox = new ModelNode('east', boxModel);
+    eastBox.position.x = -1.5;
+    scene.addNode(eastBox);
 
-    this.isCartridgeLoaded = true;
+    const westBox = new ModelNode('west', boxModel);
+    westBox.position.x = 1.5;
+    scene.addNode(westBox);
+
+    const southBox = new ModelNode('south', boxModel);
+    southBox.position.z = -1.5;
+    scene.addNode(southBox);
+
+    const northBox = new ModelNode('north', boxModel);
+    northBox.position.z = 1.5;
+    scene.addNode(northBox);
+
+    const ground = new ModelNode('ground', boxModel);
+    ground.position.y = -1;
+    ground.scale.x = 4;
+    ground.scale.z = 4;
+    scene.addNode(ground);
+
+    const burger = new ModelNode('burger', burgerModel);
+    burger.position.y = -0.5;
+    burger.scale = { x: 3, y: 3, z: 3 };
+    scene.addNode(burger);
   }
 
   public run(): void {
-    if (!this.isCartridgeLoaded) {
-      throw new Error('Cartridge not loaded');
-    }
-    const { gl } = this;
-
-    // @TODO ???
-    // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-
-    let lastFrameTime = performance.now();
+    if (!this.engine) throw new Error(`Haven't initialised yet`);
 
     /* @TODO Mostly a bunch of @DEBUG nonsense */
     const CameraRotationSpeedDegreesPerSecond = 15;
@@ -180,54 +119,22 @@ export class Runtime {
       vector.y = rotationResultTmp[1];
       vector.z = rotationResultTmp[2];
     }
-    const draw = (): void => {
-      if (!this.isCartridgeLoaded) {
-        throw new Error('Cartridge not loaded');
-      }
 
+    this.engine.run((dt: number): void => {
       const camera = this.camera!;
-      const debugObjects = this.debugObjects!;
-      const debug_lightFacedes = this.debug_lightFacades!;
-      const lighting = this.lighting!;
+      const lights = this.lights!;
 
-      const thisFrameTime = performance.now();
-      const dt = (thisFrameTime - lastFrameTime) / 1000;
-      lastFrameTime = thisFrameTime;
-
-      gl.clearColor(0.05, 0.05, 0.2, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      gl.enable(gl.DEPTH_TEST);
-      gl.enable(gl.CULL_FACE);
-      // gl.cullFace(gl.BACK);
-      // gl.frontFace(gl.CCW);
-      // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-
-
-      /* @DEBUG Mostly just fancy demoscene stuff */
+      /* Spin / oscillate camera */
       debug_cameraAngle += dt * glMatrix.toRadian(CameraRotationSpeedDegreesPerSecond);
       rotateVector3(camera.position, dt * CameraRotationSpeedDegreesPerSecond);
       camera.position.y = Math.sin(debug_cameraAngle) + 2;
       camera.pointAt({ x: 0, y: -1, z: 0 });
-      for (const light of lighting.pointLights) {
+
+      /* Spin lights */
+      for (const light of lights) {
         rotateVector3(light.position, dt * 25);
       }
-
-      // Update UBOs
-      camera.recalculateViewProjectionMatrix(gl);
-      lighting.recalculateLightingData(gl);
-
-      // Draw scene
-      for (const debugObject of debugObjects) {
-        debugObject.draw(gl);
-      }
-      for (const obj of debug_lightFacedes) {
-        obj.draw(gl);
-      }
-
-      requestAnimationFrame(draw);
-    };
-
-    requestAnimationFrame(draw);
+    });
   }
 }
 

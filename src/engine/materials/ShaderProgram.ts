@@ -1,5 +1,6 @@
 import { CameraUboIndex } from '@polyzone/engine/camera/Camera';
 import { LightingUboIndex } from '@polyzone/engine/lighting/Lighting';
+import type { Engine } from '@polyzone/engine/Engine';
 
 import VertexShaderSource from './shaders/shader.vert?raw';
 import FragmentShaderSource from './shaders/shader.frag?raw';
@@ -20,7 +21,9 @@ export class ShaderProgram {
   public readonly diffuseColorUniform: WebGLUniformLocation;
   public readonly textureSamplerUniform: WebGLUniformLocation | undefined;
 
-  public constructor(gl: WebGL2RenderingContext, name: string, options: ShaderProgramOptions) {
+  public constructor(engine: Engine, name: string, options: ShaderProgramOptions) {
+    const { gl } = engine;
+
     this.name = name;
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);

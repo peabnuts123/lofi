@@ -1,2 +1,3 @@
-export * from './SubMesh';
 export * from './Model';
+export * from './ModelNode';
+export * from './SubMesh';

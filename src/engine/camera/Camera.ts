@@ -1,34 +1,35 @@
 import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 
 import type { Vector3 } from "@polyzone/engine/util/vector";
+import { SceneNode, type ISceneNodeWithPosition, type ISceneNodeWithRotation } from "@polyzone/engine/scene";
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
 
 export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
 export type CameraUboPropertyName = (typeof CameraUboPropertyNames)[number];
+export type CameraUbo = Ubo<CameraUboPropertyName>;
 export const CameraUboIndex = 1;
 
-export class Camera {
+export class Camera extends SceneNode implements ISceneNodeWithPosition, ISceneNodeWithRotation{
   public fov: number;
   public aspectRatio: number;
   public position: Vector3 = { x: 0, y: 0, z: 0 };
   public rotation: Vector3 = { x: 0, y: 0, z: 0 };
   public near: number = 0.1;
   public far: number = 100;
-  public readonly ubo: Ubo<CameraUboPropertyName>;
 
-  public constructor(fov: number, aspectRatio: number, ubo: Ubo<CameraUboPropertyName>) {
+  public constructor(name: string, fov: number, aspectRatio: number) {
+    super(name);
     this.fov = fov;
     this.aspectRatio = aspectRatio;
-    this.ubo = ubo;
   }
 
-  public readonly viewProjectionMatrix = mat4.create();
+  private readonly viewProjectionMatrix = mat4.create();
   private readonly _positionTmp = vec3.create();
   private readonly _rotationTmp = quat.create();
   private readonly _viewMatrixTmp = mat4.create();
   private readonly _projectionMatrixTmp = mat4.create();
 
-  public recalculateViewProjectionMatrix(gl: WebGL2RenderingContext): void {
+  public recalculateViewProjectionMatrix(): void {
     quat.fromEuler(
       this._rotationTmp,
       this.rotation.x,
@@ -52,7 +53,15 @@ export class Camera {
     );
 
     mat4.multiply(this.viewProjectionMatrix, this._projectionMatrixTmp, this._viewMatrixTmp);
-    this.ubo.setProperty(gl, 'viewProjectionMatrix', new Float32Array(this.viewProjectionMatrix));
+  }
+
+  public bindToUbo(gl: WebGL2RenderingContext, ubo: CameraUbo): void {
+    ubo.setProperty(gl, 'viewProjectionMatrix', new Float32Array(this.viewProjectionMatrix));
+  }
+
+  public override onUpdate(dt: number): void {
+    super.onUpdate(dt);
+    this.recalculateViewProjectionMatrix();
   }
 
   public pointAt(target: Vector3): void {

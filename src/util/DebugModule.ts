@@ -349,8 +349,8 @@ export class DebugModule {
       files[`frame_${String(i).padStart(4, '0')}.png`] = data;
     });
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const zipped = zipSync(files) as Uint8Array<ArrayBuffer>;
-    const blob = new Blob([zipped], { type: 'application/zip' });
+    const zipped = zipSync(files);
+    const blob = new Blob([zipped as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
     void this.saveFile(blob, 'frames.zip');
   }
 

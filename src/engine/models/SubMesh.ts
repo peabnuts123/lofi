@@ -1,13 +1,19 @@
 import { mat3, mat4, quat, vec3 } from "gl-matrix";
 
-import type { Material, MaterialDefinition } from "@polyzone/engine/materials/Material";
+import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
 import type { Color3 } from "@polyzone/engine/util/color";
 import type { Vector3 } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
+import type { Engine } from "@polyzone/engine/Engine";
 
 export interface TextureCoordinate {
   u: number;
   v: number;
+}
+
+export interface SubMeshDefinition {
+  geometry: GeometryDefinition;
+  material: MaterialDefinition;
 }
 
 export interface GeometryDefinition {
@@ -15,11 +21,10 @@ export interface GeometryDefinition {
   vertexColors?: Color3[];
   vertexNormals?: Vector3[];
   textureCoordinates?: TextureCoordinate[];
-  faces: number[][];
-  material: MaterialDefinition;
+  triangles: number[][];
 }
 
-export class Mesh {
+export class SubMesh {
   private vao: WebGLVertexArrayObject;
   private definition: GeometryDefinition;
   public material: Material;
@@ -30,9 +35,11 @@ export class Mesh {
   private _rotationTmp = quat.create();
   private _normalTmp = mat3.create();
 
-  public constructor(gl: WebGL2RenderingContext, geometry: GeometryDefinition, material: Material) {
+  public constructor(engine: Engine, geometry: GeometryDefinition, material: Material) {
+    const { gl } = engine;
+
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
-    const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.faces.flat()));
+    const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangles.flat()));
     const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 1, g: 1, b: 1 } as Color3));
     const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexColorData.flatMap(c => [c.r, c.g, c.b])));
     // @TODO If lacking normals, generate some sensible default
@@ -107,12 +114,19 @@ export class Mesh {
     this.material = material;
   }
 
+  public static async fromDefinition(engine: Engine, definition: SubMeshDefinition): Promise<SubMesh> {
+    const material = await Material.fromDefinition(engine, definition.material);
+    return new SubMesh(engine, definition.geometry, material);
+  }
+
   public draw(
-    gl: WebGL2RenderingContext,
+    engine: Engine,
     position: Vector3,
     rotationEuler: Vector3,
     scale: Vector3,
   ): void {
+    const { gl } = engine;
+
     quat.fromEuler(this._rotationTmp, rotationEuler.x, rotationEuler.y, rotationEuler.z);
     vec3.set(this._scaleTmp, scale.x, scale.y, scale.z);
     vec3.set(this._positionTmp, position.x, position.y, position.z);
@@ -145,7 +159,7 @@ export class Mesh {
 
     // Draw
     gl.bindVertexArray(this.vao);
-    gl.drawElements(gl.TRIANGLES, this.definition.faces.length * 3, gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, this.definition.triangles.length * 3, gl.UNSIGNED_SHORT, 0);
     gl.bindVertexArray(null);
   }
 }
