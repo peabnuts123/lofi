@@ -1,5 +1,7 @@
 #version 300 es
 
+#pragma inject(defines)
+
 in vec3 vertexPosition;
 in vec3 vertexColor;
 in vec3 vertexNormal;
@@ -9,6 +11,7 @@ out vec3 fragmentColor;
 out vec2 fragmentTextureCoord;
 out vec3 fragmentLighting;
 
+uniform vec3 diffuseColor;
 uniform mat4 worldMatrix;
 uniform mat3 normalMatrix;
 
@@ -32,7 +35,7 @@ layout(std140) uniform Lighting {
 void main() {
   vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0);
   gl_Position = viewProjectionMatrix * worldPosition;
-  fragmentColor = vertexColor;
+  fragmentColor = vertexColor * diffuseColor;
   fragmentTextureCoord = textureCoord;
 
   // Lighting

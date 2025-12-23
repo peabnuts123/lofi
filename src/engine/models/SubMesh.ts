@@ -1,0 +1,151 @@
+import { mat3, mat4, quat, vec3 } from "gl-matrix";
+
+import type { Material, MaterialDefinition } from "@polyzone/engine/materials/Material";
+import type { Color3 } from "@polyzone/engine/util/color";
+import type { Vector3 } from "@polyzone/engine/util/vector";
+import { createBuffer } from "@polyzone/engine/util/createBuffer";
+
+export interface TextureCoordinate {
+  u: number;
+  v: number;
+}
+
+export interface GeometryDefinition {
+  vertexPositions: Vector3[];
+  vertexColors?: Color3[];
+  vertexNormals?: Vector3[];
+  textureCoordinates?: TextureCoordinate[];
+  faces: number[][];
+  material: MaterialDefinition;
+}
+
+export class Mesh {
+  private vao: WebGLVertexArrayObject;
+  private definition: GeometryDefinition;
+  public material: Material;
+
+  private _worldMatrixTmp = mat4.create();
+  private _positionTmp = vec3.create();
+  private _scaleTmp = vec3.create();
+  private _rotationTmp = quat.create();
+  private _normalTmp = mat3.create();
+
+  public constructor(gl: WebGL2RenderingContext, geometry: GeometryDefinition, material: Material) {
+    const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
+    const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.faces.flat()));
+    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 1, g: 1, b: 1 } as Color3));
+    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexColorData.flatMap(c => [c.r, c.g, c.b])));
+    // @TODO If lacking normals, generate some sensible default
+    const vertexNormalData = geometry.vertexNormals ?? geometry.vertexPositions.map(() => ({ x: 0, y: 0, z: 0 } as Vector3));
+    const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexNormalData.flatMap((n) => [n.x, n.y, n.z])));
+    const vertexTextureCoordinateData = geometry.textureCoordinates ?? geometry.vertexPositions.map(() => ({ u: 0, v: 0 } as TextureCoordinate));
+    const textureCoordinateBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexTextureCoordinateData.flatMap((t) => [t.u, t.v])));
+
+    this.vao = gl.createVertexArray();
+    if (!this.vao) {
+      throw new Error('Failed to create VAO');
+    }
+
+    gl.bindVertexArray(this.vao);
+
+    gl.enableVertexAttribArray(material.shader.vertexPositionAttribute);
+    gl.enableVertexAttribArray(material.shader.vertexColorAttribute);
+    gl.enableVertexAttribArray(material.shader.vertexNormalAttribute);
+    gl.enableVertexAttribArray(material.shader.vertexTextureCoordinateAttribute);
+
+    // Vertex positions
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.vertexAttribPointer(
+      material.shader.vertexPositionAttribute,
+      3,
+      gl.FLOAT,
+      false,
+      3 * Float32Array.BYTES_PER_ELEMENT,
+      0,
+    );
+
+    // Vertex colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.vertexAttribPointer(
+      material.shader.vertexColorAttribute,
+      3,
+      gl.FLOAT,
+      false,
+      3 * Float32Array.BYTES_PER_ELEMENT,
+      0,
+    );
+
+    // Vertex normals
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.vertexAttribPointer(
+      material.shader.vertexNormalAttribute,
+      3,
+      gl.FLOAT,
+      false,
+      3 * Float32Array.BYTES_PER_ELEMENT,
+      0,
+    );
+
+    // Vertex texture coordinates
+    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
+    gl.vertexAttribPointer(
+      material.shader.vertexTextureCoordinateAttribute,
+      2,
+      gl.FLOAT,
+      false,
+      2 * Float32Array.BYTES_PER_ELEMENT,
+      0,
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    // Face indices
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, faceIndexBuffer);
+    gl.bindVertexArray(null);
+
+    this.definition = geometry;
+    this.material = material;
+  }
+
+  public draw(
+    gl: WebGL2RenderingContext,
+    position: Vector3,
+    rotationEuler: Vector3,
+    scale: Vector3,
+  ): void {
+    quat.fromEuler(this._rotationTmp, rotationEuler.x, rotationEuler.y, rotationEuler.z);
+    vec3.set(this._scaleTmp, scale.x, scale.y, scale.z);
+    vec3.set(this._positionTmp, position.x, position.y, position.z);
+
+    mat4.fromRotationTranslationScale(
+      this._worldMatrixTmp,
+      this._rotationTmp,
+      this._positionTmp,
+      this._scaleTmp,
+    );
+
+    gl.useProgram(this.material.shader.program);
+    // World matrix
+    gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, this._worldMatrixTmp);
+    gl.uniform3fv(this.material.shader.diffuseColorUniform, new Float32Array([this.material.diffuseColor.r, this.material.diffuseColor.g, this.material.diffuseColor.b]));
+
+    // Texture
+    if (this.material.diffuseTexture) {
+      const textureIndex = 0;
+      gl.activeTexture(gl.TEXTURE0 + textureIndex);
+      gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTexture.texture);
+      gl.uniform1i(this.material.shader.textureSamplerUniform!, textureIndex);
+    } else {
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    // Lighting
+    mat3.normalFromMat4(this._normalTmp, this._worldMatrixTmp);
+    gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp);
+
+    // Draw
+    gl.bindVertexArray(this.vao);
+    gl.drawElements(gl.TRIANGLES, this.definition.faces.length * 3, gl.UNSIGNED_SHORT, 0);
+    gl.bindVertexArray(null);
+  }
+}

@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
     "skipLibCheck": true,
+    "allowJs": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -13,6 +14,11 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@polyzone/engine/*": ["src/engine/*"],
+    },
 
     /* Linting */
     "strict": true,
@@ -22,5 +28,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "eslint.config.mjs"]
+  "include": [
+    "src",
+    "eslint.config.mjs",
+    "vite.config.ts",
+  ]
 }
