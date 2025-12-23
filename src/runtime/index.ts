@@ -1,8 +1,7 @@
 import { mat4, vec3, glMatrix } from 'gl-matrix';
 
-import { PointLight } from '@polyzone/engine/lighting';
-import { Camera } from '@polyzone/engine/camera';
-import { Model, ModelNode, type ModelDefinition } from '@polyzone/engine/models';
+import { CameraNode, ModelNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { Model, type ModelDefinition } from '@polyzone/engine/models';
 import type { Vector3 } from '@polyzone/engine/util/vector';
 import { Engine } from '@polyzone/engine/Engine';
 import { Scene } from '@polyzone/engine/scene';
@@ -14,8 +13,8 @@ export interface CartridgeDefinition {
 
 export class Runtime {
   private engine: Engine | undefined;
-  private camera: Camera | undefined;
-  private lights: PointLight[] | undefined;
+  private camera: CameraNode | undefined;
+  private lights: PointLightNode[] | undefined;
 
   public async loadCartridge(canvas: HTMLCanvasElement, cartridge: CartridgeDefinition): Promise<void> {
     const fileSystem = new WebFileSystem();
@@ -23,43 +22,34 @@ export class Runtime {
     const scene = new Scene(engine);
     scene.lighting.ambientColor = { r: 0.1, g: 0.1, b: 0.1 };
 
-    const camera = this.camera = new Camera('camera', 70, canvas.width / canvas.height);
+    const camera = this.camera = new CameraNode('camera', 50, canvas.width / canvas.height);
     camera.position = { x: 0, y: 1, z: 3.5 };
     scene.addNode(camera);
 
     const LightDistance = 2.5;
-    const lights = this.lights = [] as PointLight[];
-    const light0 = new PointLight(
-      'light0',
-      {
-        x: LightDistance * Math.sin(2 * Math.PI * 1 / 3),
-        y: 2,
-        z: LightDistance * Math.cos(2 * Math.PI * 1 / 3),
-      },
-      { r: 1, g: 0, b: 0 },
-    );
+    const lights = this.lights = [] as PointLightNode[];
+    const light0 = new PointLightNode('light0', { r: 1, g: 1, b: 1 });
+    light0.position = {
+      x: LightDistance * Math.sin(2 * Math.PI * 1 / 3),
+      y: 2,
+      z: LightDistance * Math.cos(2 * Math.PI * 1 / 3),
+    };
     scene.addNode(light0);
     lights.push(light0);
-    const light1 = new PointLight(
-      'light1',
-      {
-        x: LightDistance * Math.sin(2 * Math.PI * 2 / 3),
-        y: 2,
-        z: LightDistance * Math.cos(2 * Math.PI * 2 / 3),
-      },
-      { r: 0, g: 1, b: 0 },
-    );
+    const light1 = new PointLightNode('light1', { r: 0, g: 1, b: 0 });
+    light1.position = {
+      x: LightDistance * Math.sin(2 * Math.PI * 2 / 3),
+      y: 2,
+      z: LightDistance * Math.cos(2 * Math.PI * 2 / 3),
+    };
     scene.addNode(light1);
     lights.push(light1);
-    const light2 = new PointLight(
-      'light2',
-      {
-        x: LightDistance * Math.sin(2 * Math.PI * 3 / 3),
-        y: 2,
-        z: LightDistance * Math.cos(2 * Math.PI * 3 / 3),
-      },
-      { r: 0, g: 0, b: 1 },
-    );
+    const light2 = new PointLightNode('light2', { r: 0, g: 0, b: 1 });
+    light2.position = {
+      x: LightDistance * Math.sin(2 * Math.PI * 3 / 3),
+      y: 2,
+      z: LightDistance * Math.cos(2 * Math.PI * 3 / 3),
+    };
     scene.addNode(light2);
     lights.push(light2);
 

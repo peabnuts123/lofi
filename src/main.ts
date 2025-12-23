@@ -1,18 +1,19 @@
 import { ObjLoader } from '@polyzone/engine/loaders';
 
 import { Runtime, type CartridgeDefinition } from './runtime';
-import './style.css';
 import { DebugModule } from './util/DebugModule';
 import { WebFileSystem } from './engine/filesystem/WebFileSystem';
 import type { GeometryDefinition } from './engine/models';
+
+import './style.css';
 
 DebugModule.register();
 
 const WHITE = { r: 1, g: 1, b: 1 };
 
-const objLoader = new ObjLoader();
 const filesystem = new WebFileSystem();
-const debug_model = await objLoader.loadModel('/models/burgerCheese.obj', filesystem);
+// const debug_model = await ObjLoader.loadModel('/models/burgerCheese.obj', filesystem);
+const debug_model = await ObjLoader.loadModel('/models/detailDumpster_closed.obj', filesystem);
 const cartridge: CartridgeDefinition = {
   models: [
     /* Ground */

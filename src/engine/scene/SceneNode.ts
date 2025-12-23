@@ -1,22 +1,18 @@
 import type { Vector3 } from "@polyzone/engine/util/vector";
 
-export interface ISceneNodeWithPosition {
-  position: Vector3;
-}
-export interface ISceneNodeWithRotation {
-  rotation: Vector3;
-}
-export interface ISceneNodeWithScale {
-  scale: Vector3;
-}
-
 export abstract class SceneNode {
   public name: string;
+  public position: Vector3;
+  public rotation: Vector3;
+  public scale: Vector3;
   private _parent: SceneNode | undefined;
   private children: SceneNode[];
 
   public constructor(name: string) {
     this.name = name;
+    this.position = { x: 0, y: 0, z: 0 };
+    this.rotation = { x: 0, y: 0, z: 0 };
+    this.scale = { x: 1, y: 1, z: 1 };
     this.children = [];
   }
 

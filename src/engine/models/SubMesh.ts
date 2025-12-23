@@ -122,12 +122,12 @@ export class SubMesh {
   public draw(
     engine: Engine,
     position: Vector3,
-    rotationEuler: Vector3,
+    rotation: Vector3,
     scale: Vector3,
   ): void {
     const { gl } = engine;
 
-    quat.fromEuler(this._rotationTmp, rotationEuler.x, rotationEuler.y, rotationEuler.z);
+    quat.fromEuler(this._rotationTmp, rotation.x, rotation.y, rotation.z);
     vec3.set(this._scaleTmp, scale.x, scale.y, scale.z);
     vec3.set(this._positionTmp, position.x, position.y, position.z);
 

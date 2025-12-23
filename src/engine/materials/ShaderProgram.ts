@@ -1,5 +1,5 @@
-import { CameraUboIndex } from '@polyzone/engine/camera/Camera';
-import { LightingUboIndex } from '@polyzone/engine/lighting/Lighting';
+import { CameraUboIndex } from '@polyzone/engine/scene/nodes/CameraNode';
+import { LightingUboIndex } from '@polyzone/engine/scene/SceneLighting';
 import type { Engine } from '@polyzone/engine/Engine';
 
 import VertexShaderSource from './shaders/shader.vert?raw';

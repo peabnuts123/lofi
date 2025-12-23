@@ -1,7 +1,6 @@
 import { DrawableSceneNode } from "@polyzone/engine/scene";
 import type { Engine } from "@polyzone/engine/Engine";
-
-import type { Model } from "./Model";
+import type { Model } from "@polyzone/engine/models";
 
 export class ModelNode extends DrawableSceneNode {
   private model: Model;

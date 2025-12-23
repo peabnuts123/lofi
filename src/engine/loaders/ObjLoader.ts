@@ -4,7 +4,7 @@ import type { Vector3 } from '@polyzone/engine/util/vector';
 import type { Color3 } from '@polyzone/engine/util/color';
 import type { TextureCoordinate } from '@polyzone/engine/models/SubMesh';
 import type { MaterialDefinition } from '@polyzone/engine/materials/Material';
-import { canonicalisePath } from '@polyzone/engine/util/path';
+import { canonicalisePath, getFileExtension } from '@polyzone/engine/util/path';
 import type { IFileSystem } from '@polyzone/engine/filesystem';
 import type { ModelDefinition } from '@polyzone/engine/models';
 
@@ -14,6 +14,16 @@ interface VertexInfo {
   color: Color3 | undefined;
   textureCoordinate: TextureCoordinate | undefined;
   materialIndex: number;
+}
+
+function canonicaliseDependencyPath(objPath: string, path: string): string {
+  if (path.startsWith('/')) {
+    // `path` is absolute
+    return path;
+  } else {
+    // `path` is relative, resolve it relative to `objPath`
+    return canonicalisePath(`${objPath}/../${path}`);
+  }
 }
 
 function loadVertex(
@@ -65,8 +75,8 @@ function loadVertex(
   });
 }
 
-export class ObjLoader {
-  public async loadModel(objPath: string, filesystem: IFileSystem): Promise<ModelDefinition> {
+export abstract class ObjLoader {
+  public static async loadModel(objPath: string, filesystem: IFileSystem): Promise<ModelDefinition> {
     const objFile = await filesystem.readFile(objPath);
 
     function parseObjFile(callbacks: Partial<ImportCallbacks>): Promise<Model> {
@@ -101,12 +111,15 @@ export class ObjLoader {
       newFilePaths = [];
       parsedModel = await parseObjFile({
         getFileBuffer(filePath: string): Uint8Array | undefined {
-          if (!filePath.startsWith('/')) {
-            // `filePath` is relative, resolve it relative to `objPath`
-            filePath = canonicalisePath(`${objPath}/../${filePath}`);
-          }
+          filePath = canonicaliseDependencyPath(objPath, filePath);
 
-          if (knownFiles[filePath] === undefined) {
+          const fileExt = getFileExtension(filePath).toLocaleLowerCase();
+
+          // @NOTE Only look up .mtl files
+          // We could look up EVERY file here (including textures) and
+          //  they will be parsed, but we don't even use them in this loader
+          //  so it is a waste.
+          if (fileExt === '.mtl' && knownFiles[filePath] === undefined) {
             newFilePaths.push(filePath);
             return undefined;
           } else {
@@ -170,6 +183,9 @@ export class ObjLoader {
             g: parsedModel.materials[materialIndex].color.g / 0xFF,
             b: parsedModel.materials[materialIndex].color.b / 0xFF,
           },
+          diffuseTexturePath: parsedModel.materials[materialIndex].diffuseMap ?
+            canonicaliseDependencyPath(objPath, parsedModel.materials[materialIndex].diffuseMap.name) :
+            undefined,
         };
       } else {
         // Default material / no material

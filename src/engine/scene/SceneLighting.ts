@@ -1,7 +1,7 @@
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
 import type { Color3 } from "@polyzone/engine/util/color";
 
-import type { PointLight } from "./PointLight";
+import type { PointLightNode } from "./nodes/PointLightNode";
 
 export const LightingUboPropertyNames = [
   'ambientLightColor',
@@ -16,13 +16,14 @@ export const LightingUboPropertyNames = [
 ] as const;
 export type LightingUboPropertyName = (typeof LightingUboPropertyNames)[number];
 export type LightingUbo = Ubo<LightingUboPropertyName>;
+export const LightingUboName = 'Lighting';
 export const LightingUboIndex = 2;
 
-export class Lighting {
+export class SceneLighting {
   public static readonly MaxPointLights = 4;
 
   public ambientColor: Color3;
-  public pointLights: PointLight[];
+  public pointLights: PointLightNode[];
 
   public constructor() {
     this.pointLights = [];
@@ -35,12 +36,12 @@ export class Lighting {
 
     // Point lights
     /* Truncate list of lights */
-    if (this.pointLights.length > Lighting.MaxPointLights) {
-      console.error(`More than ${Lighting.MaxPointLights} active in renderer. This is an error. Pruning...`);
-      this.pointLights.splice(Lighting.MaxPointLights);
+    if (this.pointLights.length > SceneLighting.MaxPointLights) {
+      console.error(`More than ${SceneLighting.MaxPointLights} active in renderer. This is an error. Pruning...`);
+      this.pointLights.splice(SceneLighting.MaxPointLights);
     }
     /* Bind light data */
-    for (let i = 0; i < Lighting.MaxPointLights; i++) {
+    for (let i = 0; i < SceneLighting.MaxPointLights; i++) {
       const light = this.pointLights[i];
       if (light !== undefined) {
         /* Light is present */

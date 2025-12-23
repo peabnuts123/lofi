@@ -1,20 +1,21 @@
-import { Camera } from "@polyzone/engine/camera";
 import type { Engine } from "@polyzone/engine/Engine";
-import { Lighting, PointLight } from "@polyzone/engine/lighting";
 
+import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";
 import { DrawableSceneNode } from "./DrawableSceneNode";
+import { CameraNode } from "./nodes/CameraNode";
+import { PointLightNode } from "./nodes/PointLightNode";
 
 export class Scene {
-  public activeCamera: Camera | undefined;
+  public activeCamera: CameraNode | undefined;
   public readonly engine: Engine;
   private topLevelNodes: SceneNode[];
-  public readonly lighting: Lighting;
+  public readonly lighting: SceneLighting;
 
   public constructor(engine: Engine) {
     this.engine = engine;
     this.topLevelNodes = [];
-    this.lighting = new Lighting();
+    this.lighting = new SceneLighting();
 
     if (engine.activeScene === undefined) {
       engine.loadScene(this);
@@ -30,13 +31,13 @@ export class Scene {
       this.topLevelNodes.push(node);
 
       // Always switch to new camera
-      if (node instanceof Camera) {
+      if (node instanceof CameraNode) {
         this.activeCamera = node;
       }
 
       // @TODO @DEBUG This should be based on camera distance or something.
-      if (this.lighting.pointLights.length < Lighting.MaxPointLights) {
-        if (node instanceof PointLight) {
+      if (this.lighting.pointLights.length < SceneLighting.MaxPointLights) {
+        if (node instanceof PointLightNode) {
           this.lighting.pointLights.push(node);
         }
       }

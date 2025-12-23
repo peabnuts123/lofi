@@ -1,1 +1,1 @@
-export * from './obj-loader';
+export * from './ObjLoader';

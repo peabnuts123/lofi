@@ -1,6 +1,6 @@
-import { CameraUboIndex, CameraUboPropertyNames, type CameraUbo } from "./camera";
+import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo } from "./scene/nodes/CameraNode";
 import type { IFileSystem } from "./filesystem";
-import { LightingUboIndex, LightingUboPropertyNames, type LightingUbo } from "./lighting";
+import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { Ubo } from "./materials";
 import type { Scene } from "./scene";
 
@@ -24,8 +24,8 @@ export class Engine {
     this.gl = gl;
 
     // Global UBOs
-    this.cameraUbo = new Ubo(this, 'Camera', CameraUboIndex, CameraUboPropertyNames);
-    this.lightingUbo = new Ubo(this, 'Lighting', LightingUboIndex, LightingUboPropertyNames);
+    this.cameraUbo = new Ubo(this, CameraUboName, CameraUboIndex, CameraUboPropertyNames);
+    this.lightingUbo = new Ubo(this, LightingUboName, LightingUboIndex, LightingUboPropertyNames);
   }
 
   public loadScene(scene: Scene): void {
@@ -35,9 +35,6 @@ export class Engine {
 
   public run(onUpdate: (dt: number) => void): void {
     let lastFrameTime = performance.now();
-
-    // @TODO ???
-    // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
     const tick = (): void => {
       const thisFrameTime = performance.now();
