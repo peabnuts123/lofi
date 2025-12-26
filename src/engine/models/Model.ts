@@ -1,5 +1,5 @@
 import type { Engine } from "@polyzone/engine/Engine";
-import type { Vector3 } from "@polyzone/engine/util/vector";
+import type { mat4 } from "gl-matrix";
 
 import { SubMesh, type SubMeshDefinition } from "./SubMesh";
 
@@ -14,9 +14,9 @@ export class Model {
     this.subMeshes = subMeshes;
   }
 
-  public draw(engine: Engine, position: Vector3, rotation: Vector3, scale: Vector3): void {
+  public draw(engine: Engine, worldMatrix: mat4): void {
     for (const subMesh of this.subMeshes) {
-      subMesh.draw(engine, position, rotation, scale);
+      subMesh.draw(engine, worldMatrix);
     }
   }
 

@@ -22,29 +22,17 @@ export class Scene {
     }
   }
 
-  public addNode(node: SceneNode): void {
+  public addTopLevelNode(node: SceneNode): void {
     if (node.parent !== undefined) {
       throw new Error(`Cannot add node '${node.name}' to scene as top-level node, it is already the child of '${node.parent.name}'`);
     } else if (this.topLevelNodes.some((topLevelNode) => topLevelNode === node)) {
       console.warn(`Tried to add node '${node.name}' to scene as top-level node but it is already a top-level node`);
     } else {
       this.topLevelNodes.push(node);
-
-      // Always switch to new camera
-      if (node instanceof CameraNode) {
-        this.activeCamera = node;
-      }
-
-      // @TODO @DEBUG This should be based on camera distance or something.
-      if (this.lighting.pointLights.length < SceneLighting.MaxPointLights) {
-        if (node instanceof PointLightNode) {
-          this.lighting.pointLights.push(node);
-        }
-      }
     }
   }
 
-  public removeNode(node: SceneNode): void {
+  public removeTopLevelNode(node: SceneNode): void {
     const index = this.topLevelNodes.indexOf(node);
     if (index >= 0) {
       this.topLevelNodes.splice(index, 1);

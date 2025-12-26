@@ -1,4 +1,4 @@
-import type { Color3 } from '@polyzone/engine/util/color';
+import { Color3, type Color3Definition } from '@polyzone/engine/util/color';
 import { Texture } from '@polyzone/engine/textures/Texture';
 import type { Engine } from '@polyzone/engine/Engine';
 
@@ -6,7 +6,7 @@ import { ShaderProgram } from './ShaderProgram';
 
 export interface MaterialDefinition {
   name: string;
-  diffuseColor?: Color3;
+  diffuseColor?: Color3Definition;
   diffuseTexturePath?: string;
 }
 
@@ -24,7 +24,7 @@ export class Material {
 
   private constructor(engine: Engine, name: string, options: MaterialConstructorOptions) {
     this.name = name;
-    this.diffuseColor = options.diffuseColor ?? { r: 1, g: 1, b: 1 };
+    this.diffuseColor = options.diffuseColor ?? new Color3(1, 1, 1);
     this.diffuseTexture = options.diffuseTexture;
     this.shader = new ShaderProgram(engine, name, {
       hasDiffuseTexture: !!options.diffuseTexture,
@@ -35,7 +35,13 @@ export class Material {
     const materialOptions: MaterialConstructorOptions = {};
 
     // Diffuse color
-    materialOptions.diffuseColor = definition.diffuseColor;
+    if (definition.diffuseColor) {
+      materialOptions.diffuseColor = new Color3(
+        definition.diffuseColor.r,
+        definition.diffuseColor.g,
+        definition.diffuseColor.b,
+      );
+    }
 
     // Diffuse texture
     if (definition.diffuseTexturePath) {

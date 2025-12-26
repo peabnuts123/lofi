@@ -1,7 +1,7 @@
 import { ImporterObj, type Mesh, type Triangle, type Model, type Vector2, type ImportCallbacks } from 'online-3d-viewer/source/engine/import/importerobj';
 
-import type { Vector3 } from '@polyzone/engine/util/vector';
-import type { Color3 } from '@polyzone/engine/util/color';
+import type { Vector3Definition } from '@polyzone/engine/util/vector';
+import type { Color3Definition } from '@polyzone/engine/util/color';
 import type { TextureCoordinate } from '@polyzone/engine/models/SubMesh';
 import type { MaterialDefinition } from '@polyzone/engine/materials/Material';
 import { canonicalisePath, getFileExtension } from '@polyzone/engine/util/path';
@@ -9,9 +9,9 @@ import type { IFileSystem } from '@polyzone/engine/filesystem';
 import type { ModelDefinition } from '@polyzone/engine/models';
 
 interface VertexInfo {
-  position: Vector3;
-  normal: Vector3 | undefined;
-  color: Color3 | undefined;
+  position: Vector3Definition;
+  normal: Vector3Definition | undefined;
+  color: Color3Definition | undefined;
   textureCoordinate: TextureCoordinate | undefined;
   materialIndex: number;
 }

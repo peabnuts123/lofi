@@ -47,7 +47,7 @@ export class Engine {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
-      gl.cullFace(gl.BACK);
+      // gl.cullFace(gl.BACK);
       // gl.frontFace(gl.CCW);
       // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 

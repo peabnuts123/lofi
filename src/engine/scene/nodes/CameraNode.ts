@@ -1,7 +1,7 @@
 import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 
 import type { Vector3 } from "@polyzone/engine/util/vector";
-import { SceneNode } from "@polyzone/engine/scene";
+import { Scene, SceneNode } from "@polyzone/engine/scene";
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
 
 export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
@@ -10,7 +10,7 @@ export type CameraUbo = Ubo<CameraUboPropertyName>;
 export const CameraUboName = 'Camera';
 export const CameraUboIndex = 1;
 
-export class CameraNode extends SceneNode  {
+export class CameraNode extends SceneNode {
   public fov: number;
   public aspectRatio: number;
   public near: number = 0.1;
@@ -22,10 +22,13 @@ export class CameraNode extends SceneNode  {
   private readonly _viewMatrixTmp = mat4.create();
   private readonly _projectionMatrixTmp = mat4.create();
 
-  public constructor(name: string, fov: number, aspectRatio: number) {
-    super(name);
+  public constructor(scene: Scene, name: string, fov: number, aspectRatio: number) {
+    super(scene, name);
     this.fov = fov;
     this.aspectRatio = aspectRatio;
+
+    // Always switch to new camera
+    scene.activeCamera = this;
   }
 
   public bindToUbo(gl: WebGL2RenderingContext, ubo: CameraUbo): void {
@@ -39,12 +42,10 @@ export class CameraNode extends SceneNode  {
 
   public pointAt(target: Vector3): void {
     // @TODO use Vector3 API
-    const direction = vec3.create();
-    vec3.subtract(direction, vec3.fromValues(this.position.x, this.position.y, this.position.z), vec3.fromValues(target.x, target.y, target.z));
-    vec3.normalize(direction, direction);
+    const direction = this.position.subtract(target).normalizeSelf();
 
-    const pitch = Math.atan2(-direction[1], Math.sqrt(direction[0] * direction[0] + direction[2] * direction[2]));
-    const yaw = Math.atan2(direction[0], direction[2]);
+    const pitch = Math.atan2(-direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+    const yaw = Math.atan2(direction.x, direction.z);
 
     this.rotation.x = glMatrix.toDegree(pitch);
     this.rotation.y = glMatrix.toDegree(yaw);

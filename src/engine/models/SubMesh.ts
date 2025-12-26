@@ -1,8 +1,8 @@
-import { mat3, mat4, quat, vec3 } from "gl-matrix";
+import { mat3, mat4 } from "gl-matrix";
 
 import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
-import type { Color3 } from "@polyzone/engine/util/color";
-import type { Vector3 } from "@polyzone/engine/util/vector";
+import type { Color3Definition } from "@polyzone/engine/util/color";
+import type { Vector3Definition } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { Engine } from "@polyzone/engine/Engine";
 
@@ -17,9 +17,9 @@ export interface SubMeshDefinition {
 }
 
 export interface GeometryDefinition {
-  vertexPositions: Vector3[];
-  vertexColors?: Color3[];
-  vertexNormals?: Vector3[];
+  vertexPositions: Vector3Definition[];
+  vertexColors?: Color3Definition[];
+  vertexNormals?: Vector3Definition[];
   textureCoordinates?: TextureCoordinate[];
   triangles: number[][];
 }
@@ -29,10 +29,6 @@ export class SubMesh {
   private definition: GeometryDefinition;
   public material: Material;
 
-  private _worldMatrixTmp = mat4.create();
-  private _positionTmp = vec3.create();
-  private _scaleTmp = vec3.create();
-  private _rotationTmp = quat.create();
   private _normalTmp = mat3.create();
 
   public constructor(engine: Engine, geometry: GeometryDefinition, material: Material) {
@@ -40,10 +36,10 @@ export class SubMesh {
 
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
     const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangles.flat()));
-    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 1, g: 1, b: 1 } as Color3));
+    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 1, g: 1, b: 1 } satisfies Color3Definition));
     const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexColorData.flatMap(c => [c.r, c.g, c.b])));
     // @TODO If lacking normals, generate some sensible default
-    const vertexNormalData = geometry.vertexNormals ?? geometry.vertexPositions.map(() => ({ x: 0, y: 0, z: 0 } as Vector3));
+    const vertexNormalData = geometry.vertexNormals ?? geometry.vertexPositions.map(() => ({ x: 0, y: 0, z: 0 } satisfies Vector3Definition));
     const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexNormalData.flatMap((n) => [n.x, n.y, n.z])));
     const vertexTextureCoordinateData = geometry.textureCoordinates ?? geometry.vertexPositions.map(() => ({ u: 0, v: 0 } as TextureCoordinate));
     const textureCoordinateBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexTextureCoordinateData.flatMap((t) => [t.u, t.v])));
@@ -121,26 +117,15 @@ export class SubMesh {
 
   public draw(
     engine: Engine,
-    position: Vector3,
-    rotation: Vector3,
-    scale: Vector3,
+    worldMatrix: mat4,
   ): void {
     const { gl } = engine;
 
-    quat.fromEuler(this._rotationTmp, rotation.x, rotation.y, rotation.z);
-    vec3.set(this._scaleTmp, scale.x, scale.y, scale.z);
-    vec3.set(this._positionTmp, position.x, position.y, position.z);
-
-    mat4.fromRotationTranslationScale(
-      this._worldMatrixTmp,
-      this._rotationTmp,
-      this._positionTmp,
-      this._scaleTmp,
-    );
-
     gl.useProgram(this.material.shader.program);
     // World matrix
-    gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, this._worldMatrixTmp);
+    gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix);
+
+    // Material
     gl.uniform3fv(this.material.shader.diffuseColorUniform, new Float32Array([this.material.diffuseColor.r, this.material.diffuseColor.g, this.material.diffuseColor.b]));
 
     // Texture
@@ -154,7 +139,7 @@ export class SubMesh {
     }
 
     // Lighting
-    mat3.normalFromMat4(this._normalTmp, this._worldMatrixTmp);
+    mat3.normalFromMat4(this._normalTmp, worldMatrix);
     gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp);
 
     // Draw

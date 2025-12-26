@@ -1,5 +1,5 @@
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
-import type { Color3 } from "@polyzone/engine/util/color";
+import { Color3 } from "@polyzone/engine/util/color";
 
 import type { PointLightNode } from "./nodes/PointLightNode";
 
@@ -27,7 +27,7 @@ export class SceneLighting {
 
   public constructor() {
     this.pointLights = [];
-    this.ambientColor = { r: 0, g: 0, b: 0 };
+    this.ambientColor = new Color3(0, 0, 0);
   }
 
   public bindToUbo(gl: WebGL2RenderingContext, ubo: LightingUbo): void {
