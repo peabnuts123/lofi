@@ -669,12 +669,11 @@ export abstract class SceneNode2 {
    * computation.
    */
   private recomputeWorldMatrix(): void {
-    // console.log(`[SceneNode] (recomputeWorldMatrix)`);
     // @NOTE Re-use tmp values as memory optimisation
     // Convert to gl-matrix native types
-    vec3.set(this._positionVecTmp, this.absolutePosition.x, this.absolutePosition.y, this.absolutePosition.z);
-    quat.set(this._rotationQuatTmp, this.absoluteRotation.q.x, this.absoluteRotation.q.y, this.absoluteRotation.q.z, this.absoluteRotation.q.w);
-    vec3.set(this._scaleVecTmp, this.absoluteScale.x, this.absoluteScale.y, this.absoluteScale.z);
+    vec3.set(this._positionVecTmp, this.position.x, this.position.y, this.position.z);
+    quat.set(this._rotationQuatTmp, this.rotation.q.x, this.rotation.q.y, this.rotation.q.z, this.rotation.q.w);
+    vec3.set(this._scaleVecTmp, this.scale.x, this.scale.y, this.scale.z);
 
     // Calculate local matrix
     mat4.fromRotationTranslationScale(
@@ -684,6 +683,14 @@ export abstract class SceneNode2 {
       this._scaleVecTmp,
     );
 
+    if (this.parent) {
+      mat4.multiply(
+        this._worldMatrix,
+        this.parent.worldMatrix,
+        this._worldMatrix,
+      );
+    }
+
     this.worldMatrixIsDirty = false;
   }
 
@@ -692,7 +699,6 @@ export abstract class SceneNode2 {
    * and parent's transform. Clears the dirty flag after computation.
    */
   private recomputeAbsolutePosition(): void {
-    // console.log(`[SceneNode] (recomputeAbsolutePosition)`);
     if (this.parent) {
       // Node is child of another node
       // Recompute position considering parent's position, rotation, scale
@@ -731,7 +737,6 @@ export abstract class SceneNode2 {
    * and parent's transform.
    */
   private recomputeLocalPositionFromParent(): void {
-    // console.log(`[SceneNode] (recomputeLocalPositionFromParent)`);
     if (this.parent !== undefined) {
       // Node is child of another node
       // Recompute local position considering parent's position, rotation, scale
@@ -766,7 +771,6 @@ export abstract class SceneNode2 {
    * and parent's absolute rotation. Clears the dirty flag after computation.
    */
   private recomputeAbsoluteRotation(): void {
-    // console.log(`[SceneNode] (recomputeAbsoluteRotation)`);
     if (this.parent) {
       // @TODO is addition the correct operator here?
       this._absoluteRotation.set(
@@ -786,7 +790,6 @@ export abstract class SceneNode2 {
    * and parent's absolute rotation.
    */
   private recomputeLocalRotationFromParent(): void {
-    // console.log(`[SceneNode] (recomputeLocalRotationFromParent)`);
     if (this.parent !== undefined) {
       // Convert to local
       this.rotation.set(
@@ -807,7 +810,6 @@ export abstract class SceneNode2 {
    * and parent's absolute scale. Clears the dirty flag after computation.
    */
   private recomputeAbsoluteScale(): void {
-    // console.log(`[SceneNode] (recomputeAbsoluteScale)`);
     if (this.parent) {
       this._absoluteScale.setValue(
         this.parent.absoluteScale.multiply(this.scale),
@@ -828,7 +830,6 @@ export abstract class SceneNode2 {
    * for that axis to avoid division by zero, and a warning will be logged.
    */
   private recomputeLocalScaleFromParent(): void {
-    // console.log(`[SceneNode] (recomputeLocalScaleFromParent)`);
     if (this.parent !== undefined) {
       const newScale = new Vector3(1, 1, 1);
       // Avoid division by zero
@@ -909,6 +910,6 @@ export abstract class SceneNode2 {
 }
 
 
-export class SceneNode extends SceneNode1 {}
-// export class SceneNode extends SceneNode2 {}
+// export class SceneNode extends SceneNode1 {}
+export class SceneNode extends SceneNode2 { }
 

@@ -7,6 +7,7 @@ import { Engine } from '@polyzone/engine/Engine';
 import { Scene } from '@polyzone/engine/scene';
 import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/color';
+import { Quaternion } from '@polyzone/engine/util/quaternion';
 
 export interface CartridgeDefinition {
   models: ModelDefinition[];
@@ -162,7 +163,8 @@ export class Runtime {
         for (let j = 0; j < testObjects[i].length; j++) {
           const testObject = testObjects[i][j];
           const uniqueParam = (time + (n / 10));
-          testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
+          // testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
+          testObject.rotation.set(Quaternion.fromAxisAngle(Vector3.up(), (uniqueParam * 360 / 8) % 360));
           testObject.position = new Vector3(
             (i - testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
             -0.5,

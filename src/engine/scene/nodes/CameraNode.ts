@@ -1,9 +1,10 @@
 import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 
-import type { Vector3 } from "@polyzone/engine/util/vector";
+import { Vector3 } from "@polyzone/engine/util/vector";
 import { Scene, SceneNode } from "@polyzone/engine/scene";
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
 import { Flags } from "src/util/constants";
+import { Quaternion } from "@polyzone/engine/util/quaternion";
 
 export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
 export type CameraUboPropertyName = (typeof CameraUboPropertyNames)[number];
@@ -42,14 +43,10 @@ export class CameraNode extends SceneNode {
   }
 
   public pointAt(target: Vector3): void {
-    // @TODO use Vector3 API
     const direction = this.position.subtract(target).normalizeSelf();
-
-    const pitch = Math.atan2(-direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-    const yaw = Math.atan2(direction.x, direction.z);
-
-    this.rotation.x = glMatrix.toDegree(pitch);
-    this.rotation.y = glMatrix.toDegree(yaw);
+    const right = direction.cross(Vector3.up());
+    const up = right.cross(direction);
+    this.rotation.set(Quaternion.fromLookDirection(direction, up));
   }
 
   private recalculateViewProjectionMatrix(): void {

@@ -81,7 +81,6 @@ export class Rotation {
     this.eulerIsDirty = false;
   }
   private recomputeQuaternionFromEuler(): void {
-    // console.log(`[Rotation] (recomputeQuaternionFromEuler)`);
     if (this.eulerIsDirty) {
       throw new Error(`Cannot recompute quaternion from dirty euler value`);
     }
@@ -92,7 +91,6 @@ export class Rotation {
     this.qConjugateIsDirty = true;
   }
   private recomputeQConjugate(): void {
-    // console.log(`[Rotation] (recomputeQConjugate)`);
     this._qConjugate = ReadOnlyQuaternion.from(this.q.conjugate());
     this.qConjugateIsDirty = false;
   }
