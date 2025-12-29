@@ -3,6 +3,7 @@ import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 import type { Vector3 } from "@polyzone/engine/util/vector";
 import { Scene, SceneNode } from "@polyzone/engine/scene";
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
+import { Flags } from "src/util/constants";
 
 export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
 export type CameraUboPropertyName = (typeof CameraUboPropertyNames)[number];
@@ -52,12 +53,22 @@ export class CameraNode extends SceneNode {
   }
 
   private recalculateViewProjectionMatrix(): void {
-    quat.fromEuler(
-      this._rotationTmp,
-      this.rotation.x,
-      this.rotation.y,
-      this.rotation.z,
-    );
+    if (Flags.UseEulernion) {
+      quat.set(
+        this._rotationTmp,
+        this.rotation.q.x,
+        this.rotation.q.y,
+        this.rotation.q.z,
+        this.rotation.q.w,
+      );
+    } else {
+      quat.fromEuler(
+        this._rotationTmp,
+        this.rotation.x,
+        this.rotation.y,
+        this.rotation.z,
+      );
+    }
     vec3.set(this._positionTmp, this.position.x, this.position.y, this.position.z);
     mat4.fromRotationTranslation(
       this._viewMatrixTmp,

@@ -4,7 +4,6 @@ import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";
 import { DrawableSceneNode } from "./DrawableSceneNode";
 import { CameraNode } from "./nodes/CameraNode";
-import { PointLightNode } from "./nodes/PointLightNode";
 
 export class Scene {
   public activeCamera: CameraNode | undefined;

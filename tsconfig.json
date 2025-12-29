@@ -32,5 +32,6 @@
     "src",
     "eslint.config.mjs",
     "vite.config.ts",
+    "vitest.config.ts",
   ]
 }

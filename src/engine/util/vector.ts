@@ -23,19 +23,19 @@ export class Vector3 {
   public setValue(valueOrX: Vector3Definition | number, maybeY: boolean | number = true, maybeZ?: number): void {
     /* Wow sorry for this completely cursed method signature */
     if (typeof valueOrX === 'number' && typeof maybeY === 'number' && typeof maybeZ === 'number') {
-      this._x = valueOrX;
-      this._y = maybeY;
-      this._z = maybeZ;
+      this.x = valueOrX;
+      this.y = maybeY;
+      this.z = maybeZ;
     } else if (typeof valueOrX === 'object') {
-      this._x = valueOrX.x;
-      this._y = valueOrX.y;
-      this._z = valueOrX.z;
+      this.x = valueOrX.x;
+      this.y = valueOrX.y;
+      this.z = valueOrX.z;
     } else {
       throw new Error(`Unrecognised arguments to 'setValue()'`);
     }
   }
 
-  public addSelf(value: AnyVector): Vector3 {
+  public addSelf(value: AnyVector): this {
     this.x += value.x;
     this.y += value.y;
     if ('z' in value) {
@@ -55,7 +55,7 @@ export class Vector3 {
     );
   }
 
-  public subtractSelf(value: AnyVector): Vector3 {
+  public subtractSelf(value: AnyVector): this {
     this.x -= value.x;
     this.y -= value.y;
     if ('z' in value) {
@@ -75,15 +75,14 @@ export class Vector3 {
     );
   }
 
-  public multiplySelf(factor: number): Vector3;
-  public multiplySelf(other: Vector3): Vector3;
-  public multiplySelf(operand: number | Vector3): Vector3 {
+  public multiplySelf(factor: number): this;
+  public multiplySelf(other: Vector3): this;
+  public multiplySelf(operand: number | Vector3): this {
     if (operand instanceof Vector3) {
       this.x *= operand.x;
       this.y *= operand.y;
       this.z *= operand.z;
     } else {
-
       this.x *= operand;
       this.y *= operand;
       this.z *= operand;
@@ -108,9 +107,9 @@ export class Vector3 {
     }
   }
 
-  public divideSelf(factor: number): Vector3;
-  public divideSelf(other: Vector3): Vector3;
-  public divideSelf(operand: number | Vector3): Vector3 {
+  public divideSelf(factor: number): this;
+  public divideSelf(other: Vector3): this;
+  public divideSelf(operand: number | Vector3): this {
     if (operand instanceof Vector3) {
       if (operand.x === 0 || operand.y === 0 || operand.z === 0) {
         throw new Error(`Cannot divide Vector3 by 0: ${operand}`);
@@ -160,7 +159,7 @@ export class Vector3 {
     return this.x * this.x + this.y * this.y + this.z * this.z;
   }
 
-  public normalizeSelf(): Vector3 {
+  public normalizeSelf(): this {
     const length = this.length();
     if (length === 0) {
       this.x = this.y = this.z = 0;
@@ -179,7 +178,7 @@ export class Vector3 {
     return this.divide(length);
   }
 
-  public crossSelf(other: Vector3): Vector3 {
+  public crossSelf(other: Vector3): this {
     const x = this.y * other.z - this.z * other.y;
     const y = this.z * other.x - this.x * other.z;
     const z = this.x * other.y - this.y * other.x;
@@ -245,54 +244,108 @@ export class Vector3 {
 }
 
 /**
- * A Vector3 that has a callback that is fired whenever
+ * A Vector3 with a callback that is fired whenever
  * its value changes.
  */
 export class ObservedVector3 extends Vector3 {
-  private onChange: () => void;
+  private isOnChangeSuspended: boolean = false;
+  protected onChange: () => void;
 
-  public constructor(x: number, y: number, z: number, onChange: (value: Vector3) => void) {
+  public constructor(x: number, y: number, z: number, onChange: () => void) {
     super(x, y, z);
-    this.onChange = () => onChange(new Vector3(this.x, this.y, this.z));
+    this.onChange = () => {
+      if (!this.isOnChangeSuspended) {
+        onChange();
+      }
+    };
   }
 
-  public setValue(x: number, y: number, z: number, notify?: boolean): void;
-  public setValue(value: Vector3Definition, notify?: boolean): void;
-  public setValue(valueOrX: Vector3Definition | number, notifyOrY: boolean | number = true, maybeZ?: number, maybeNotify: boolean = true): void {
+  private mutate<TResult>(notify: boolean, mutator: () => TResult): TResult {
+    this.isOnChangeSuspended = true;
+    const result = mutator();
+    this.isOnChangeSuspended = false;
+    if (notify) {
+      this.onChange();
+    }
+    return result;
+  }
+
+  // =============
+  // Optimised versions of functions to only call `onChange()` once.
+  // =============
+  public override setValue(x: number, y: number, z: number, notify?: boolean): void;
+  public override setValue(value: Vector3Definition, notify?: boolean): void;
+  public override setValue(valueOrX: Vector3Definition | number, notifyOrY: boolean | number = true, maybeZ?: number, maybeNotify: boolean = true): void {
     /* Wow sorry for this completely cursed method signature */
     if (typeof valueOrX === 'number' && typeof notifyOrY === 'number' && typeof maybeZ === 'number' && typeof maybeNotify === 'boolean') {
-      this._x = valueOrX;
-      this._y = notifyOrY;
-      this._z = maybeZ;
-
-      if (maybeNotify) {
-        this.onChange();
-      }
+      return this.mutate(maybeNotify, () =>
+        super.setValue(valueOrX, notifyOrY, maybeZ),
+      );
     } else if (typeof valueOrX === 'object' && typeof notifyOrY === 'boolean') {
-      this._x = valueOrX.x;
-      this._y = valueOrX.y;
-      this._z = valueOrX.z;
-
-      if (notifyOrY) {
-        this.onChange();
-      }
+      return this.mutate(notifyOrY, () =>
+        super.setValue(valueOrX),
+      );
     } else {
       throw new Error(`Unrecognised arguments to 'setValue()'`);
     }
   }
+  public override addSelf(value: AnyVector, notify: boolean = true): this {
+    return this.mutate(notify, () =>
+      super.addSelf(value),
+    );
+  }
+  public override subtractSelf(value: AnyVector, notify: boolean = true): this {
+    return this.mutate(notify, () =>
+      super.subtractSelf(value),
+    );
+  }
+  public override multiplySelf(factor: number, notify?: boolean): this;
+  public override multiplySelf(other: Vector3, notify?: boolean): this;
+  public override multiplySelf(operand: number | Vector3, notify: boolean = true): this {
+    return this.mutate(notify, () => {
+      // TypeScript why are you like this
+      if (operand instanceof Vector3) {
+        return super.multiplySelf(operand);
+      } else {
+        return super.multiplySelf(operand);
+      }
+    });
+  }
+  public override divideSelf(factor: number, notify?: boolean): this;
+  public override divideSelf(other: Vector3, notify?: boolean): this;
+  public override divideSelf(operand: number | Vector3, notify: boolean = true): this {
+    return this.mutate(notify, () => {
+      // TypeScript why are you like this
+      if (operand instanceof Vector3) {
+        return super.divideSelf(operand);
+      } else {
+        return super.divideSelf(operand);
+      }
+    });
+  }
+  public override normalizeSelf(notify: boolean = true): this {
+    return this.mutate(notify, () =>
+      super.normalizeSelf(),
+    );
+  }
+  public override crossSelf(other: Vector3, notify: boolean = true): this {
+    return this.mutate(notify, () =>
+      super.crossSelf(other),
+    );
+  }
 
-  public get x(): number { return this._x; }
-  public set x(value: number) {
+  public override get x(): number { return this._x; }
+  public override set x(value: number) {
     this._x = value;
     this.onChange();
   }
-  public get y(): number { return this._y; }
-  public set y(value: number) {
+  public override get y(): number { return this._y; }
+  public override set y(value: number) {
     this._y = value;
     this.onChange();
   }
-  public get z(): number { return this._z; }
-  public set z(value: number) {
+  public override get z(): number { return this._z; }
+  public override set z(value: number) {
     this._z = value;
     this.onChange();
   }
@@ -313,7 +366,7 @@ export class DirtyVector3 extends ObservedVector3 {
     z: number,
     isDirty: () => boolean,
     refreshValue: () => void,
-    onChange: (value: Vector3) => void,
+    onChange: () => void,
   ) {
     super(x, y, z, onChange);
     this.isDirty = isDirty;
@@ -326,7 +379,10 @@ export class DirtyVector3 extends ObservedVector3 {
     }
     return this._x;
   }
-  public set x(value: number) { this._x = value; }
+  public set x(value: number) {
+    this._x = value;
+    this.onChange();
+  }
 
   public get y(): number {
     if (this.isDirty()) {
@@ -334,7 +390,10 @@ export class DirtyVector3 extends ObservedVector3 {
     }
     return this._y;
   }
-  public set y(value: number) { this._y = value; }
+  public set y(value: number) {
+    this._y = value;
+    this.onChange();
+  }
 
   public get z(): number {
     if (this.isDirty()) {
@@ -342,5 +401,8 @@ export class DirtyVector3 extends ObservedVector3 {
     }
     return this._z;
   }
-  public set z(value: number) { this._z = value; }
+  public set z(value: number) {
+    this._z = value;
+    this.onChange();
+  }
 }

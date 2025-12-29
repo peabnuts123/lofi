@@ -33,13 +33,17 @@ export class Engine {
     this.activeScene = scene;
   }
 
-  public run(onUpdate: (dt: number) => void): void {
+  public run(onUpdate: (dt: number, stop: () => void) => void): void {
     let lastFrameTime = performance.now();
+    let isStopped = false;
+
+    const debug_runStart = performance.now();
+    const debug_frameTimes: number[] = [];
 
     const tick = (): void => {
-      const thisFrameTime = performance.now();
-      const dt = (thisFrameTime - lastFrameTime) / 1000;
-      lastFrameTime = thisFrameTime;
+      const startFrameTime = performance.now();
+      const dt = (startFrameTime - lastFrameTime) / 1000;
+      lastFrameTime = startFrameTime;
 
       const gl = this.gl;
 
@@ -51,11 +55,13 @@ export class Engine {
       // gl.frontFace(gl.CCW);
       // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
+      const debug_startFrame = performance.now();
+
       /* Update internal state first */
       this.activeScene?.onUpdate(dt);
 
       /* Update external (user-controlled) state second */
-      onUpdate(dt);
+      onUpdate(dt, () => isStopped = true);
 
       /* Update global UBOs */
       if (this.activeScene) {
@@ -71,7 +77,21 @@ export class Engine {
       /* Draw scene */
       this.activeScene?.draw();
 
-      requestAnimationFrame(tick);
+      const debug_endFrame = performance.now();
+      const debug_frameTime = debug_endFrame - debug_startFrame;
+      debug_frameTimes.push(debug_frameTime);
+
+      if (!isStopped) {
+        requestAnimationFrame(tick);
+      } else {
+        const debug_runStop = performance.now();
+        const averageFrameTime = debug_frameTimes.reduce((sum, frameTime) => {
+          sum += frameTime;
+          return sum;
+        }, 0) / debug_frameTimes.length;
+        console.log(`[Engine] Stopped.`);
+        console.log(`[DEBUG] Average frame time over ${(debug_runStop - debug_runStart).toFixed(0)}ms: ${averageFrameTime.toFixed(3)})`);
+      }
     };
 
     requestAnimationFrame(tick);

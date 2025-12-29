@@ -11,6 +11,9 @@ import { Color3 } from '@polyzone/engine/util/color';
 export interface CartridgeDefinition {
   models: ModelDefinition[];
 }
+const GridW = 20;
+const GridH = 20;
+const GridSpacing = 0.6;
 
 export class Runtime {
   private engine: Engine | undefined;
@@ -18,7 +21,9 @@ export class Runtime {
   private camera: CameraNode | undefined;
   private lights: PointLightNode[] | undefined;
 
-  private burger: ModelNode | undefined;
+  // private burger: ModelNode | undefined;
+
+  private testObjects: ModelNode[][] | undefined;
 
   public async loadCartridge(canvas: HTMLCanvasElement, cartridge: CartridgeDefinition): Promise<void> {
     const fileSystem = new WebFileSystem();
@@ -59,31 +64,49 @@ export class Runtime {
     const burgerModel = await Model.fromDefinition(engine, cartridge.models[1]);
 
     // Create @DEBUG objects
-    const eastBox = new ModelNode(scene, 'east', boxModel);
-    eastBox.position.x = -1.5;
+    // const eastBox = new ModelNode(scene, 'east', boxModel);
+    // eastBox.position.x = -1.5;
 
-    const westBox = new ModelNode(scene, 'west', boxModel);
-    westBox.position.x = 1.5;
+    // const westBox = new ModelNode(scene, 'west', boxModel);
+    // westBox.position.x = 1.5;
 
-    const southBox = new ModelNode(scene, 'south', boxModel);
-    southBox.position.z = -1.5;
+    // const southBox = new ModelNode(scene, 'south', boxModel);
+    // southBox.position.z = -1.5;
 
-    const northBox = new ModelNode(scene, 'north', boxModel);
-    northBox.position.z = 1.5;
+    // const northBox = new ModelNode(scene, 'north', boxModel);
+    // northBox.position.z = 1.5;
 
     const ground = new ModelNode(scene, 'ground', boxModel);
     ground.position.y = -1;
     ground.scale.x = 4;
     ground.scale.z = 4;
 
-    this.burger = new ModelNode(scene, 'burger', burgerModel);
-    this.burger.position.y = -0.5;
-    this.burger.rotation.y = 40;
-    this.burger.scale = new Vector3(3, 3, 3);
+    // this.burger = new ModelNode(scene, 'burger', burgerModel);
+    // this.burger.position.y = -0.5;
+    // this.burger.rotation.y = 40;
+    // this.burger.scale = new Vector3(3, 3, 3);
 
-    const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-    miniBurger.position = new Vector3(0, -0.5, 1.5);
-    this.burger.addChild(miniBurger);
+    // const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+    // miniBurger.position = new Vector3(0, -0.5, 1.5);
+    // this.burger.addChild(miniBurger);
+
+    this.testObjects = [];
+
+    for (let i = 0; i < GridW; i++) {
+      this.testObjects[i] = [];
+      for (let j = 0; j < GridH; j++) {
+        const burger = new ModelNode(scene, 'burger', burgerModel);
+        this.testObjects[i].push(burger);
+
+        burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, -0.5, (j - GridH / 2) * GridSpacing + 0.5);
+        burger.scale.multiplySelf(1.7);
+
+        const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+        burger.addChild(miniBurger);
+        miniBurger.position = new Vector3(0.2, 0, 0.2);
+        miniBurger.scale.multiplySelf(0.5);
+      }
+    }
   }
 
   public run(): void {
@@ -120,10 +143,13 @@ export class Runtime {
       }
     }
 
-    this.engine.run((dt: number): void => {
+    const MaxRuntimeSeconds = 30;
+
+    this.engine.run((dt, stop): void => {
       const camera = this.camera!;
       const lights = this.lights!;
-      const burger = this.burger!;
+      // const burger = this.burger!;
+      const testObjects = this.testObjects!;
 
       /* Spin / oscillate camera */
       debug_cameraAngle += dt * glMatrix.toRadian(CameraRotationSpeedDegreesPerSecond);
@@ -131,15 +157,31 @@ export class Runtime {
       camera.position.y = Math.sin(debug_cameraAngle) + 2;
       camera.pointAt(new Vector3(0, -1, 0));
 
-      cycleBehaviours(() => {
-        burger.position = Vector3.zero().withY(-0.5);
-        burger.rotation = Vector3.zero();
-        burger.scale = Vector3.one().multiplySelf(2);
-      }, [
-        () => burger.position = new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2),
-        () => burger.rotation.y = (time * 360 / 8) % 360,
-        () => burger.scale = Vector3.one().multiplySelf(Math.sin(time * 2 * Math.PI / 4) + 1.1),
-      ]);
+      let n = 0;
+      for (let i = 0; i < testObjects.length; i++) {
+        for (let j = 0; j < testObjects[i].length; j++) {
+          const testObject = testObjects[i][j];
+          const uniqueParam = (time + (n / 10));
+          testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
+          testObject.position = new Vector3(
+            (i - testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
+            -0.5,
+            (j - testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
+          );
+          testObject.scale = Vector3.one().multiplySelf(Math.sin(uniqueParam) / 3 + 1);
+          n++;
+        }
+      }
+
+      // cycleBehaviours(() => {
+      //   burger.position = Vector3.zero().withY(-0.5);
+      //   // burger.rotation.set(Quaternion.identity());
+      //   burger.scale = Vector3.one().multiplySelf(2);
+      // }, [
+      //   () => burger.rotation.y = (time * 360 / 8) % 360,
+      //   () => burger.position = new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2),
+      //   () => burger.scale = Vector3.one().multiplySelf(Math.sin(time * 2 * Math.PI / 4) + 1.1),
+      // ]);
 
       /* Spin lights */
       for (const light of lights) {
@@ -147,6 +189,10 @@ export class Runtime {
       }
 
       time += dt;
+
+      if (time > MaxRuntimeSeconds) {
+        stop();
+      }
     });
   }
 }
