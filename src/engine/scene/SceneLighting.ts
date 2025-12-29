@@ -45,7 +45,7 @@ export class SceneLighting {
       const light = this.pointLights[i];
       if (light !== undefined) {
         /* Light is present */
-        ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([light.position.x, light.position.y, light.position.z]));
+        ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([light.absolutePosition.x, light.absolutePosition.y, light.absolutePosition.z]));
         ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([light.color.r, light.color.g, light.color.b]));
       } else {
         /* Light is empty - disable */
