@@ -25,12 +25,8 @@ export class Rotation {
   private isOnChangeSuspended: boolean = false;
   private onChange: () => void;
 
-  private debug_name: string;
-
-  public constructor(debug_name: string, { onChange, isDirty, refreshValue }: RotationConstructorArgs) {
+  public constructor({ onChange, isDirty, refreshValue }: RotationConstructorArgs) {
     // Constructor argument default values
-    this.debug_name = debug_name;
-
     this.onChange = () => {
       if (!this.isOnChangeSuspended) {
         onChange?.();

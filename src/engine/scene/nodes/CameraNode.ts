@@ -1,4 +1,4 @@
-import { mat4, quat, vec3 } from "gl-matrix";
+import { mat4 } from "gl-matrix";
 
 import { Vector3 } from "@polyzone/engine/util/vector";
 import { Scene, SceneNode } from "@polyzone/engine/scene";
@@ -19,8 +19,6 @@ export class CameraNode extends SceneNode {
   public far: number = 100;
 
   private readonly viewProjectionMatrix = mat4.create();
-  private readonly _positionTmp = vec3.create();
-  private readonly _rotationTmp = quat.create();
   private readonly _viewMatrixTmp = mat4.create();
   private readonly _projectionMatrixTmp = mat4.create();
 
