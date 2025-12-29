@@ -16,6 +16,10 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: true,
+        /* @NOTE FFS TS / ESlint */
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         tsconfigRootDir: import.meta.dirname,
       },
     },

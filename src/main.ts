@@ -39,36 +39,6 @@ const runtime = new Runtime();
 await runtime.loadCartridge(canvas, cartridge);
 runtime.run();
 
-
-function triangleGeometry(): GeometryDefinition {
-  return {
-    vertexPositions: [
-      { x: 0.0, y: 0.5, z: 0.0 },
-      { x: -0.5, y: -0.5, z: 0.0 },
-      { x: 0.5, y: -0.5, z: 0.0 },
-    ],
-    vertexColors: [
-      // { r: 1, g: 0, b: 0 },
-      // { r: 0, g: 1, b: 0 },
-      // { r: 0, g: 0, b: 1 },
-      WHITE, WHITE, WHITE,
-    ],
-    vertexNormals: [
-      { x: 0, y: 0, z: 1 },
-      { x: 0, y: 0, z: 1 },
-      { x: 0, y: 0, z: 1 },
-    ],
-    textureCoordinates: [
-      { u: 0.5, v: 1.0 },
-      { u: 0.0, v: 0.0 },
-      { u: 1.0, v: 0.0 },
-    ],
-    triangles: [
-      [0, 1, 2],
-    ],
-  };
-}
-
 function cubeGeometry(): GeometryDefinition {
   return {
     vertexPositions: [
