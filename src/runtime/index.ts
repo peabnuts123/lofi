@@ -16,7 +16,13 @@ interface SceneState {
   camera: CameraNode;
   lightOrigin: SceneNode;
   burger: ModelNode;
+  testObjects: ModelNode[][] | undefined;
 }
+
+const TestObjectsEnabled = false;
+const GridW = 20;
+const GridH = 20;
+const GridSpacing = 0.5;
 
 export class Runtime {
   private engine: Engine | undefined;
@@ -97,33 +103,36 @@ export class Runtime {
     burger.scale = new Vector3(3, 3, 3);
 
     const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-    miniBurger.position = new Vector3(0, 0, 1.5);
+    miniBurger.position = new Vector3(0, 0, 0.75);
     burger.addChild(miniBurger);
 
 
-    // this.testObjects = [];
+    let testObjects: ModelNode[][] | undefined = undefined;
+    if (TestObjectsEnabled) {
+      testObjects = [];
+      for (let i = 0; i < GridW; i++) {
+        testObjects[i] = [];
+        for (let j = 0; j < GridH; j++) {
+          const burger = new ModelNode(scene, 'burger', burgerModel);
+          testObjects[i].push(burger);
 
-    // for (let i = 0; i < GridW; i++) {
-    //   this.testObjects[i] = [];
-    //   for (let j = 0; j < GridH; j++) {
-    //     const burger = new ModelNode(scene, 'burger', burgerModel);
-    //     this.testObjects[i].push(burger);
+          burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, -0.5, (j - GridH / 2) * GridSpacing + 0.5);
+          burger.scale.multiplySelf(1.7);
 
-    //     burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, -0.5, (j - GridH / 2) * GridSpacing + 0.5);
-    //     burger.scale.multiplySelf(1.7);
-
-    //     const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-    //     burger.addChild(miniBurger);
-    //     miniBurger.position = new Vector3(0.2, 0, 0.2);
-    //     miniBurger.scale.multiplySelf(0.5);
-    //   }
-    // }
+          const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+          burger.addChild(miniBurger);
+          miniBurger.position = new Vector3(0.2, 0, 0.2);
+          miniBurger.scale.multiplySelf(0.5);
+        }
+      }
+    }
 
     this.scene = {
       burger,
       camera,
       cameraOrigin,
       lightOrigin,
+      testObjects,
     };
   }
 
@@ -150,34 +159,38 @@ export class Runtime {
       const scene = this.scene;
       if (scene === undefined) throw new Error(`State is undefined`);
 
-      /* Spin / oscillate camera */
+      /* Camera */
       scene.cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
       scene.camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 2;
       scene.camera.pointAt(new Vector3(0, 0, 0));
 
-      // let n = 0;
-      // for (let i = 0; i < testObjects.length; i++) {
-      //   for (let j = 0; j < testObjects[i].length; j++) {
-      //     const testObject = testObjects[i][j];
-      //     const uniqueParam = (time + (n / 10));
-      //     // testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
-      //     testObject.rotation.set(Quaternion.fromAxisAngle(Vector3.up(), (uniqueParam * 360 / 8) % 360));
-      //     testObject.position = new Vector3(
-      //       (i - testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
-      //       -0.5,
-      //       (j - testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
-      //     );
-      //     testObject.scale = Vector3.one().multiplySelf(Math.sin(uniqueParam) / 3 + 1);
-      //     n++;
-      //   }
-      // }
+      /* Collection of test objects */
+      if (scene.testObjects !== undefined) {
+        let n = 0;
+        for (let i = 0; i < scene.testObjects.length; i++) {
+          for (let j = 0; j < scene.testObjects[i].length; j++) {
+            const testObject = scene.testObjects[i][j];
+            const uniqueParam = (time + (n / 10));
+            // testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
+            testObject.rotation.set(Quaternion.fromAxisAngle(Vector3.up(), (uniqueParam * 360 / 8) % 360));
+            testObject.position = new Vector3(
+              (i - scene.testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
+              0,
+              (j - scene.testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
+            );
+            testObject.scale = Vector3.one().multiplySelf(Math.sin(uniqueParam) / 3 + 1);
+            n++;
+          }
+        }
+      }
 
+      /* Burger */
       cycleBehaviours(() => {
         scene.burger.position = Vector3.zero();
         scene.burger.rotation.set(Quaternion.identity());
         scene.burger.scale = Vector3.one().multiplySelf(2);
       }, [
-        () => scene.burger.rotation.y = (time * 360 / 8) % 360,
+        () => scene.burger.rotation.y = time * 360 / 8,
         () => scene.burger.position = new Vector3(Math.sin(time) * 2, scene.burger.position.y, Math.cos(time) * 2),
         () => scene.burger.scale = Vector3.one().multiplySelf(Math.sin(time * 2 * Math.PI / 4) + 1.5),
       ]);
