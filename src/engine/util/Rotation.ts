@@ -1,5 +1,5 @@
 import { DirtyQuaternion, Quaternion, ReadOnlyQuaternion } from "./quaternion";
-import { DirtyVector3, Vector3, type Vector3Definition } from "./vector";
+import { EulerVector3, Vector3, type Vector3Definition } from "./vector";
 
 export type RotationOnChangeCallback = () => void;
 
@@ -18,7 +18,7 @@ export class Rotation {
   private _qConjugate: ReadOnlyQuaternion;
 
   private eulerIsDirty: boolean = true;
-  private _euler: DirtyVector3;
+  private _euler: EulerVector3;
 
   private isDirty: () => boolean;
   private refreshValue: () => void;
@@ -48,7 +48,7 @@ export class Rotation {
       },
     );
     this._qConjugate = ReadOnlyQuaternion.from(Quaternion.identity());
-    this._euler = new DirtyVector3(0, 0, 0,
+    this._euler = new EulerVector3(0, 0, 0,
       /* isDirty */() => this.eulerIsDirty,
       /* refreshValue */() => this.recomputeEuler(),
       /* onChange */() => {

@@ -1,3 +1,5 @@
+import { betterModulus } from "./math";
+
 type AnyVector = Vector3;
 
 // @TODO Rename to `Vector3Like`
@@ -334,19 +336,19 @@ export class ObservedVector3 extends Vector3 {
     );
   }
 
-  public override get x(): number { return this._x; }
+  public override get x(): number { return super.x; }
   public override set x(value: number) {
-    this._x = value;
+    super.x = value;
     this.onChange();
   }
-  public override get y(): number { return this._y; }
+  public override get y(): number { return super.y; }
   public override set y(value: number) {
-    this._y = value;
+    super.y = value;
     this.onChange();
   }
-  public override get z(): number { return this._z; }
+  public override get z(): number { return super.z; }
   public override set z(value: number) {
-    this._z = value;
+    super.z = value;
     this.onChange();
   }
 }
@@ -377,32 +379,58 @@ export class DirtyVector3 extends ObservedVector3 {
     if (this.isDirty()) {
       this.refreshValue();
     }
-    return this._x;
+    return super.x;
   }
-  public set x(value: number) {
-    this._x = value;
-    this.onChange();
-  }
+  public set x(value: number) { super.x = value; }
 
   public get y(): number {
     if (this.isDirty()) {
       this.refreshValue();
     }
-    return this._y;
+    return super.y;
   }
-  public set y(value: number) {
-    this._y = value;
-    this.onChange();
-  }
+  public set y(value: number) { super.y = value; }
 
   public get z(): number {
     if (this.isDirty()) {
       this.refreshValue();
     }
-    return this._z;
+    return super.z;
   }
-  public set z(value: number) {
-    this._z = value;
-    this.onChange();
+  public set z(value: number) { super.z = value; }
+}
+
+/**
+ * A Vector3 specifically for expressing Euler rotation angles,
+ * where all xyz components are always wrapped between 0 and 360.
+ */
+export class EulerVector3 extends DirtyVector3 {
+  public constructor(
+    x: number,
+    y: number,
+    z: number,
+    isDirty: () => boolean,
+    refreshValue: () => void,
+    onChange: () => void,
+  ) {
+    super(x, y, z, isDirty, refreshValue, onChange);
+    this._x = betterModulus(x, 360);
+    this._y = betterModulus(y, 360);
+    this._z = betterModulus(z, 360);
+  }
+
+  public override get x(): number { return super.x; }
+  public override set x(value: number) {
+    super.x = betterModulus(value, 360);
+  }
+
+  public override get y(): number { return super.y; }
+  public override set y(value: number) {
+    super.y = betterModulus(value, 360);
+  }
+
+  public override get z(): number { return super.z; }
+  public override set z(value: number) {
+    super.z = betterModulus(value, 360);
   }
 }
