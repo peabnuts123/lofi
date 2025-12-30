@@ -3,6 +3,7 @@ import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { Ubo } from "./materials";
 import type { Scene } from "./scene";
+import { rateCounter } from "./util/debug";
 
 export class Engine {
   private readonly canvas: HTMLCanvasElement;
@@ -40,7 +41,10 @@ export class Engine {
     const debug_runStart = performance.now();
     const debug_frameTimes: number[] = [];
 
+    // Count number of frames drawn per second
+    const fps = rateCounter('FPS');
     const tick = (): void => {
+      fps.count();
       const startFrameTime = performance.now();
       const dt = (startFrameTime - lastFrameTime) / 1000;
       lastFrameTime = startFrameTime;
