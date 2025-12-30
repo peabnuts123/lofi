@@ -36,8 +36,8 @@ export class SubMesh {
 
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
     const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangles.flat()));
-    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 1, g: 1, b: 1 } satisfies Color3Definition));
-    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexColorData.flatMap(c => [c.r, c.g, c.b])));
+    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 255, g: 255, b: 255 } satisfies Color3Definition));
+    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Uint8Array(vertexColorData.flatMap(c => [c.r, c.g, c.b])));
     // @TODO If lacking normals, generate some sensible default
     const vertexNormalData = geometry.vertexNormals ?? geometry.vertexPositions.map(() => ({ x: 0, y: 0, z: 0 } satisfies Vector3Definition));
     const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexNormalData.flatMap((n) => [n.x, n.y, n.z])));
@@ -72,9 +72,9 @@ export class SubMesh {
     gl.vertexAttribPointer(
       material.shader.vertexColorAttribute,
       3,
-      gl.FLOAT,
-      false,
-      3 * Float32Array.BYTES_PER_ELEMENT,
+      gl.UNSIGNED_BYTE,
+      true,
+      3 * Uint8Array.BYTES_PER_ELEMENT,
       0,
     );
 
@@ -126,7 +126,11 @@ export class SubMesh {
     gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix);
 
     // Material
-    gl.uniform3fv(this.material.shader.diffuseColorUniform, new Float32Array([this.material.diffuseColor.r, this.material.diffuseColor.g, this.material.diffuseColor.b]));
+    gl.uniform3fv(this.material.shader.diffuseColorUniform, new Float32Array([
+      this.material.diffuseColor.r / 255,
+      this.material.diffuseColor.g / 255,
+      this.material.diffuseColor.b / 255,
+    ]));
 
     // Texture
     if (this.material.diffuseTexture) {

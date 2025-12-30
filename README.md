@@ -13,7 +13,7 @@ These items are roughly in priority order.
   - [x] ~~Transform hierarchy~~
   - [x] ~~`Rotation` as a type that deals with quaternions OR euler angles?~~
   - [x] ~~Rotation vectors wrap somehow~~
-  - [ ] Interface for colors is 0xFF, shader receives [0..1] (use `normalized` prop in gl calls)
+  - [x] ~~Interface for colors is 0xFF, shader receives [0..1] (use `normalized` prop in gl calls)~~
   - [ ] Transparency in rendering
   - [ ] Picking / ray casting
   - [ ] 3D Animation including bones
@@ -36,3 +36,4 @@ These items are roughly in priority order.
   - Build in 3d primitives e.g. cube, sphere, etc.
   - Lights based on camera proximity (or is this a PolyZone feature?)
   - A second param for `addChild()` that lets you mutate the child
+  - Autogenerate normals for meshes lacking them

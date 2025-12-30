@@ -32,7 +32,11 @@ export class SceneLighting {
 
   public bindToUbo(gl: WebGL2RenderingContext, ubo: LightingUbo): void {
     // Ambient light
-    ubo.setProperty(gl, 'ambientLightColor', new Float32Array([this.ambientColor.r, this.ambientColor.g, this.ambientColor.b]));
+    ubo.setProperty(gl, 'ambientLightColor', new Float32Array([
+      this.ambientColor.r / 0xFF,
+      this.ambientColor.g / 0xFF,
+      this.ambientColor.b / 0xFF,
+    ]));
 
     // Point lights
     /* Truncate list of lights */
@@ -45,8 +49,16 @@ export class SceneLighting {
       const light = this.pointLights[i];
       if (light !== undefined) {
         /* Light is present */
-        ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([light.absolutePosition.x, light.absolutePosition.y, light.absolutePosition.z]));
-        ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([light.color.r, light.color.g, light.color.b]));
+        ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([
+          light.absolutePosition.x,
+          light.absolutePosition.y,
+          light.absolutePosition.z,
+        ]));
+        ubo.setProperty(gl, `pointLight${i}Color` as LightingUboPropertyName, new Float32Array([
+          light.color.r / 0xFF,
+          light.color.g / 0xFF,
+          light.color.b / 0xFF,
+        ]));
       } else {
         /* Light is empty - disable */
         ubo.setProperty(gl, `pointLight${i}Position` as LightingUboPropertyName, new Float32Array([0, 0, 0]));

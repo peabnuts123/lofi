@@ -81,12 +81,12 @@ export class Color3 {
     this._b = value;
   }
 
-  // public static white(): Color3 { return new Color3(0xFF, 0xFF, 0xFF); }
-  // public static black(): Color3 { return new Color3(0, 0, 0); }
-  // public static red(): Color3 { return new Color3(0xFF, 0, 0); }
-  // public static green(): Color3 { return new Color3(0, 0xFF, 0); }
-  // public static blue(): Color3 { return new Color3(0, 0, 0xFF); }
-  // public static yellow(): Color3 { return new Color3(0xFF, 0xFF, 0); }
-  // public static fuchsia(): Color3 { return new Color3(0xFF, 0, 0xFF); }
-  // public static cyan(): Color3 { return new Color3(0, 0xFF, 0xFF); }
+  public static white(): Color3 { return new Color3(0xFF, 0xFF, 0xFF); }
+  public static black(): Color3 { return new Color3(0, 0, 0); }
+  public static red(): Color3 { return new Color3(0xFF, 0, 0); }
+  public static green(): Color3 { return new Color3(0, 0xFF, 0); }
+  public static blue(): Color3 { return new Color3(0, 0, 0xFF); }
+  public static yellow(): Color3 { return new Color3(0xFF, 0xFF, 0); }
+  public static fuchsia(): Color3 { return new Color3(0xFF, 0, 0xFF); }
+  public static cyan(): Color3 { return new Color3(0, 0xFF, 0xFF); }
 }

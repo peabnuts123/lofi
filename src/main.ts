@@ -9,7 +9,7 @@ import './style.css';
 
 DebugModule.register();
 
-const WHITE = { r: 1, g: 1, b: 1 };
+const WHITE = { r: 0xFF, g: 0xFF, b: 0xFF };
 
 const filesystem = new WebFileSystem();
 const debug_model = await ObjLoader.loadModel('/models/burgerCheese.obj', filesystem);
@@ -126,40 +126,40 @@ function cubeGeometry(): GeometryDefinition {
     // eslint-disable-next-line no-constant-condition
     vertexColors: /* RGBCube? */false ? [
       // Front face - RGB cube colors based on position
-      { r: 0.0, g: 0.0, b: 1.0 }, // -X, -Y, +Z = Blue
-      { r: 1.0, g: 0.0, b: 1.0 }, // +X, -Y, +Z = Magenta
-      { r: 1.0, g: 1.0, b: 1.0 }, // +X, +Y, +Z = White
-      { r: 0.0, g: 1.0, b: 1.0 }, // -X, +Y, +Z = Cyan
+      { r: 0x00, g: 0x00, b: 0xFF }, // -X, -Y, +Z = Blue
+      { r: 0xFF, g: 0x00, b: 0xFF }, // +X, -Y, +Z = Magenta
+      { r: 0xFF, g: 0xFF, b: 0xFF }, // +X, +Y, +Z = White
+      { r: 0x00, g: 0xFF, b: 0xFF }, // -X, +Y, +Z = Cyan
 
       // Right face
-      { r: 1.0, g: 0.0, b: 1.0 }, // +X, -Y, +Z = Magenta
-      { r: 1.0, g: 0.0, b: 0.0 }, // +X, -Y, -Z = Red
-      { r: 1.0, g: 1.0, b: 0.0 }, // +X, +Y, -Z = Yellow
-      { r: 1.0, g: 1.0, b: 1.0 }, // +X, +Y, +Z = White
+      { r: 0xFF, g: 0x00, b: 0xFF }, // +X, -Y, +Z = Magenta
+      { r: 0xFF, g: 0x00, b: 0x00 }, // +X, -Y, -Z = Red
+      { r: 0xFF, g: 0xFF, b: 0x00 }, // +X, +Y, -Z = Yellow
+      { r: 0xFF, g: 0xFF, b: 0xFF }, // +X, +Y, +Z = White
 
       // Back face
-      { r: 1.0, g: 0.0, b: 0.0 }, // +X, -Y, -Z = Red
-      { r: 0.0, g: 0.0, b: 0.0 }, // -X, -Y, -Z = Black
-      { r: 0.0, g: 1.0, b: 0.0 }, // -X, +Y, -Z = Green
-      { r: 1.0, g: 1.0, b: 0.0 }, // +X, +Y, -Z = Yellow
+      { r: 0xFF, g: 0x00, b: 0x00 }, // +X, -Y, -Z = Red
+      { r: 0x00, g: 0x00, b: 0x00 }, // -X, -Y, -Z = Black
+      { r: 0x00, g: 0xFF, b: 0x00 }, // -X, +Y, -Z = Green
+      { r: 0xFF, g: 0xFF, b: 0x00 }, // +X, +Y, -Z = Yellow
 
       // Left face
-      { r: 0.0, g: 0.0, b: 0.0 }, // -X, -Y, -Z = Black
-      { r: 0.0, g: 0.0, b: 1.0 }, // -X, -Y, +Z = Blue
-      { r: 0.0, g: 1.0, b: 1.0 }, // -X, +Y, +Z = Cyan
-      { r: 0.0, g: 1.0, b: 0.0 }, // -X, +Y, -Z = Green
+      { r: 0x00, g: 0x00, b: 0x00 }, // -X, -Y, -Z = Black
+      { r: 0x00, g: 0x00, b: 0xFF }, // -X, -Y, +Z = Blue
+      { r: 0x00, g: 0xFF, b: 0xFF }, // -X, +Y, +Z = Cyan
+      { r: 0x00, g: 0xFF, b: 0x00 }, // -X, +Y, -Z = Green
 
       // Top face
-      { r: 0.0, g: 1.0, b: 1.0 }, // -X, +Y, +Z = Cyan
-      { r: 1.0, g: 1.0, b: 1.0 }, // +X, +Y, +Z = White
-      { r: 1.0, g: 1.0, b: 0.0 }, // +X, +Y, -Z = Yellow
-      { r: 0.0, g: 1.0, b: 0.0 }, // -X, +Y, -Z = Green
+      { r: 0x00, g: 0xFF, b: 0xFF }, // -X, +Y, +Z = Cyan
+      { r: 0xFF, g: 0xFF, b: 0xFF }, // +X, +Y, +Z = White
+      { r: 0xFF, g: 0xFF, b: 0x00 }, // +X, +Y, -Z = Yellow
+      { r: 0x00, g: 0xFF, b: 0x00 }, // -X, +Y, -Z = Green
 
       // Bottom face
-      { r: 0.0, g: 0.0, b: 0.0 }, // -X, -Y, -Z = Black
-      { r: 1.0, g: 0.0, b: 0.0 }, // +X, -Y, -Z = Red
-      { r: 1.0, g: 0.0, b: 1.0 }, // +X, -Y, +Z = Magenta
-      { r: 0.0, g: 0.0, b: 1.0 }, // -X, -Y, +Z = Blue
+      { r: 0x00, g: 0x00, b: 0x00 }, // -X, -Y, -Z = Black
+      { r: 0xFF, g: 0x00, b: 0x00 }, // +X, -Y, -Z = Red
+      { r: 0xFF, g: 0x00, b: 0xFF }, // +X, -Y, +Z = Magenta
+      { r: 0x00, g: 0x00, b: 0xFF }, // -X, -Y, +Z = Blue
     ] : [
       WHITE, WHITE, WHITE, WHITE,
       WHITE, WHITE, WHITE, WHITE,

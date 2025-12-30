@@ -33,7 +33,7 @@ export class Runtime {
     const fileSystem = new WebFileSystem();
     const engine = this.engine = new Engine(canvas, fileSystem);
     const scene = new Scene(engine);
-    scene.lighting.ambientColor = new Color3(0.1, 0.1, 0.1);
+    scene.lighting.ambientColor = new Color3(30, 30, 30);
 
     // Load models
     const boxModel = await Model.fromDefinition(engine, cartridge.models[0]);
@@ -47,21 +47,21 @@ export class Runtime {
 
     const LightDistance = 2.5;
     const lightOrigin = new ObjectNode(scene, 'light_origin');
-    const light0 = new PointLightNode(scene, 'light0', new Color3(1, 0, 0));
+    const light0 = new PointLightNode(scene, 'light0', Color3.red());
     light0.position = new Vector3(
       LightDistance * Math.sin(2 * Math.PI * 0.2 / 3),
       2,
       LightDistance * Math.cos(2 * Math.PI * 1 / 3),
     );
     lightOrigin.addChild(light0);
-    const light1 = new PointLightNode(scene, 'light1', new Color3(0, 1, 0));
+    const light1 = new PointLightNode(scene, 'light1', Color3.green());
     light1.position = new Vector3(
       LightDistance * Math.sin(2 * Math.PI * 2 / 3),
       2,
       LightDistance * Math.cos(2 * Math.PI * 2 / 3),
     );
     lightOrigin.addChild(light1);
-    const light2 = new PointLightNode(scene, 'light2', new Color3(0, 0, 1));
+    const light2 = new PointLightNode(scene, 'light2', Color3.blue());
     light2.position = new Vector3(
       LightDistance * Math.sin(2 * Math.PI * 3 / 3),
       2,

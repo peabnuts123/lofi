@@ -144,8 +144,6 @@ export abstract class ObjLoader {
       }
     } while (newFilePaths.length > 0);
 
-    console.log(`[DEBUG] [ObjLoader] (loadModel) parsedModel:`, parsedModel);
-
     // @NOTE @ASSUMPTION: objects always have exactly 1 root mesh
     // @TODO they probably don't. There's no harm in iterating through them, since we are just returning
     //  a collection of submeshes anyway.
@@ -179,9 +177,9 @@ export abstract class ObjLoader {
         groupedMaterialData[materialIndex] ??= {
           name: parsedModel.materials[materialIndex].name,
           diffuseColor: {
-            r: parsedModel.materials[materialIndex].color.r / 0xFF,
-            g: parsedModel.materials[materialIndex].color.g / 0xFF,
-            b: parsedModel.materials[materialIndex].color.b / 0xFF,
+            r: parsedModel.materials[materialIndex].color.r,
+            g: parsedModel.materials[materialIndex].color.g,
+            b: parsedModel.materials[materialIndex].color.b,
           },
           diffuseTexturePath: parsedModel.materials[materialIndex].diffuseMap ?
             canonicaliseDependencyPath(objPath, parsedModel.materials[materialIndex].diffuseMap.name) :

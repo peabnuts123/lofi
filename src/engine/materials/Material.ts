@@ -24,7 +24,7 @@ export class Material {
 
   private constructor(engine: Engine, name: string, options: MaterialConstructorOptions) {
     this.name = name;
-    this.diffuseColor = options.diffuseColor ?? new Color3(1, 1, 1);
+    this.diffuseColor = options.diffuseColor ?? Color3.white();
     this.diffuseTexture = options.diffuseTexture;
     this.shader = new ShaderProgram(engine, name, {
       hasDiffuseTexture: !!options.diffuseTexture,
