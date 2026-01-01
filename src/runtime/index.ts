@@ -4,7 +4,7 @@ import { Vector3 } from '@polyzone/engine/util/vector';
 import { Engine } from '@polyzone/engine/Engine';
 import { Scene, SceneNode } from '@polyzone/engine/scene';
 import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
-import { Color3 } from '@polyzone/engine/util/color';
+import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
 
@@ -45,26 +45,26 @@ export class Runtime {
     camera.pointAt(new Vector3(0, 0, 0));
     cameraOrigin.addChild(camera);
 
-    const LightDistance = 2.5;
+    const LightDistance = 5;
     const lightOrigin = new ObjectNode(scene, 'light_origin');
     const light0 = new PointLightNode(scene, 'light0', Color3.red());
     light0.position = new Vector3(
       LightDistance * Math.sin(2 * Math.PI * 0.2 / 3),
-      2,
+      LightDistance,
       LightDistance * Math.cos(2 * Math.PI * 1 / 3),
     );
     lightOrigin.addChild(light0);
     const light1 = new PointLightNode(scene, 'light1', Color3.green());
     light1.position = new Vector3(
       LightDistance * Math.sin(2 * Math.PI * 2 / 3),
-      2,
+      LightDistance,
       LightDistance * Math.cos(2 * Math.PI * 2 / 3),
     );
     lightOrigin.addChild(light1);
     const light2 = new PointLightNode(scene, 'light2', Color3.blue());
     light2.position = new Vector3(
       LightDistance * Math.sin(2 * Math.PI * 3 / 3),
-      2,
+      LightDistance,
       LightDistance * Math.cos(2 * Math.PI * 3 / 3),
     );
     lightOrigin.addChild(light2);
@@ -126,6 +126,29 @@ export class Runtime {
         }
       }
     }
+
+    /* @NOTE Blending test stuff */
+    const blendingModel_average = await Model.fromDefinition(engine, cartridge.models[2]);
+    const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel_average);
+    blendingAverage.position.x = 1.5;
+    blendingAverage.position.y = 0.5;
+    blendingAverage.position.z = 1.5;
+    const blendingModel_additive = await Model.fromDefinition(engine, cartridge.models[3]);
+    const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel_additive);
+    blendingAdditive.position.x = -1.5;
+    blendingAdditive.position.y = 0.5;
+    blendingAdditive.position.z = 1.5;
+    const blendingModel_subtractive = await Model.fromDefinition(engine, cartridge.models[4]);
+    const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel_subtractive);
+    blendingSubtractive.position.x = 1.5;
+    blendingSubtractive.position.y = 0.5;
+    blendingSubtractive.position.z = -1.5;
+    const blendingModel_sourceAlpha = await Model.fromDefinition(engine, cartridge.models[5]);
+    const blendingSourceAlpha = new ModelNode(scene, 'blending_sourceAlpha', blendingModel_sourceAlpha);
+    blendingSourceAlpha.position.x = -1.5;
+    blendingSourceAlpha.position.y = 0.5;
+    blendingSourceAlpha.position.z = -1.5;
+
 
     this.scene = {
       burger,

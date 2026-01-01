@@ -1,12 +1,25 @@
 import { CameraUboIndex } from '@polyzone/engine/scene/nodes/CameraNode';
 import { LightingUboIndex } from '@polyzone/engine/scene/SceneLighting';
 import type { Engine } from '@polyzone/engine/Engine';
+import type { Enum } from '@polyzone/engine/util/enum';
 
 import VertexShaderSource from './shaders/shader.vert?raw';
 import FragmentShaderSource from './shaders/shader.frag?raw';
 
+export const ShaderBlendingMode = {
+  None: 0,
+  Average: 1,
+  Additive: 2,
+  Subtractive: 3,
+  SourceAlpha: 4,
+} as const;
+export type ShaderBlendingMode = Enum<typeof ShaderBlendingMode>;
+
 export interface ShaderProgramOptions {
   hasDiffuseTexture: boolean;
+  blendingMode: ShaderBlendingMode;
+  blackIsTransparent: boolean;
+  unlit: boolean;
 }
 
 export class ShaderProgram {
@@ -20,6 +33,7 @@ export class ShaderProgram {
   public readonly normalMatrixUniform: WebGLUniformLocation;
   public readonly diffuseColorUniform: WebGLUniformLocation;
   public readonly textureSamplerUniform: WebGLUniformLocation | undefined;
+  public readonly blendingMode: ShaderBlendingMode;
 
   public constructor(engine: Engine, name: string, options: ShaderProgramOptions) {
     const { gl } = engine;
@@ -36,7 +50,7 @@ export class ShaderProgram {
     function inject(name: string, injected: string, src: string): string {
       return src.replace(new RegExp(`#pragma\\s+inject\\s*\\(\\s*${name}\\s*\\)\\s*$`, "m"), injected);
     }
-    const definesBlock = ShaderProgram.getDefinesFromShaderOptions(options)
+    const definesBlock = `#define _ShaderName ${name}\n` + ShaderProgram.getDefinesFromShaderOptions(options)
       .map((define) => `#define ${define}`).join('\n') + '\n';
     const vertexShaderSource = inject('defines', definesBlock, VertexShaderSource);
     gl.shaderSource(vertexShader, vertexShaderSource);
@@ -111,13 +125,47 @@ export class ShaderProgram {
     gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
     const lightingUboBlockIndex = gl.getUniformBlockIndex(this.program, "Lighting");
     gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
+
+    this.blendingMode = options.blendingMode;
   }
 
   private static getDefinesFromShaderOptions(options: ShaderProgramOptions): string[] {
     const defines: string[] = [];
 
     if (options.hasDiffuseTexture) {
-      defines.push(`DIFFUSE_TEXTURE`);
+      defines.push('DIFFUSE_TEXTURE');
+    }
+
+    switch (options.blendingMode) {
+      case ShaderBlendingMode.None:
+        /* No blending, will set alpha = 1.0 in shader by default */
+        break;
+      case ShaderBlendingMode.Average:
+        /* Averaged blending. Transparent pixels set to alpha=0.5f for blending */
+        defines.push('FIXED_TRANSPARENCY_ALPHA 0.5f');
+        break;
+      case ShaderBlendingMode.Additive:
+        /* Additive blending. Transparent pixels set to alpha=0.0f for blending */
+        defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
+        break;
+      case ShaderBlendingMode.Subtractive:
+        /* Subtractive blending. Transparent pixels set to alpha=0.0f for blending */
+        defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
+        break;
+      case ShaderBlendingMode.SourceAlpha:
+        /* Source alpha - do not manipulate shader output alpha */
+        defines.push('USE_SOURCE_ALPHA_FOR_TRANSPARENCY');
+        break;
+      default:
+        throw new Error(`Unimplemented blending mode: '${options.blendingMode}'`);
+    }
+
+    if (options.blackIsTransparent) {
+      defines.push("BLACK_IS_TRANSPARENT");
+    }
+
+    if (options.unlit) {
+      defines.push("UNLIT");
     }
 
     return defines;

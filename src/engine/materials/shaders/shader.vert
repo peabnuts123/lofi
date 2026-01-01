@@ -3,15 +3,15 @@
 #pragma inject(defines)
 
 in vec3 vertexPosition;
-in vec3 vertexColor;
+in vec4 vertexColor;
 in vec3 vertexNormal;
 in vec2 textureCoord;
 
-out vec3 fragmentColor;
+out vec4 fragmentColor;
 out vec2 fragmentTextureCoord;
 out vec3 fragmentLighting;
 
-uniform vec3 diffuseColor;
+uniform vec4 diffuseColor;
 uniform mat4 worldMatrix;
 uniform mat3 normalMatrix;
 
@@ -57,4 +57,14 @@ void main() {
     + (light1Intensity * pointLight1Color)
     + (light2Intensity * pointLight2Color)
     + (light3Intensity * pointLight3Color);
+
+// @NOTE UNLIT is kind of a debug flag at the moment,
+// so it isn't efficient. If we wrap the lighting calculations
+// in an #ifndef then all the attributes get optimised out
+// and the calling code fails.
+// So for now we just kinda bodge it like this.
+// Basically, UNLIT offers no performance benefit at this stage.
+#ifdef UNLIT
+  fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
+#endif
 }

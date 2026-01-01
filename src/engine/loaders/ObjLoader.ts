@@ -1,7 +1,7 @@
 import { ImporterObj, type Mesh, type Triangle, type Model, type Vector2, type ImportCallbacks } from 'online-3d-viewer/source/engine/import/importerobj';
 
 import type { Vector3Definition } from '@polyzone/engine/util/vector';
-import type { Color3Definition } from '@polyzone/engine/util/color';
+import type { Color3Definition } from '@polyzone/engine/util/Color3';
 import type { TextureCoordinate } from '@polyzone/engine/models/SubMesh';
 import type { MaterialDefinition } from '@polyzone/engine/materials/Material';
 import { canonicalisePath, getFileExtension } from '@polyzone/engine/util/path';

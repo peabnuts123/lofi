@@ -17,7 +17,11 @@ export class Engine {
   public constructor(canvas: HTMLCanvasElement, fileSystem: IFileSystem) {
     this.canvas = canvas;
     this.fileSystem = fileSystem;
-    const gl = this.canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
+    const gl = this.canvas.getContext('webgl2', {
+      antialias: false, // Disable anti-aliasing
+      preserveDrawingBuffer: true, // Allow capturing canvas buffer
+      alpha: false, // Do not blend with HTML background
+     });
     if (gl === null) {
       throw new Error(`WebGL2 not supported`);
     }

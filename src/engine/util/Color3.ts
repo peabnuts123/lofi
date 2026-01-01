@@ -1,3 +1,5 @@
+import { Color4 } from "./Color4";
+
 export interface Color3Definition {
   r: number;
   g: number;
@@ -48,6 +50,10 @@ export class Color3 {
     else if (value > 0xFF) value = 0xFF;
 
     return new Color3(this.r, this.g, value);
+  }
+
+  public toColor4(alpha: number = 0xFF): Color4 {
+    return new Color4(this, alpha);
   }
 
   public toString(): string {

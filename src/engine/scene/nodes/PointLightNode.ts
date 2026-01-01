@@ -1,4 +1,4 @@
-import type { Color3 } from "@polyzone/engine/util/color";
+import type { Color3 } from "@polyzone/engine/util/Color3";
 import { Scene, SceneNode } from "@polyzone/engine/scene";
 import { SceneLighting } from "@polyzone/engine/scene/SceneLighting";
 

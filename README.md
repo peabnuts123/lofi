@@ -14,7 +14,7 @@ These items are roughly in priority order.
   - [x] ~~`Rotation` as a type that deals with quaternions OR euler angles?~~
   - [x] ~~Rotation vectors wrap somehow~~
   - [x] ~~Interface for colors is 0xFF, shader receives [0..1] (use `normalized` prop in gl calls)~~
-  - [ ] Transparency in rendering
+  - [x] ~~Transparency in rendering~~
   - [ ] Picking / ray casting
   - [ ] 3D Animation including bones
   - [ ] Input system
@@ -31,6 +31,15 @@ These items are roughly in priority order.
   - [ ] Config for Clear color on scene, or camera?
   - [ ] Directional light
   - [ ] Build pipeline and CD
+
+### Not yet prioritised
+  - Animated textures
+  - Alpha channel in vertex colors
+  - Configuration options
+    - Anti-aliasing
+    - Texture filtering
+  - Light falloff
+  - Fog / culling
 
 ## Ideas
   - Build in 3d primitives e.g. cube, sphere, etc.

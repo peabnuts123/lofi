@@ -1,7 +1,7 @@
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { Engine } from "@polyzone/engine/Engine";
 
-import { ShaderProgram } from "./ShaderProgram";
+import { ShaderBlendingMode, ShaderProgram } from "./ShaderProgram";
 
 interface UboBufferProperty {
   index: number;
@@ -15,7 +15,12 @@ export class Ubo<TPropertyName extends string> {
     const { gl } = engine;
 
     // @NOTE We need to look up how big the ubo is in bytes by referencing a real shader
-    const referenceShader = new ShaderProgram(engine, '__temp', { hasDiffuseTexture: true });
+    const referenceShader = new ShaderProgram(engine, '__temp', {
+      hasDiffuseTexture: true,
+      blendingMode: ShaderBlendingMode.None,
+      blackIsTransparent: false,
+      unlit: false,
+     });
 
     // Look up UBO size in bytes
     const blockIndex = gl.getUniformBlockIndex(referenceShader.program, uboName);

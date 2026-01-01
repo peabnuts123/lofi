@@ -4,6 +4,7 @@ import { Runtime, type CartridgeDefinition } from './runtime';
 import { DebugModule } from './util/DebugModule';
 import { WebFileSystem } from './engine/filesystem/WebFileSystem';
 import type { GeometryDefinition } from './engine/models';
+import { ShaderBlendingMode } from './engine/materials';
 
 import './style.css';
 
@@ -16,7 +17,7 @@ const debug_model = await ObjLoader.loadModel('/models/burgerCheese.obj', filesy
 // const debug_model = await ObjLoader.loadModel('/models/detailDumpster_closed.obj', filesystem);
 const cartridge: CartridgeDefinition = {
   models: [
-    /* Ground */
+    /* 00 - Ground */
     {
       subMeshes: [
         {
@@ -28,8 +29,65 @@ const cartridge: CartridgeDefinition = {
         },
       ],
     },
-    /* Real model */
+    /* 01 - Real model */
     debug_model,
+    /* 02 - Blending mode: Average */
+    {
+      subMeshes: [
+        {
+          geometry: cubeGeometry(),
+          material: {
+            name: 'blending_average',
+            diffuseTexturePath: '/textures/stones.png',
+            blendingMode: ShaderBlendingMode.Average,
+            diffuseColor: { r: 0xFF, g: 0xFF, b: 0xFF, a: 0 },
+          },
+        },
+      ],
+    },
+    /* 03 - Blending mode: Additive */
+    {
+      subMeshes: [
+        {
+          geometry: cubeGeometry(),
+          material: {
+            name: 'blending_additive',
+            diffuseTexturePath: '/textures/stones.png',
+            blendingMode: ShaderBlendingMode.Additive,
+            diffuseColor: { r: 0x00, g: 0xFF, b: 0x00, a: 0 },
+            unlit: true,
+          },
+        },
+      ],
+    },
+    /* 04 - Blending mode: Subtractive */
+    {
+      subMeshes: [
+        {
+          geometry: cubeGeometry(),
+          material: {
+            name: 'blending_subtractive',
+            diffuseTexturePath: '/textures/stones.png',
+            blendingMode: ShaderBlendingMode.Subtractive,
+            diffuseColor: { r: 0x80, g: 0x80, b: 0x80, a: 0 },
+            unlit: true,
+          },
+        },
+      ],
+    },
+    /* 05 - Blending mode: SourceAlpha */
+    {
+      subMeshes: [
+        {
+          geometry: cubeGeometry(),
+          material: {
+            name: 'blending_sourceAlpha',
+            diffuseTexturePath: '/textures/bars.png',
+            blendingMode: ShaderBlendingMode.SourceAlpha,
+          },
+        },
+      ],
+    },
   ],
 };
 

@@ -1,5 +1,5 @@
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
-import { Color3 } from "@polyzone/engine/util/color";
+import { Color3 } from "@polyzone/engine/util/Color3";
 
 import type { PointLightNode } from "./nodes/PointLightNode";
 

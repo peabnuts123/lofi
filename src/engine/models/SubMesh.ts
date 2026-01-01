@@ -1,10 +1,11 @@
 import { mat3, mat4 } from "gl-matrix";
 
 import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
-import type { Color3Definition } from "@polyzone/engine/util/color";
+import type { Color3Definition } from "@polyzone/engine/util/Color3";
 import type { Vector3Definition } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { Engine } from "@polyzone/engine/Engine";
+import { ShaderBlendingMode } from "@polyzone/engine/materials";
 
 export interface TextureCoordinate {
   u: number;
@@ -36,8 +37,8 @@ export class SubMesh {
 
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
     const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangles.flat()));
-    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 255, g: 255, b: 255 } satisfies Color3Definition));
-    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Uint8Array(vertexColorData.flatMap(c => [c.r, c.g, c.b])));
+    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 0xFF, g: 0xFF, b: 0xFF } satisfies Color3Definition));
+    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Uint8Array(vertexColorData.flatMap(c => [c.r, c.g, c.b, 0xFF])));
     // @TODO If lacking normals, generate some sensible default
     const vertexNormalData = geometry.vertexNormals ?? geometry.vertexPositions.map(() => ({ x: 0, y: 0, z: 0 } satisfies Vector3Definition));
     const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexNormalData.flatMap((n) => [n.x, n.y, n.z])));
@@ -71,10 +72,10 @@ export class SubMesh {
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
     gl.vertexAttribPointer(
       material.shader.vertexColorAttribute,
-      3,
+      4,
       gl.UNSIGNED_BYTE,
       true,
-      3 * Uint8Array.BYTES_PER_ELEMENT,
+      4 * Uint8Array.BYTES_PER_ELEMENT,
       0,
     );
 
@@ -126,11 +127,54 @@ export class SubMesh {
     gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix);
 
     // Material
-    gl.uniform3fv(this.material.shader.diffuseColorUniform, new Float32Array([
+    gl.uniform4fv(this.material.shader.diffuseColorUniform, new Float32Array([
       this.material.diffuseColor.r / 255,
       this.material.diffuseColor.g / 255,
       this.material.diffuseColor.b / 255,
+      this.material.diffuseColor.a / 255,
     ]));
+
+    switch (this.material.shader.blendingMode) {
+      case ShaderBlendingMode.None:
+        // No blending. No-op.
+        break;
+      case ShaderBlendingMode.Average:
+        // Average blending:
+        //   Transparent pixel (alpha = 0.5):   0.5 * src + 0.5 * dest
+        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
+        gl.enable(gl.BLEND);
+        gl.depthMask(false);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+      case ShaderBlendingMode.Additive:
+        // Additive blending:
+        //   Transparent pixel (alpha = 0):     1 * src + 1 * dest
+        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
+        gl.enable(gl.BLEND);
+        gl.depthMask(false);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+      case ShaderBlendingMode.Subtractive:
+        // Subtractive blending:
+        //   Transparent pixel (alpha = 0):     1 * src - 1 * dest
+        //   Opaque pixel (alpha = 1):          1 * src - 0 * dest
+        gl.enable(gl.BLEND);
+        gl.depthMask(false);
+        gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+      case ShaderBlendingMode.SourceAlpha:
+        // "Source alpha" blending:
+        //   Transparent pixel (alpha = X):     X * src + (1-X) * dest
+        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
+        gl.enable(gl.BLEND);
+        gl.depthMask(false);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+    }
 
     // Texture
     if (this.material.diffuseTexture) {
@@ -150,5 +194,9 @@ export class SubMesh {
     gl.bindVertexArray(this.vao);
     gl.drawElements(gl.TRIANGLES, this.definition.triangles.length * 3, gl.UNSIGNED_SHORT, 0);
     gl.bindVertexArray(null);
+
+    gl.disable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.depthMask(true);
   }
 }
