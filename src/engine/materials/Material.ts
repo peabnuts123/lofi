@@ -25,16 +25,18 @@ export class Material {
   public readonly name: string;
   public readonly shader: ShaderProgram;
 
-  public diffuseColor: Color4;
-  public diffuseTexture: Texture | undefined;
+  public readonly diffuseColor: Color4;
+  public readonly diffuseTexture: Texture | undefined;
+  public readonly blendingMode: ShaderBlendingMode;
 
   private constructor(engine: Engine, name: string, options: MaterialConstructorOptions) {
     this.name = name;
     this.diffuseColor = options.diffuseColor ?? Color4.white();
     this.diffuseTexture = options.diffuseTexture;
+    this.blendingMode = options.blendingMode ?? ShaderBlendingMode.None;
     this.shader = new ShaderProgram(engine, name, {
       hasDiffuseTexture: !!options.diffuseTexture,
-      blendingMode: options.blendingMode ?? ShaderBlendingMode.None,
+      blendingMode: this.blendingMode,
       blackIsTransparent: options.blackIsTransparent ?? false,
       unlit: options.unlit ?? false,
     });
@@ -66,5 +68,9 @@ export class Material {
     materialOptions.unlit = definition.unlit;
 
     return new Material(engine, definition.name, materialOptions);
+  }
+
+  public get isTransparent(): boolean {
+    return this.blendingMode !== ShaderBlendingMode.None;
   }
 }

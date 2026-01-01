@@ -2,7 +2,7 @@ import { mat3, mat4 } from "gl-matrix";
 
 import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
 import type { Color3Definition } from "@polyzone/engine/util/Color3";
-import type { Vector3Definition } from "@polyzone/engine/util/vector";
+import { Vector3, type Vector3Definition } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { Engine } from "@polyzone/engine/Engine";
 import { ShaderBlendingMode } from "@polyzone/engine/materials";
@@ -29,6 +29,11 @@ export class SubMesh {
   private vao: WebGLVertexArrayObject;
   private definition: GeometryDefinition;
   public material: Material;
+  public readonly extents: {
+    min: Vector3;
+    center: Vector3;
+    max: Vector3;
+  };
 
   private _normalTmp = mat3.create();
 
@@ -109,6 +114,38 @@ export class SubMesh {
 
     this.definition = geometry;
     this.material = material;
+
+    // Calculate submesh extents
+    if (geometry.vertexPositions.length === 0) {
+      this.extents = {
+        min: Vector3.zero(),
+        max: Vector3.zero(),
+        center: Vector3.zero(),
+      };
+    } else {
+      const vertexExtentsMin = new Vector3(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+      const vertexExtentsMax = new Vector3(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
+      for (const vertex of geometry.vertexPositions) {
+        if (vertex.x < vertexExtentsMin.x) vertexExtentsMin.x = vertex.x;
+        if (vertex.x > vertexExtentsMax.x) vertexExtentsMax.x = vertex.x;
+
+        if (vertex.y < vertexExtentsMin.y) vertexExtentsMin.y = vertex.y;
+        if (vertex.y > vertexExtentsMax.y) vertexExtentsMax.y = vertex.y;
+
+        if (vertex.z < vertexExtentsMin.z) vertexExtentsMin.z = vertex.z;
+        if (vertex.z > vertexExtentsMax.z) vertexExtentsMax.z = vertex.z;
+      }
+
+      this.extents = {
+        min: vertexExtentsMin,
+        max: vertexExtentsMax,
+        center: new Vector3(
+          (vertexExtentsMin.x + vertexExtentsMax.x) / 2,
+          (vertexExtentsMin.y + vertexExtentsMax.y) / 2,
+          (vertexExtentsMin.z + vertexExtentsMax.z) / 2,
+        ),
+      };
+    }
   }
 
   public static async fromDefinition(engine: Engine, definition: SubMeshDefinition): Promise<SubMesh> {

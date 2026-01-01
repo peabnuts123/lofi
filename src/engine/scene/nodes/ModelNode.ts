@@ -1,16 +1,25 @@
-import { DrawableSceneNode, Scene } from "@polyzone/engine/scene";
+import { mat4 } from "gl-matrix";
+
+import { DrawableSceneNode, Scene, type DrawTask } from "@polyzone/engine/scene";
 import type { Engine } from "@polyzone/engine/Engine";
 import type { Model } from "@polyzone/engine/models";
 
 export class ModelNode extends DrawableSceneNode {
   private model: Model;
+  private _viewModelMatrixTmp: mat4 = mat4.create();
 
   public constructor(scene: Scene, name: string, model: Model) {
     super(scene, name);
     this.model = model;
   }
 
-  public draw(engine: Engine): void {
-    this.model.draw(engine, this.worldMatrix);
+  public getDrawTasks(engine: Engine): DrawTask[] {
+    const viewMatrix = engine.activeScene?.activeCamera?.viewMatrix;
+    if (viewMatrix === undefined) {
+      // No scene or no camera = no draw tasks
+      return [];
+    }
+    const viewModelMatrix = mat4.multiply(this._viewModelMatrixTmp, viewMatrix, this.worldMatrix);
+    return this.model.getDrawTasks(engine, viewModelMatrix, this.worldMatrix, this.name);
   }
 }

@@ -18,9 +18,9 @@ export class CameraNode extends SceneNode {
   public near: number = 0.1;
   public far: number = 100;
 
-  private readonly viewProjectionMatrix = mat4.create();
-  private readonly _viewMatrixTmp = mat4.create();
-  private readonly _projectionMatrixTmp = mat4.create();
+  public readonly viewProjectionMatrix = mat4.create();
+  public readonly viewMatrix = mat4.create();
+  public readonly projectionMatrix = mat4.create();
 
   public constructor(scene: Scene, name: string, fov: number, aspectRatio: number) {
     super(scene, name);
@@ -49,19 +49,19 @@ export class CameraNode extends SceneNode {
 
   private recalculateViewProjectionMatrix(): void {
     mat4.invert(
-      this._viewMatrixTmp,
+      this.viewMatrix,
       this.worldMatrix,
     );
 
     // @TODO cache this matrix
     mat4.perspective(
-      this._projectionMatrixTmp,
+      this.projectionMatrix,
       this.fov * DegreesToRadians,
       this.aspectRatio,
       this.near,
       this.far,
     );
 
-    mat4.multiply(this.viewProjectionMatrix, this._projectionMatrixTmp, this._viewMatrixTmp);
+    mat4.multiply(this.viewProjectionMatrix, this.projectionMatrix, this.viewMatrix);
   }
 }

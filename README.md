@@ -40,9 +40,11 @@ These items are roughly in priority order.
     - Texture filtering
   - Light falloff
   - Fog / culling
+  - Updates to material properties updates shaderprogram
 
 ## Ideas
   - Build in 3d primitives e.g. cube, sphere, etc.
   - Lights based on camera proximity (or is this a PolyZone feature?)
   - A second param for `addChild()` that lets you mutate the child
   - Autogenerate normals for meshes lacking them
+  - Binary search for rendering order?
