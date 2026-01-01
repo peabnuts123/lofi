@@ -2,7 +2,7 @@ import { ImporterObj, type Mesh, type Triangle, type Model, type Vector2, type I
 
 import type { Vector3Definition } from '@polyzone/engine/util/vector';
 import type { Color3Definition } from '@polyzone/engine/util/Color3';
-import type { TextureCoordinate } from '@polyzone/engine/models/SubMesh';
+import type { SubMeshDefinition, TextureCoordinate } from '@polyzone/engine/models/SubMesh';
 import type { MaterialDefinition } from '@polyzone/engine/materials/Material';
 import { canonicalisePath, getFileExtension } from '@polyzone/engine/util/path';
 import type { IFileSystem } from '@polyzone/engine/filesystem';
@@ -144,6 +144,8 @@ export abstract class ObjLoader {
       }
     } while (newFilePaths.length > 0);
 
+    // console.log(`[DEBUG] [ObjLoader] (loadModel) parsedModel:`, parsedModel);
+
     // @NOTE @ASSUMPTION: objects always have exactly 1 root mesh
     // @TODO they probably don't. There's no harm in iterating through them, since we are just returning
     //  a collection of submeshes anyway.
@@ -180,6 +182,7 @@ export abstract class ObjLoader {
             r: parsedModel.materials[materialIndex].color.r,
             g: parsedModel.materials[materialIndex].color.g,
             b: parsedModel.materials[materialIndex].color.b,
+            a: 0xFF,
           },
           diffuseTexturePath: parsedModel.materials[materialIndex].diffuseMap ?
             canonicaliseDependencyPath(objPath, parsedModel.materials[materialIndex].diffuseMap.name) :
@@ -218,7 +221,7 @@ export abstract class ObjLoader {
             triangles: triangleData,
           },
           material,
-        };
+        } satisfies SubMeshDefinition;
       }),
     };
   };
