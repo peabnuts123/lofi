@@ -4,6 +4,7 @@ import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type Light
 import { Ubo } from "./materials";
 import type { IScene } from "./scene";
 import { rateCounter } from "./util/debug";
+import { CollisionSystem } from "./collision";
 
 export interface IEngine {
   loadScene(scene: IScene): void;
@@ -11,6 +12,7 @@ export interface IEngine {
 
   get gl(): WebGL2RenderingContext;
   get fileSystem(): IFileSystem;
+  get collision(): CollisionSystem;
   get activeScene(): IScene | undefined;
 }
 
@@ -18,6 +20,7 @@ export class Engine implements IEngine {
   private readonly canvas: HTMLCanvasElement;
   public readonly gl: WebGL2RenderingContext;
   public readonly fileSystem: IFileSystem;
+  public readonly collision: CollisionSystem;
 
   private _activeScene: IScene | undefined;
   private cameraUbo: CameraUbo;
@@ -36,6 +39,7 @@ export class Engine implements IEngine {
     }
 
     this.gl = gl;
+    this.collision = new CollisionSystem();
 
     // Global UBOs
     this.cameraUbo = new Ubo(this, CameraUboName, CameraUboIndex, CameraUboPropertyNames);

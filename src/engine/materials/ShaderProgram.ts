@@ -17,7 +17,7 @@ export type ShaderBlendingMode = Enum<typeof ShaderBlendingMode>;
 
 export interface ShaderProgramOptions {
   hasDiffuseTexture: boolean;
-  blendingMode: ShaderBlendingMode;
+  blendingMode: ShaderBlendingMode; // @TODO Should we just pass the material reference?
   blackIsTransparent: boolean;
   unlit: boolean;
 }
@@ -33,7 +33,6 @@ export class ShaderProgram {
   public readonly normalMatrixUniform: WebGLUniformLocation;
   public readonly diffuseColorUniform: WebGLUniformLocation;
   public readonly textureSamplerUniform: WebGLUniformLocation | undefined;
-  public readonly blendingMode: ShaderBlendingMode;
 
   public constructor(engine: IEngine, name: string, options: ShaderProgramOptions) {
     const { gl } = engine;
@@ -81,52 +80,20 @@ export class ShaderProgram {
 
     this.program = program;
 
-    function getAttribute(attributeName: string, required: true): number;
-    function getAttribute(attributeName: string, required: false): number | undefined;
-    function getAttribute(attributeName: string, required: boolean): number | undefined {
-      const attribute = gl.getAttribLocation(program, attributeName);
-      if (attribute < 0) {
-        if (required) {
-          throw new Error(`Failed to look up attribute location '${attributeName}' in shader '${name}'`);
-        } else {
-          return undefined;
-        }
-      }
+    this.vertexPositionAttribute = getAttribute(gl, program, 'vertexPosition', true);
+    this.vertexColorAttribute = getAttribute(gl, program, 'vertexColor', true);
+    this.vertexNormalAttribute = getAttribute(gl, program, 'vertexNormal', true);
+    this.vertexTextureCoordinateAttribute = getAttribute(gl, program, 'textureCoord', true);
 
-      return attribute;
-    }
-
-    function getUniform(uniformName: string, required: true): WebGLUniformLocation;
-    function getUniform(uniformName: string, required: false): WebGLUniformLocation | undefined;
-    function getUniform(uniformName: string, required: boolean): WebGLUniformLocation | undefined {
-      const uniform = gl.getUniformLocation(program, uniformName);
-      if (!uniform) {
-        if (required) {
-          throw new Error(`Failed to look up uniform location '${uniformName}' in shader '${name}'`);
-        } else {
-          return undefined;
-        }
-      }
-
-      return uniform;
-    }
-
-    this.vertexPositionAttribute = getAttribute('vertexPosition', true);
-    this.vertexColorAttribute = getAttribute('vertexColor', true);
-    this.vertexNormalAttribute = getAttribute('vertexNormal', true);
-    this.vertexTextureCoordinateAttribute = getAttribute('textureCoord', true);
-
-    this.worldMatrixUniform = getUniform('worldMatrix', true);
-    this.normalMatrixUniform = getUniform('normalMatrix', true);
-    this.diffuseColorUniform = getUniform('diffuseColor', true);
-    this.textureSamplerUniform = getUniform('sampler', false);
+    this.worldMatrixUniform = getUniform(gl, program, 'worldMatrix', true);
+    this.normalMatrixUniform = getUniform(gl, program, 'normalMatrix', true);
+    this.diffuseColorUniform = getUniform(gl, program, 'diffuseColor', true);
+    this.textureSamplerUniform = getUniform(gl, program, 'sampler', false);
 
     const cameraUboBlockIndex = gl.getUniformBlockIndex(this.program, "Camera");
     gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
     const lightingUboBlockIndex = gl.getUniformBlockIndex(this.program, "Lighting");
     gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
-
-    this.blendingMode = options.blendingMode;
   }
 
   private static getDefinesFromShaderOptions(options: ShaderProgramOptions): string[] {
@@ -170,4 +137,35 @@ export class ShaderProgram {
 
     return defines;
   }
+}
+
+
+export function getAttribute(gl: WebGL2RenderingContext, program: WebGLShader, attributeName: string, required: true): number;
+export function getAttribute(gl: WebGL2RenderingContext, program: WebGLShader, attributeName: string, required: false): number | undefined;
+export function getAttribute(gl: WebGL2RenderingContext, program: WebGLShader, attributeName: string, required: boolean): number | undefined {
+  const attribute = gl.getAttribLocation(program, attributeName);
+  if (attribute < 0) {
+    if (required) {
+      throw new Error(`Failed to look up attribute location '${attributeName}' in shader`);
+    } else {
+      return undefined;
+    }
+  }
+
+  return attribute;
+}
+
+export function getUniform(gl: WebGL2RenderingContext, program: WebGLShader, uniformName: string, required: true): WebGLUniformLocation;
+export function getUniform(gl: WebGL2RenderingContext, program: WebGLShader, uniformName: string, required: false): WebGLUniformLocation | undefined;
+export function getUniform(gl: WebGL2RenderingContext, program: WebGLShader, uniformName: string, required: boolean): WebGLUniformLocation | undefined {
+  const uniform = gl.getUniformLocation(program, uniformName);
+  if (!uniform) {
+    if (required) {
+      throw new Error(`Failed to look up uniform location '${uniformName}' in shader`);
+    } else {
+      return undefined;
+    }
+  }
+
+  return uniform;
 }

@@ -134,7 +134,7 @@ export class Scene implements IScene{
     }
   }
 
-  private forEachNodeInHierarchy(fn: (node: SceneNode) => void): void {
+  public forEachNodeInHierarchy(fn: (node: SceneNode) => void): void {
     function iterateNode(node: SceneNode): void {
       fn(node);
       node.forEachChild(fn);

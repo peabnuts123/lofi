@@ -49,4 +49,11 @@ export class Model {
     ));
     return new Model(subMeshes);
   }
+
+  public debug_getSubmesh(index: number): SubMesh {
+    if (index < 0 || index >= this.subMeshes.length) {
+      throw new Error(`Submesh ${index} is out of bounds`);
+    }
+    return this.subMeshes[index];
+  }
 }

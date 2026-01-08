@@ -171,7 +171,7 @@ export class SubMesh {
       this.material.diffuseColor.a / 255,
     ]));
 
-    switch (this.material.shader.blendingMode) {
+    switch (this.material.blendingMode) {
       case ShaderBlendingMode.None:
         // No blending. No-op.
         break;

@@ -5,7 +5,7 @@ import type { IEngine } from "@polyzone/engine/Engine";
 import type { Model } from "@polyzone/engine/models";
 
 export class ModelNode extends DrawableSceneNode {
-  private model: Model;
+  public model: Model;
   private _viewModelMatrixTmp: mat4 = mat4.create();
 
   public constructor(scene: IScene, name: string, model: Model) {

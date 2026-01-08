@@ -198,6 +198,11 @@ export class Vector3 {
   }
 
   public dot(other: Vector3): number {
+    /*
+      @NOTE
+        (a·b) / a.lengthSqr = project b onto a
+        (a·b) / b.lengthSqr = project a onto b
+     */
     return this.x * other.x + this.y * other.y + this.z * other.z;
   }
 

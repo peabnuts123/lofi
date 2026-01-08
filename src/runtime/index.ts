@@ -7,6 +7,8 @@ import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
+import { BoxColliderNode } from '@polyzone/engine/scene/nodes/ColliderNode';
+import { Color4 } from '@polyzone/engine/util/Color4';
 
 export interface CartridgeDefinition {
   models: ModelDefinition[];
@@ -17,6 +19,11 @@ interface SceneState {
   lightOrigin: SceneNode;
   burger: ModelNode;
   testObjects: ModelNode[][] | undefined;
+
+  staticColliderParent: ModelNode;
+  staticCollider: BoxColliderNode;
+  rotatingColliderParent: ModelNode;
+  rotatingCollider: BoxColliderNode;
 }
 
 const TestObjectsEnabled = false;
@@ -149,6 +156,22 @@ export class Runtime {
     blendingSourceAlpha.position.y = 0.5;
     blendingSourceAlpha.position.z = -1.5;
 
+    /* Collider test */
+    const colliderModel = await Model.fromDefinition(engine, cartridge.models[0]);
+    const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
+    const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
+      x: 1, y: 1, z: 1,
+    });
+    staticColliderParent.addChild(staticCollider);
+    staticColliderParent.position.y = 1.5;
+
+    const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
+    const rotatingCollider = new BoxColliderNode(scene, "rotating_collider", 0, {
+      x: 1, y: 1, z: 1,
+    });
+    rotatingColliderParent.addChild(rotatingCollider);
+    rotatingColliderParent.position.x = 1.2;
+    rotatingColliderParent.position.y = 1.5;
 
     this.scene = {
       burger,
@@ -156,6 +179,10 @@ export class Runtime {
       cameraOrigin,
       lightOrigin,
       testObjects,
+      staticColliderParent,
+      staticCollider,
+      rotatingColliderParent,
+      rotatingCollider,
     };
   }
 
@@ -220,6 +247,17 @@ export class Runtime {
 
       /* Spin lights */
       scene.lightOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * LightRotationSpeedDegreesPerSecond));
+
+      /* Colliders */
+      scene.rotatingColliderParent.rotation.x = time * 360 / 7;
+      scene.rotatingColliderParent.rotation.y = time * 360 / 8;
+      scene.rotatingColliderParent.rotation.z = time * 360 / 6;
+      const collisionResult = scene.rotatingCollider.shape.calculateIntersection(scene.staticCollider.shape, Vector3.zero());
+      if (collisionResult !== undefined) {
+        scene.rotatingColliderParent.model.debug_getSubmesh(0).material.diffuseColor = Color4.red();
+      } else {
+        scene.rotatingColliderParent.model.debug_getSubmesh(0).material.diffuseColor = Color4.white();
+      }
 
       time += dt;
 

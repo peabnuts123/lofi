@@ -41,10 +41,15 @@ These items are roughly in priority order.
   - Light falloff
   - Fog / culling
   - Updates to material properties updates shaderprogram
+  - Changing of scenes
+  - Consider renaming "model" to "mesh"
+  - How do we manipulate materials?
 
 ## Ideas
   - Build in 3d primitives e.g. cube, sphere, etc.
   - Lights based on camera proximity (or is this a PolyZone feature?)
-  - A second param for `addChild()` that lets you mutate the child
+  - A second param for `addChild()` that lets you mutate the child, or a factory function?
+    - Or a `parent` param for Node constructors for implict local coordinates
+    - Or `addChild()` returns the param for fluent-style adding
   - Autogenerate normals for meshes lacking them
   - Binary search for rendering order?

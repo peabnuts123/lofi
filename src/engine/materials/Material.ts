@@ -25,9 +25,9 @@ export class Material {
   public readonly name: string;
   public readonly shader: ShaderProgram;
 
-  public readonly diffuseColor: Color4;
-  public readonly diffuseTexture: Texture | undefined;
-  public readonly blendingMode: ShaderBlendingMode;
+  public diffuseColor: Color4;
+  public diffuseTexture: Texture | undefined;
+  public blendingMode: ShaderBlendingMode;
 
   private constructor(engine: IEngine, name: string, options: MaterialConstructorOptions) {
     this.name = name;
