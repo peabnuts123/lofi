@@ -2,10 +2,10 @@ import { DirtyVector3, ObservedVector3, Vector3 } from "@polyzone/engine/util/ve
 import { Rotation } from "@polyzone/engine/util/Rotation";
 import { mat4, quat, vec3 } from "gl-matrix";
 
-import type { Scene } from "./Scene";
+import type { IScene } from "./Scene";
 
 export abstract class SceneNode {
-  private scene: Scene;
+  protected scene: IScene;
   public name: string;
   private _position: ObservedVector3;
   private _rotation: Rotation;
@@ -27,7 +27,7 @@ export abstract class SceneNode {
   private _rotationQuatTmp: quat = quat.create();
   private _scaleVecTmp: vec3 = vec3.create();
 
-  public constructor(scene: Scene, name: string) {
+  public constructor(scene: IScene, name: string) {
     this.scene = scene;
     this.name = name;
     this.children = [];

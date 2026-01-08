@@ -1,7 +1,7 @@
 import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type ModelDefinition } from '@polyzone/engine/models';
 import { Vector3 } from '@polyzone/engine/util/vector';
-import { Engine } from '@polyzone/engine/Engine';
+import { Engine, type IEngine } from '@polyzone/engine/Engine';
 import { Scene, SceneNode } from '@polyzone/engine/scene';
 import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
@@ -25,7 +25,7 @@ const GridH = 20;
 const GridSpacing = 0.5;
 
 export class Runtime {
-  private engine: Engine | undefined;
+  private engine: IEngine | undefined;
 
   private scene: SceneState | undefined;
 

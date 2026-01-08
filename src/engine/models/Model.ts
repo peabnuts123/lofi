@@ -1,5 +1,5 @@
 import { mat4, vec3 } from "gl-matrix";
-import type { Engine } from "@polyzone/engine/Engine";
+import type { IEngine } from "@polyzone/engine/Engine";
 import type { DrawTask } from "@polyzone/engine/scene";
 
 import { SubMesh, type SubMeshDefinition } from "./SubMesh";
@@ -17,7 +17,7 @@ export class Model {
     this.subMeshes = subMeshes;
   }
 
-  public getDrawTasks(engine: Engine, viewModelMatrix: mat4, worldMatrix: mat4, debug_name: string): DrawTask[] {
+  public getDrawTasks(engine: IEngine, viewModelMatrix: mat4, worldMatrix: mat4, debug_name: string): DrawTask[] {
     const drawTasks: DrawTask[] = [];
     for (let i = 0; i < this.subMeshes.length; i++) {
       const subMesh = this.subMeshes[i];
@@ -43,8 +43,7 @@ export class Model {
     return drawTasks;
   }
 
-
-  public static async fromDefinition(engine: Engine, definition: ModelDefinition): Promise<Model> {
+  public static async fromDefinition(engine: IEngine, definition: ModelDefinition): Promise<Model> {
     const subMeshes = await Promise.all(definition.subMeshes.map((subMeshDefinition) =>
       SubMesh.fromDefinition(engine, subMeshDefinition),
     ));

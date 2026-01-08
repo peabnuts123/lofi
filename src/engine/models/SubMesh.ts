@@ -4,7 +4,7 @@ import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Ma
 import type { Color3Definition } from "@polyzone/engine/util/Color3";
 import { Vector3, type Vector3Definition } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
-import type { Engine } from "@polyzone/engine/Engine";
+import type { IEngine } from "@polyzone/engine/Engine";
 import { ShaderBlendingMode } from "@polyzone/engine/materials";
 
 export interface TextureCoordinate {
@@ -37,7 +37,7 @@ export class SubMesh {
 
   private _normalTmp = mat3.create();
 
-  public constructor(engine: Engine, geometry: GeometryDefinition, material: Material) {
+  public constructor(engine: IEngine, geometry: GeometryDefinition, material: Material) {
     const { gl } = engine;
 
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
@@ -148,13 +148,13 @@ export class SubMesh {
     }
   }
 
-  public static async fromDefinition(engine: Engine, definition: SubMeshDefinition): Promise<SubMesh> {
+  public static async fromDefinition(engine: IEngine, definition: SubMeshDefinition): Promise<SubMesh> {
     const material = await Material.fromDefinition(engine, definition.material);
     return new SubMesh(engine, definition.geometry, material);
   }
 
   public draw(
-    engine: Engine,
+    engine: IEngine,
     worldMatrix: mat4,
   ): void {
     const { gl } = engine;

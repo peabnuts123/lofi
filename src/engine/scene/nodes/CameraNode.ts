@@ -1,7 +1,7 @@
 import { mat4 } from "gl-matrix";
 
 import { Vector3 } from "@polyzone/engine/util/vector";
-import { Scene, SceneNode } from "@polyzone/engine/scene";
+import { type IScene, SceneNode } from "@polyzone/engine/scene";
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
 import { Quaternion } from "@polyzone/engine/util/quaternion";
 import { DegreesToRadians } from "@polyzone/engine/util/math";
@@ -22,7 +22,7 @@ export class CameraNode extends SceneNode {
   public readonly viewMatrix = mat4.create();
   public readonly projectionMatrix = mat4.create();
 
-  public constructor(scene: Scene, name: string, fov: number, aspectRatio: number) {
+  public constructor(scene: IScene, name: string, fov: number, aspectRatio: number) {
     super(scene, name);
     this.fov = fov;
     this.aspectRatio = aspectRatio;

@@ -1,6 +1,6 @@
 import { Color4, type Color4Definition } from '@polyzone/engine/util/Color4';
 import { Texture } from '@polyzone/engine/textures/Texture';
-import type { Engine } from '@polyzone/engine/Engine';
+import type { IEngine } from '@polyzone/engine/Engine';
 
 import { ShaderBlendingMode, ShaderProgram } from './ShaderProgram';
 
@@ -29,7 +29,7 @@ export class Material {
   public readonly diffuseTexture: Texture | undefined;
   public readonly blendingMode: ShaderBlendingMode;
 
-  private constructor(engine: Engine, name: string, options: MaterialConstructorOptions) {
+  private constructor(engine: IEngine, name: string, options: MaterialConstructorOptions) {
     this.name = name;
     this.diffuseColor = options.diffuseColor ?? Color4.white();
     this.diffuseTexture = options.diffuseTexture;
@@ -42,7 +42,7 @@ export class Material {
     });
   }
 
-  public static async fromDefinition(engine: Engine, definition: MaterialDefinition): Promise<Material> {
+  public static async fromDefinition(engine: IEngine, definition: MaterialDefinition): Promise<Material> {
     const materialOptions: MaterialConstructorOptions = {};
 
     // Diffuse color

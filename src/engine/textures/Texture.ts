@@ -1,8 +1,8 @@
-import type { Engine } from "@polyzone/engine/Engine";
+import type { IEngine } from "@polyzone/engine/Engine";
 
 export class Texture {
   public readonly texture: WebGLTexture;
-  private constructor(engine: Engine, texImage2d: () => void) {
+  private constructor(engine: IEngine, texImage2d: () => void) {
     const { gl } = engine;
 
     this.texture = gl.createTexture();
@@ -17,7 +17,7 @@ export class Texture {
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
-  public static async load(engine: Engine, path: string): Promise<Texture> {
+  public static async load(engine: IEngine, path: string): Promise<Texture> {
     const { gl } = engine;
     const textureFile = await engine.fileSystem.readFile(path);
     const blob = new Blob([textureFile.bytes as Uint8Array<ArrayBuffer>]);

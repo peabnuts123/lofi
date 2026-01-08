@@ -1,7 +1,7 @@
-import { Scene, SceneNode } from "@polyzone/engine/scene";
+import { type IScene, SceneNode } from "@polyzone/engine/scene";
 
 export class ObjectNode extends SceneNode {
-  public constructor(scene: Scene, name: string) {
+  public constructor(scene: IScene, name: string) {
     super(scene, name);
   }
 }

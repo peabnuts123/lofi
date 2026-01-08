@@ -1,5 +1,5 @@
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
-import type { Engine } from "@polyzone/engine/Engine";
+import type { IEngine } from "@polyzone/engine/Engine";
 
 import { ShaderBlendingMode, ShaderProgram } from "./ShaderProgram";
 
@@ -11,7 +11,7 @@ export class Ubo<TPropertyName extends string> {
   private buffer: WebGLBuffer;
   private propertyInfo: Record<TPropertyName, UboBufferProperty>;
 
-  public constructor(engine: Engine, uboName: string, uboIndex: number, propertyNames: readonly TPropertyName[]) {
+  public constructor(engine: IEngine, uboName: string, uboIndex: number, propertyNames: readonly TPropertyName[]) {
     const { gl } = engine;
 
     // @NOTE We need to look up how big the ubo is in bytes by referencing a real shader

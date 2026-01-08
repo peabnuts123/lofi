@@ -1,6 +1,6 @@
 import { CameraUboIndex } from '@polyzone/engine/scene/nodes/CameraNode';
 import { LightingUboIndex } from '@polyzone/engine/scene/SceneLighting';
-import type { Engine } from '@polyzone/engine/Engine';
+import type { IEngine } from '@polyzone/engine/Engine';
 import type { Enum } from '@polyzone/engine/util/enum';
 
 import VertexShaderSource from './shaders/shader.vert?raw';
@@ -35,7 +35,7 @@ export class ShaderProgram {
   public readonly textureSamplerUniform: WebGLUniformLocation | undefined;
   public readonly blendingMode: ShaderBlendingMode;
 
-  public constructor(engine: Engine, name: string, options: ShaderProgramOptions) {
+  public constructor(engine: IEngine, name: string, options: ShaderProgramOptions) {
     const { gl } = engine;
 
     this.name = name;

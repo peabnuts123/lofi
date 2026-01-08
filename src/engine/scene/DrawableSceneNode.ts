@@ -1,7 +1,7 @@
-import type { Engine } from "@polyzone/engine/Engine";
+import type { IEngine } from "@polyzone/engine/Engine";
 
 import { SceneNode } from "./SceneNode";
-import type { Scene } from "./Scene";
+import type { IScene } from "./Scene";
 
 export interface UnorderedDrawTask {
   draw: () => void;
@@ -15,9 +15,9 @@ export type DrawTask = UnorderedDrawTask | OrderedDrawTask;
 
 export abstract class DrawableSceneNode extends SceneNode {
 
-  public constructor(scene: Scene, name: string) {
+  public constructor(scene: IScene, name: string) {
     super(scene, name);
   }
 
-  public abstract getDrawTasks(engine: Engine): DrawTask[];
+  public abstract getDrawTasks(engine: IEngine): DrawTask[];
 }

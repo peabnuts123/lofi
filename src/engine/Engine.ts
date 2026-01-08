@@ -2,15 +2,24 @@ import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo }
 import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { Ubo } from "./materials";
-import type { Scene } from "./scene";
+import type { IScene } from "./scene";
 import { rateCounter } from "./util/debug";
 
-export class Engine {
+export interface IEngine {
+  loadScene(scene: IScene): void;
+  run(onUpdate: (dt: number, stop: () => void) => void): void;
+
+  get gl(): WebGL2RenderingContext;
+  get fileSystem(): IFileSystem;
+  get activeScene(): IScene | undefined;
+}
+
+export class Engine implements IEngine {
   private readonly canvas: HTMLCanvasElement;
   public readonly gl: WebGL2RenderingContext;
   public readonly fileSystem: IFileSystem;
 
-  private _activeScene: Scene | undefined;
+  private _activeScene: IScene | undefined;
   private cameraUbo: CameraUbo;
   private lightingUbo: LightingUbo;
 
@@ -33,7 +42,7 @@ export class Engine {
     this.lightingUbo = new Ubo(this, LightingUboName, LightingUboIndex, LightingUboPropertyNames);
   }
 
-  public loadScene(scene: Scene): void {
+  public loadScene(scene: IScene): void {
     // @TODO a lot more than just this
     this.activeScene = scene;
   }
@@ -105,10 +114,10 @@ export class Engine {
     requestAnimationFrame(tick);
   }
 
-  public get activeScene(): Scene | undefined {
+  public get activeScene(): IScene | undefined {
     return this._activeScene;
   }
-  private set activeScene(value: Scene) {
+  private set activeScene(value: IScene) {
     this._activeScene = value;
   }
 }

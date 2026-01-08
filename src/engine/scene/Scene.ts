@@ -1,4 +1,4 @@
-import type { Engine } from "@polyzone/engine/Engine";
+import type { IEngine } from "@polyzone/engine/Engine";
 
 import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";
@@ -11,13 +11,29 @@ export interface RenderLayer {
   orderedDrawTasks: OrderedDrawTask[];
 }
 
-export class Scene {
+export interface IScene {
+
+  addTopLevelNode(node: SceneNode): void;
+  removeTopLevelNode(node: SceneNode): void;
+  onUpdate(dt: number): void;
+  draw(): void;
+  forEachNodeInHierarchy(fn: (node: SceneNode) => void): void;
+
+  get activeCamera(): CameraNode | undefined;
+  set activeCamera(value: CameraNode | undefined);
+  get engine(): IEngine;
+  set engine(value: IEngine);
+  get lighting(): SceneLighting;
+  set lighting(value: SceneLighting);
+}
+
+export class Scene implements IScene{
   public activeCamera: CameraNode | undefined;
-  public readonly engine: Engine;
+  public readonly engine: IEngine;
   private topLevelNodes: SceneNode[];
   public readonly lighting: SceneLighting;
 
-  public constructor(engine: Engine) {
+  public constructor(engine: IEngine) {
     this.engine = engine;
     this.topLevelNodes = [];
     this.lighting = new SceneLighting();
