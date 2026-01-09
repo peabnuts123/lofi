@@ -20,6 +20,6 @@ export class ModelNode extends DrawableSceneNode {
       return [];
     }
     const viewModelMatrix = mat4.multiply(this._viewModelMatrixTmp, viewMatrix, this.worldMatrix);
-    return this.model.getDrawTasks(engine, viewModelMatrix, this.worldMatrix, this.name);
+    return this.model.getDrawTasks(engine, viewModelMatrix, this.worldMatrix);
   }
 }

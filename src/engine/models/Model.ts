@@ -17,7 +17,7 @@ export class Model {
     this.subMeshes = subMeshes;
   }
 
-  public getDrawTasks(engine: IEngine, viewModelMatrix: mat4, worldMatrix: mat4, debug_name: string): DrawTask[] {
+  public getDrawTasks(engine: IEngine, viewModelMatrix: mat4, worldMatrix: mat4): DrawTask[] {
     const drawTasks: DrawTask[] = [];
     for (let i = 0; i < this.subMeshes.length; i++) {
       const subMesh = this.subMeshes[i];
