@@ -289,9 +289,9 @@ export class Quaternion {
     return new Quaternion(conj.x / n2, conj.y / n2, conj.z / n2, conj.w / n2);
   }
 
-  public setValue(x: number, y: number, z: number, w: number): void;
-  public setValue(value: Quaternion): void;
-  public setValue(xOrValue: number | Quaternion, maybeY?: number, maybeZ?: number, maybeW?: number): void {
+  public setValue(x: number, y: number, z: number, w: number): this;
+  public setValue(value: Quaternion): this;
+  public setValue(xOrValue: number | Quaternion, maybeY?: number, maybeZ?: number, maybeW?: number): this {
     /* Wow sorry for this completely cursed method signature */
     if (typeof xOrValue === 'number' && typeof maybeY === 'number' && typeof maybeZ === 'number' && typeof maybeW === 'number') {
       this._x = xOrValue;
@@ -306,6 +306,7 @@ export class Quaternion {
     } else {
       throw new Error(`Unrecognised arguments to 'setValue()'`);
     }
+    return this;
   }
 
   public toString(): string {
@@ -336,9 +337,9 @@ export class ObservedQuaternion extends Quaternion {
     return result;
   }
 
-  public override setValue(x: number, y: number, z: number, w: number, notify?: boolean): void;
-  public override setValue(value: Quaternion, notify?: boolean): void;
-  public override setValue(xOrValue: number | Quaternion, yOrNotify: number | boolean = true, maybeZ?: number, maybeW?: number, maybeNotify: boolean = true): void {
+  public override setValue(x: number, y: number, z: number, w: number, notify?: boolean): this;
+  public override setValue(value: Quaternion, notify?: boolean): this;
+  public override setValue(xOrValue: number | Quaternion, yOrNotify: number | boolean = true, maybeZ?: number, maybeW?: number, maybeNotify: boolean = true): this {
     /* Wow sorry for this completely cursed method signature */
     if (typeof xOrValue === 'number' && typeof yOrNotify === 'number' && typeof maybeZ === 'number' && typeof maybeW === 'number' && typeof maybeNotify === 'boolean') {
       return this.mutate(maybeNotify, () =>
@@ -485,10 +486,11 @@ export class ReadOnlyQuaternion extends Quaternion {
     console.warn(`Cannot modify read-only Quaternion`);
   }
 
-  public override setValue(x: number, y: number, z: number, w: number): void;
-  public override setValue(value: Quaternion): void;
-  public override setValue(_xOrValue: number | Quaternion, _maybeY?: number, _maybeZ?: number, _maybeW?: number): void {
+  public override setValue(x: number, y: number, z: number, w: number): this;
+  public override setValue(value: Quaternion): this;
+  public override setValue(_xOrValue: number | Quaternion, _maybeY?: number, _maybeZ?: number, _maybeW?: number): this {
     console.warn(`Cannot modify read-only Quaternion`);
+    return this;
   }
 
   public static from(quaternion: Quaternion): ReadOnlyQuaternion {

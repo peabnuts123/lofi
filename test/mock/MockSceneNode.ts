@@ -1,4 +1,4 @@
 import { SceneNode } from "@polyzone/engine/scene";
 
-export class ObjectNode extends SceneNode {
+export class MockSceneNode extends SceneNode {
 }

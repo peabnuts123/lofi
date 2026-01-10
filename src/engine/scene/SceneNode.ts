@@ -1,6 +1,6 @@
 import { DirtyVector3, ObservedVector3, Vector3 } from "@polyzone/engine/util/vector";
 import { Rotation } from "@polyzone/engine/util/Rotation";
-import { mat4, quat, vec3 } from "gl-matrix";
+import { Matrix4 } from "@polyzone/engine/util/Matrix4";
 
 import type { IScene } from "./Scene";
 
@@ -14,7 +14,7 @@ export abstract class SceneNode {
   private _parent: SceneNode | undefined;
   private children: SceneNode[];
 
-  private _worldMatrix: mat4 = mat4.create();
+  private _worldMatrix: Matrix4 = new Matrix4();
   private worldMatrixIsDirty: boolean = true;
   private _absolutePosition: DirtyVector3;
   private absolutePositionIsDirty: boolean = true;
@@ -23,9 +23,7 @@ export abstract class SceneNode {
   private _absoluteScale: DirtyVector3;
   private absoluteScaleIsDirty: boolean = false;
 
-  private _positionVecTmp: vec3 = vec3.create();
-  private _rotationQuatTmp: quat = quat.create();
-  private _scaleVecTmp: vec3 = vec3.create();
+  private _vectorTmp: Vector3 = Vector3.zero();
 
   public constructor(scene: IScene, name: string) {
     this.scene = scene;
@@ -229,26 +227,16 @@ export abstract class SceneNode {
    * computation.
    */
   private recomputeWorldMatrix(): void {
-    // @NOTE Re-use tmp values as memory optimisation
-    // Convert to gl-matrix native types
-    vec3.set(this._positionVecTmp, this.position.x, this.position.y, this.position.z);
-    quat.set(this._rotationQuatTmp, this.rotation.q.x, this.rotation.q.y, this.rotation.q.z, this.rotation.q.w);
-    vec3.set(this._scaleVecTmp, this.scale.x, this.scale.y, this.scale.z);
-
+    /* @NOTE specifically reference `this._worldMatrix` instead of `this.worldMatrix` */
     // Calculate local matrix
-    mat4.fromRotationTranslationScale(
-      this._worldMatrix,
-      this._rotationQuatTmp,
-      this._positionVecTmp,
-      this._scaleVecTmp,
+    this._worldMatrix.fromRotationTranslationScaleSelf(
+      this.rotation.q,
+      this.position,
+      this.scale,
     );
 
     if (this.parent) {
-      mat4.multiply(
-        this._worldMatrix,
-        this.parent.worldMatrix,
-        this._worldMatrix,
-      );
+      this._worldMatrix.reverseMultiplySelf(this.parent.worldMatrix);
     }
 
     this.worldMatrixIsDirty = false;
@@ -263,23 +251,17 @@ export abstract class SceneNode {
       // Node is child of another node
       // Recompute position considering parent's position, rotation, scale
 
-      // 1. Multiply position by parent absolute scale
-      vec3.set(
-        this._positionVecTmp,
-        this.position.x * this.parent.absoluteScale.x,
-        this.position.y * this.parent.absoluteScale.y,
-        this.position.z * this.parent.absoluteScale.z,
-      );
+      this._vectorTmp
+        // 1. Multiply position by parent absolute scale
+        .setValue(this.position)
+        .multiplySelf(this.parent.absoluteScale)
+        // 2. Rotate by parent's absolute rotation
+        .multiplySelf(this.parent.absoluteRotation.q)
+        // 3. Add parent's absolute position
+        .addSelf(this.parent.absolutePosition);
 
-      // 2. Rotate by parent's absolute rotation
-      quat.set(this._rotationQuatTmp, this.parent.absoluteRotation.q.x, this.parent.absoluteRotation.q.y, this.parent.absoluteRotation.q.z, this.parent.absoluteRotation.q.w);
-      vec3.transformQuat(this._positionVecTmp, this._positionVecTmp, this._rotationQuatTmp);
-
-      // 3. Add parent's absolute position
       this._absolutePosition.setValue(
-        this._positionVecTmp[0] + this.parent.absolutePosition.x,
-        this._positionVecTmp[1] + this.parent.absolutePosition.y,
-        this._positionVecTmp[2] + this.parent.absolutePosition.z,
+        this._vectorTmp,
         false,
       );
     } else {
@@ -303,29 +285,15 @@ export abstract class SceneNode {
       // @NOTE Reverse order of `recomputeAbsolutePosition()`
 
       // 1. Subtract parent's absolute position
-      vec3.set(
-        this._positionVecTmp,
-        this.absolutePosition.x - this.parent.absolutePosition.x,
-        this.absolutePosition.y - this.parent.absolutePosition.y,
-        this.absolutePosition.z - this.parent.absolutePosition.z,
-      );
+      this._vectorTmp
+        .setValue(this.absolutePosition)
+        .subtractSelf(this.parent.absolutePosition)
+        // 2. "Unrotate" by inverse of parent's absolute rotation
+        .multiplySelf(this.parent.absoluteRotation.qConjugate)
+        // 3. Divide by parent's absolute scale
+        .divideSelf(this.parent.absoluteScale);
 
-      // 2. "Unrotate" by inverse of parent's absolute rotation
-      quat.set(
-        this._rotationQuatTmp,
-        this.parent.absoluteRotation.qConjugate.x,
-        this.parent.absoluteRotation.qConjugate.y,
-        this.parent.absoluteRotation.qConjugate.z,
-        this.parent.absoluteRotation.qConjugate.w,
-      );
-      vec3.transformQuat(this._positionVecTmp, this._positionVecTmp, this._rotationQuatTmp);
-
-      // 3. Divide by parent's absolute scale
-      this.position.setValue(
-        this._positionVecTmp[0] / this.parent.absoluteScale.x,
-        this._positionVecTmp[1] / this.parent.absoluteScale.y,
-        this._positionVecTmp[2] / this.parent.absoluteScale.z,
-      );
+      this.position.setValue(this._vectorTmp);
     } else {
       // No parent - absolute is the same as local
       this.position = this.absolutePosition;
@@ -467,7 +435,7 @@ export abstract class SceneNode {
   }
   public set absoluteScale(value: Vector3) { this._absoluteScale.setValue(value); }
 
-  public get worldMatrix(): mat4 {
+  public get worldMatrix(): Matrix4 {
     if (this.worldMatrixIsDirty) {
       this.recomputeWorldMatrix();
     }

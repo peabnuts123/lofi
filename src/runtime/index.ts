@@ -7,7 +7,7 @@ import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
-import { BoxColliderNode } from '@polyzone/engine/scene/nodes/ColliderNode';
+import { BoxColliderNode } from '@polyzone/engine/scene/nodes';
 import { Color4 } from '@polyzone/engine/util/Color4';
 
 export interface CartridgeDefinition {
@@ -252,8 +252,8 @@ export class Runtime {
       scene.rotatingColliderParent.rotation.x = time * 360 / 7;
       scene.rotatingColliderParent.rotation.y = time * 360 / 8;
       scene.rotatingColliderParent.rotation.z = time * 360 / 6;
-      const collisionResult = scene.rotatingCollider.shape.calculateIntersection(scene.staticCollider.shape, Vector3.zero());
-      if (collisionResult !== undefined) {
+      const collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
+      if (collisionResult) {
         scene.rotatingColliderParent.model.debug_getSubmesh(0).material.diffuseColor = Color4.red();
       } else {
         scene.rotatingColliderParent.model.debug_getSubmesh(0).material.diffuseColor = Color4.white();

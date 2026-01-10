@@ -1,40 +1,18 @@
-import { AxisAlignedBoundingBox, ColliderShape, CollisionSystem } from "@polyzone/engine/collision";
-import { BoxColliderShape, type BoxColliderShapeConstructorArgs } from "@polyzone/engine/collision/shapes";
+import { AxisAlignedBoundingBox, CollisionSystem } from "@polyzone/engine/collision";
 import { DrawableSceneNode, type DrawTask, type IScene, SceneNode } from "@polyzone/engine/scene";
 import { DrawDebug, isWireframeDrawable } from "@polyzone/engine/util/DrawDebug";
 import type { IEngine } from "@polyzone/engine/Engine";
 import { Vector3 } from "@polyzone/engine/util/vector";
 
-/*
-  NOTES
-  Sphere to convex polyhedron
-    for each triangle of polyhedron
-      ? Ensure dot(normal, sphere.center - v0) is not negative (to make sure sphere is on right side of face)
-      Find shortest (sqr)distance to triangle from sphere.center: https://stackoverflow.com/questions/2924795/fastest-way-to-compute-point-to-triangle-distance-in-3d
-        - MTV = radius - dot(normal, sphere.center - v0)
-      Track smallest MTV
-      If no MTV, no collision
-
-    @NOTE might be able to skip some steps from the code above, see also other code samples in thread.
-      Ideally we just deal with sqrDistance to triangle
-    OR compute barycentric coords of projection of center to triangle plane and if u, v, w all > 0 then…
-      center is perpendicular to triangle (? useful ?)
-
-  Capsule to convex polyhedron
-    ? Someone's code: https://photodiode.github.io/article/triangle-capsule-intersection.html
-    ? Slow, but: https://blog.bearcats.nl/capsule-triangle-sweep/
- */
-
-
-
-export interface ColliderComputeMoveResult {
-  /* @TODO do these need better names? */
-  result: Vector3;
-  delta: Vector3; // @TODO if we don't get this for free, don't include it
-  // intersectionPoint: Vector3;
-  // intersectionDistance: number;
+export interface CalculateIntersectionResult {
+  mtv: Vector3;
+  isShorter: boolean;
 }
 
+export interface ColliderComputeMoveResult {
+  result: Vector3;
+  delta: Vector3; // @TODO Do we even need this?
+}
 
 export type CollisionGroup = number;
 
@@ -47,18 +25,20 @@ interface ComputeMoveOptions {
   iteration: number;
 }
 
-export class ColliderNode extends DrawableSceneNode {
+export abstract class ColliderNode extends DrawableSceneNode {
   public group: CollisionGroup;
-  public shape: ColliderShape;
 
-  public constructor(scene: IScene, name: string, group: CollisionGroup, shape: ColliderShape) {
+  public constructor(scene: IScene, name: string, group: CollisionGroup) {
     super(scene, name);
     if (group < 0 || group >= CollisionSystem.MaxCollisionGroups) {
       throw new Error(`Collision group must be in range 0-${CollisionSystem.MaxCollisionGroups - 1}`);
     }
     this.group = group;
-    this.shape = shape;
   }
+
+  public abstract getAABB(offset?: Vector3): AxisAlignedBoundingBox;
+  protected abstract calculateIntersection(other: ColliderNode, hintVector: Vector3): CalculateIntersectionResult | undefined;
+  public abstract intersects(other: ColliderNode): boolean;
 
   public move(target: SceneNode, vector: Vector3): void {
     const movement = this.computeMove(vector);
@@ -70,11 +50,12 @@ export class ColliderNode extends DrawableSceneNode {
     // and their AABB
     const allColliders: ComputeMoveOptions['allColliders'] = [];
     this.scene.forEachNodeInHierarchy((node) => {
+      if (node === this) return;
       if (node instanceof ColliderNode) {
         if (this.scene.engine.collision.canInteract(this.group, node.group)) {
           allColliders.push({
             node,
-            aabb: node.shape.getAABB(),
+            aabb: node.getAABB(),
           });
         }
       }
@@ -95,7 +76,7 @@ export class ColliderNode extends DrawableSceneNode {
     }
   }
   private __computeMove(vector: Vector3, options: ComputeMoveOptions): ColliderComputeMoveResult | undefined {
-    const selfAABB = this.shape.getAABB(vector);
+    const selfAABB = this.getAABB(vector);
 
     /* Broad phase */
     // Gather all possible colliders that MIGHT POSSIBLY intersect,
@@ -116,7 +97,7 @@ export class ColliderNode extends DrawableSceneNode {
         - perform some kind of SAT check
         - keep track of shortest result + MTV
        */
-      const intersectionResult = collider.shape.calculateIntersection(this.shape, vector);
+      const intersectionResult = this.calculateIntersection(collider, vector);
       if (intersectionResult !== undefined) {
         const resultVector = vector.add(intersectionResult.mtv);
         const sqrLength = resultVector.lengthSquared();
@@ -139,6 +120,7 @@ export class ColliderNode extends DrawableSceneNode {
       // or we'll hit the max number of iterations
 
       if (options.iteration + 1 >= MaxComputeMoveIterations) {
+        console.warn(`WARN: Exceeded max iterations for 'computeMove()'`);
         return shortestResult;
       }
 
@@ -160,10 +142,9 @@ export class ColliderNode extends DrawableSceneNode {
   public getDrawTasks(engine: IEngine): DrawTask[] {
     const drawTasks: DrawTask[] = [];
 
-    const { shape } = this;
-    if (isWireframeDrawable(shape)) {
+    if (isWireframeDrawable(this)) {
       drawTasks.push({
-        draw: () => DrawDebug.drawWireframe(engine, shape, { overlay: true }),
+        draw: () => DrawDebug.drawWireframe(engine, this, { overlay: true }),
         layer: 10,
       });
     }
@@ -172,22 +153,3 @@ export class ColliderNode extends DrawableSceneNode {
   }
 }
 
-export class BoxColliderNode extends ColliderNode {
-  public override shape: BoxColliderShape;
-
-  public constructor(scene: IScene, name: string, group: CollisionGroup, colliderOptions: BoxColliderShapeConstructorArgs) {
-    const collider = new BoxColliderShape(() => this, colliderOptions);
-    super(scene, name, group, collider);
-    this.shape = collider;
-  }
-}
-
-// export class SphereColliderNode extends ColliderNode {
-//   public override shape: SphereColliderShape;
-
-//   public constructor(scene: Scene, name: string, group: CollisionGroup, colliderOptions: SphereColliderShapeConstructorArgs) {
-//     const collider = new SphereColliderShape(() => this.worldMatrix, colliderOptions);
-//     super(scene, name, group, collider);
-//     this.shape = collider;
-//   }
-// }

@@ -1,11 +1,11 @@
-import { mat3, mat4 } from "gl-matrix";
-
 import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
 import type { Color3Definition } from "@polyzone/engine/util/Color3";
 import { Vector3, type Vector3Definition } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { IEngine } from "@polyzone/engine/Engine";
 import { ShaderBlendingMode } from "@polyzone/engine/materials";
+import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
+import { Matrix3 } from "@polyzone/engine/util/Matrix3";
 
 export interface TextureCoordinate {
   u: number;
@@ -35,7 +35,7 @@ export class SubMesh {
     max: Vector3;
   };
 
-  private _normalTmp = mat3.create();
+  private _normalTmp: Matrix3 = new Matrix3();
 
   public constructor(engine: IEngine, geometry: GeometryDefinition, material: Material) {
     const { gl } = engine;
@@ -155,13 +155,13 @@ export class SubMesh {
 
   public draw(
     engine: IEngine,
-    worldMatrix: mat4,
+    worldMatrix: Matrix4,
   ): void {
     const { gl } = engine;
 
     gl.useProgram(this.material.shader.program);
     // World matrix
-    gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix);
+    gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix.toArray());
 
     // Material
     gl.uniform4fv(this.material.shader.diffuseColorUniform, new Float32Array([
@@ -224,8 +224,8 @@ export class SubMesh {
     }
 
     // Lighting
-    mat3.normalFromMat4(this._normalTmp, worldMatrix);
-    gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp);
+    this._normalTmp.normalSelf(worldMatrix);
+    gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp.toArray());
 
     // Draw
     gl.bindVertexArray(this.vao);

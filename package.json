@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "npm run test -- --watch",
     "lint": "eslint --max-warnings 0 --no-error-on-unmatched-pattern \"*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}\" \"src/**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}\" \"test/**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}\"",
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "checkall": "npm run typecheck && npm run lint && npm run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -27,7 +28,6 @@
   },
   "dependencies": {
     "fflate": "^0.8.2",
-    "gl-matrix": "^3.4.4",
     "online-3d-viewer": "^0.18.0"
   }
 }

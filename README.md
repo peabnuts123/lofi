@@ -15,6 +15,7 @@ These items are roughly in priority order.
   - [x] ~~Rotation vectors wrap somehow~~
   - [x] ~~Interface for colors is 0xFF, shader receives [0..1] (use `normalized` prop in gl calls)~~
   - [x] ~~Transparency in rendering~~
+  - [ ] Collision handling
   - [ ] Picking / ray casting
   - [ ] 3D Animation including bones
   - [ ] Input system
@@ -23,7 +24,7 @@ These items are roughly in priority order.
   - [ ] POC for gizmos
     - [ ] Some way to render on a different "layer"
   - [x] ~~Core maths: Vector, Quaternion~~
-    - [ ] Replace as much gl-matrix logic with this as possible, ideally all of it
+    - [x] ~~Replace as much gl-matrix logic with this as possible, ideally all of it~~
   - [ ] Remaining material properties needed by PolyZone
     - [ ] Emission
     - [ ] Reflection
@@ -46,7 +47,7 @@ These items are roughly in priority order.
   - How do we manipulate materials?
 
 ## Ideas
-  - Build in 3d primitives e.g. cube, sphere, etc.
+  - Built-in 3d primitives e.g. cube, sphere, etc.
   - Lights based on camera proximity (or is this a PolyZone feature?)
   - A second param for `addChild()` that lets you mutate the child, or a factory function?
     - Or a `parent` param for Node constructors for implict local coordinates

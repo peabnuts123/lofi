@@ -1,4 +1,3 @@
-import { mat4 } from "gl-matrix";
 
 import type { IEngine } from "@polyzone/engine/Engine";
 import { CameraUboIndex } from "@polyzone/engine/scene/nodes/CameraNode";
@@ -6,6 +5,7 @@ import { getAttribute, getUniform } from "@polyzone/engine/materials/ShaderProgr
 
 import { Vector3 } from "./vector";
 import { Color4 } from "./Color4";
+import { Matrix4 } from "./Matrix4";
 
 const DebugVertexShaderSource = `#version 300 es
   // @TODO use an #include for this
@@ -37,7 +37,7 @@ interface DrawOptions {
   /** Color used when drawing debug geometry. */
   color: Color4;
   /** World matrix to transform all debug geometry. */
-  worldMatrix: mat4;
+  worldMatrix: Matrix4;
   /**
    * Draw debug geometry over the top of everything else
    * in the scene.
@@ -46,7 +46,7 @@ interface DrawOptions {
 }
 const DefaultDrawOptions: DrawOptions = {
   color: Color4.yellow(),
-  worldMatrix: mat4.create(),
+  worldMatrix: new Matrix4(),
   overlay: false,
 };
 
@@ -114,7 +114,7 @@ export class DrawDebug {
     gl.uniformMatrix4fv(
       DrawDebug.worldMatrixUniform,
       false,
-      drawOptions.worldMatrix,
+      drawOptions.worldMatrix.toArray(),
     );
     gl.uniform4fv(DrawDebug.colorUniform, new Float32Array([
       drawOptions.color.r / 0xFF,

@@ -117,7 +117,7 @@ export class Rotation {
     if (typeof eulerAnglesOrQuaternionOrX === 'number') {
       if (typeof yOrNotify === 'number' && typeof maybeZ === 'number' && typeof maybeNotify === 'boolean') {
         // Args are x, y, z
-        return this.mutate(maybeNotify, () =>
+        this.mutate(maybeNotify, () =>
           this._euler.setValue(
             eulerAnglesOrQuaternionOrX,
             yOrNotify,
@@ -130,7 +130,7 @@ export class Rotation {
       }
     } else if (eulerAnglesOrQuaternionOrX instanceof Quaternion && typeof yOrNotify === 'boolean') {
       // Args are quaternion
-      return this.mutate(yOrNotify, () =>
+      this.mutate(yOrNotify, () =>
         this.q.setValue(eulerAnglesOrQuaternionOrX),
       );
     } else if (!(eulerAnglesOrQuaternionOrX instanceof Quaternion) && typeof yOrNotify === 'boolean') {
@@ -140,7 +140,7 @@ export class Rotation {
         this.recomputeEuler();
       }
 
-      return this.mutate(yOrNotify, () =>
+      this.mutate(yOrNotify, () =>
         this._euler.setValue(
           eulerAnglesOrQuaternionOrX.x ?? this.euler.x,
           eulerAnglesOrQuaternionOrX.y ?? this.euler.y,

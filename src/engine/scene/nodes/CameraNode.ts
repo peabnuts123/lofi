@@ -1,10 +1,10 @@
-import { mat4 } from "gl-matrix";
-
 import { Vector3 } from "@polyzone/engine/util/vector";
-import { type IScene, SceneNode } from "@polyzone/engine/scene";
 import type { Ubo } from "@polyzone/engine/materials/Ubo";
 import { Quaternion } from "@polyzone/engine/util/quaternion";
 import { DegreesToRadians } from "@polyzone/engine/util/math";
+import { Matrix4 } from "@polyzone/engine/util/Matrix4";
+import { SceneNode } from "@polyzone/engine/scene/SceneNode";
+import type { IScene } from "@polyzone/engine/scene/Scene";
 
 export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
 export type CameraUboPropertyName = (typeof CameraUboPropertyNames)[number];
@@ -18,9 +18,9 @@ export class CameraNode extends SceneNode {
   public near: number = 0.1;
   public far: number = 100;
 
-  public readonly viewProjectionMatrix = mat4.create();
-  public readonly viewMatrix = mat4.create();
-  public readonly projectionMatrix = mat4.create();
+  public readonly viewProjectionMatrix = new Matrix4();
+  public readonly viewMatrix = new Matrix4();
+  public readonly projectionMatrix = new Matrix4();
 
   public constructor(scene: IScene, name: string, fov: number, aspectRatio: number) {
     super(scene, name);
@@ -32,7 +32,7 @@ export class CameraNode extends SceneNode {
   }
 
   public bindToUbo(gl: WebGL2RenderingContext, ubo: CameraUbo): void {
-    ubo.setProperty(gl, 'viewProjectionMatrix', new Float32Array(this.viewProjectionMatrix));
+    ubo.setProperty(gl, 'viewProjectionMatrix', this.viewProjectionMatrix.toArray());
   }
 
   public override onUpdate(dt: number): void {
@@ -48,20 +48,20 @@ export class CameraNode extends SceneNode {
   }
 
   private recalculateViewProjectionMatrix(): void {
-    mat4.invert(
-      this.viewMatrix,
-      this.worldMatrix,
-    );
+    this.viewMatrix
+      .setValue(this.worldMatrix)
+      .invertSelf();
 
     // @TODO cache this matrix
-    mat4.perspective(
-      this.projectionMatrix,
+    this.projectionMatrix.perspectiveSelf(
       this.fov * DegreesToRadians,
       this.aspectRatio,
       this.near,
       this.far,
     );
 
-    mat4.multiply(this.viewProjectionMatrix, this.projectionMatrix, this.viewMatrix);
+    this.viewProjectionMatrix
+      .setValue(this.projectionMatrix)
+      .multiplySelf(this.viewMatrix);
   }
 }

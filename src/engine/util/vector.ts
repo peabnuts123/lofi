@@ -1,4 +1,6 @@
 import { betterModulus } from "./math";
+import { Matrix4 } from "./Matrix4";
+import { Quaternion } from "./quaternion";
 
 type AnyVector = Vector3;
 
@@ -20,9 +22,9 @@ export class Vector3 {
     this._z = z;
   }
 
-  public setValue(x: number, y: number, z: number): void;
-  public setValue(value: Vector3Definition): void;
-  public setValue(valueOrX: Vector3Definition | number, maybeY: boolean | number = true, maybeZ?: number): void {
+  public setValue(x: number, y: number, z: number): this;
+  public setValue(value: Vector3Definition): this;
+  public setValue(valueOrX: Vector3Definition | number, maybeY: boolean | number = true, maybeZ?: number): this {
     /* Wow sorry for this completely cursed method signature */
     if (typeof valueOrX === 'number' && typeof maybeY === 'number' && typeof maybeZ === 'number') {
       this.x = valueOrX;
@@ -35,6 +37,7 @@ export class Vector3 {
     } else {
       throw new Error(`Unrecognised arguments to 'setValue()'`);
     }
+    return this;
   }
 
   public addSelf(value: AnyVector): this {
@@ -79,34 +82,119 @@ export class Vector3 {
 
   public multiplySelf(factor: number): this;
   public multiplySelf(other: Vector3): this;
-  public multiplySelf(operand: number | Vector3): this {
+  public multiplySelf(quaternion: Quaternion): this;
+  public multiplySelf(matrix: Matrix4): this;
+  public multiplySelf(operand: number | Vector3 | Quaternion | Matrix4): this {
     if (operand instanceof Vector3) {
-      this.x *= operand.x;
-      this.y *= operand.y;
-      this.z *= operand.z;
+      return this.multiplyVector3Self(operand);
+    } else if (operand instanceof Quaternion) {
+      return this.multiplyQuaternionSelf(operand);
+    } else if (operand instanceof Matrix4) {
+      return this.multiplyMatrix4Self(operand);
     } else {
-      this.x *= operand;
-      this.y *= operand;
-      this.z *= operand;
+      return this.multiplyNumberSelf(operand);
     }
+  }
+  private multiplyVector3Self(other: Vector3): this {
+    this.x *= other.x;
+    this.y *= other.y;
+    this.z *= other.z;
     return this;
   }
+  private multiplyQuaternionSelf(quat: Quaternion): this {
+    // Fast Vector Rotation using Quaternions by Robert Eisele
+    // https://raw.org/proof/vector-rotation-using-quaternions/
+    const { x, y, z } = this;
+
+    // t = q x v
+    let tx = quat.y * z - quat.z * y;
+    let ty = quat.z * x - quat.x * z;
+    let tz = quat.x * y - quat.y * x;
+
+    // t = 2t
+    tx = tx + tx;
+    ty = ty + ty;
+    tz = tz + tz;
+
+    // v + w t + q x t
+    this.y = y + quat.w * ty + quat.z * tx - quat.x * tz;
+    this.x = x + quat.w * tx + quat.y * tz - quat.z * ty;
+    this.z = z + quat.w * tz + quat.x * ty - quat.y * tx;
+    return this;
+  }
+  private multiplyMatrix4Self(matrix: Matrix4): this {
+    const { x, y, z } = this;
+    const w = matrix["m03"] * this.x + matrix["m13"] * this.y + matrix["m23"] * this.z + matrix["m33"] || 1.0;
+    this.x = (matrix["m00"] * x + matrix["m10"] * y + matrix["m20"] * z + matrix["m30"]) / w;
+    this.y = (matrix["m01"] * x + matrix["m11"] * y + matrix["m21"] * z + matrix["m31"]) / w;
+    this.z = (matrix["m02"] * x + matrix["m12"] * y + matrix["m22"] * z + matrix["m32"]) / w;
+    return this;
+  }
+  private multiplyNumberSelf(factor: number): this {
+    this.x *= factor;
+    this.y *= factor;
+    this.z *= factor;
+    return this;
+  }
+
+
   public multiply(factor: number): Vector3;
   public multiply(other: Vector3): Vector3;
-  public multiply(operand: number | Vector3): Vector3 {
+  public multiply(quaternion: Quaternion): Vector3;
+  public multiply(matrix: Matrix4): Vector3;
+  public multiply(operand: number | Vector3 | Quaternion | Matrix4): Vector3 {
     if (operand instanceof Vector3) {
-      return new Vector3(
-        this.x * operand.x,
-        this.y * operand.y,
-        this.z * operand.z,
-      );
+      return this.multiplyVector3(operand);
+    } else if (operand instanceof Quaternion) {
+      return this.multiplyQuaternion(operand);
+    } else if (operand instanceof Matrix4) {
+      return this.multiplyMatrix4(operand);
     } else {
-      return new Vector3(
-        this.x * operand,
-        this.y * operand,
-        this.z * operand,
-      );
+      return this.multiplyNumber(operand);
     }
+  }
+  private multiplyVector3(other: Vector3): Vector3 {
+    return new Vector3(
+      this.x * other.x,
+      this.y * other.y,
+      this.z * other.z,
+    );
+  }
+  private multiplyQuaternion(quat: Quaternion): Vector3 {
+    // Fast Vector Rotation using Quaternions by Robert Eisele
+    // https://raw.org/proof/vector-rotation-using-quaternions/
+
+    // t = q x v
+    let tx = quat.y * this.z - quat.z * this.y;
+    let ty = quat.z * this.x - quat.x * this.z;
+    let tz = quat.x * this.y - quat.y * this.x;
+
+    // t = 2t
+    tx = tx + tx;
+    ty = ty + ty;
+    tz = tz + tz;
+
+    // v + w t + q x t
+    return new Vector3(
+      this.y + quat.w * ty + quat.z * tx - quat.x * tz,
+      this.x + quat.w * tx + quat.y * tz - quat.z * ty,
+      this.z + quat.w * tz + quat.x * ty - quat.y * tx,
+    );
+  }
+  private multiplyMatrix4(matrix: Matrix4): Vector3 {
+    const w = matrix["m03"] * this.x + matrix["m13"] * this.y + matrix["m23"] * this.z + matrix["m33"] || 1.0;
+    return new Vector3(
+      (matrix["m00"] * this.x + matrix["m10"] * this.y + matrix["m20"] * this.z + matrix["m30"]) / w,
+      (matrix["m01"] * this.x + matrix["m11"] * this.y + matrix["m21"] * this.z + matrix["m31"]) / w,
+      (matrix["m02"] * this.x + matrix["m12"] * this.y + matrix["m22"] * this.z + matrix["m32"]) / w,
+    );
+  }
+  private multiplyNumber(factor: number): Vector3 {
+    return new Vector3(
+      this.x * factor,
+      this.y * factor,
+      this.z * factor,
+    );
   }
 
   public divideSelf(factor: number): this;
@@ -280,9 +368,9 @@ export class ObservedVector3 extends Vector3 {
   // =============
   // Optimised versions of functions to only call `onChange()` once.
   // =============
-  public override setValue(x: number, y: number, z: number, notify?: boolean): void;
-  public override setValue(value: Vector3Definition, notify?: boolean): void;
-  public override setValue(valueOrX: Vector3Definition | number, notifyOrY: boolean | number = true, maybeZ?: number, maybeNotify: boolean = true): void {
+  public override setValue(x: number, y: number, z: number, notify?: boolean): this;
+  public override setValue(value: Vector3Definition, notify?: boolean): this;
+  public override setValue(valueOrX: Vector3Definition | number, notifyOrY: boolean | number = true, maybeZ?: number, maybeNotify: boolean = true): this {
     /* Wow sorry for this completely cursed method signature */
     if (typeof valueOrX === 'number' && typeof notifyOrY === 'number' && typeof maybeZ === 'number' && typeof maybeNotify === 'boolean') {
       return this.mutate(maybeNotify, () =>
@@ -308,14 +396,14 @@ export class ObservedVector3 extends Vector3 {
   }
   public override multiplySelf(factor: number, notify?: boolean): this;
   public override multiplySelf(other: Vector3, notify?: boolean): this;
-  public override multiplySelf(operand: number | Vector3, notify: boolean = true): this {
+  public override multiplySelf(quaternion: Quaternion, notify?: boolean): this;
+  public override multiplySelf(matrix: Matrix4, notify?: boolean): this;
+  public override multiplySelf(operand: number | Vector3 | Quaternion | Matrix4, notify: boolean = true): this {
     return this.mutate(notify, () => {
       // TypeScript why are you like this
-      if (operand instanceof Vector3) {
-        return super.multiplySelf(operand);
-      } else {
-        return super.multiplySelf(operand);
-      }
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      return super.multiplySelf(operand);
     });
   }
   public override divideSelf(factor: number, notify?: boolean): this;

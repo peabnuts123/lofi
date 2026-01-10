@@ -1,6 +1,7 @@
-import { mat4, vec3 } from "gl-matrix";
 import type { IEngine } from "@polyzone/engine/Engine";
 import type { DrawTask } from "@polyzone/engine/scene";
+import { Vector3 } from "@polyzone/engine/util/vector";
+import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
 
 import { SubMesh, type SubMeshDefinition } from "./SubMesh";
 
@@ -10,14 +11,13 @@ export interface ModelDefinition {
 
 export class Model {
   private subMeshes: SubMesh[];
-  private _submeshCenterPositionTmp: vec3 = vec3.create();
-  private _cameraSpacePositionTmp: vec3 = vec3.create();
+  private _cameraSpacePositionTmp: Vector3 = Vector3.zero();
 
   private constructor(subMeshes: SubMesh[]) {
     this.subMeshes = subMeshes;
   }
 
-  public getDrawTasks(engine: IEngine, viewModelMatrix: mat4, worldMatrix: mat4): DrawTask[] {
+  public getDrawTasks(engine: IEngine, viewModelMatrix: Matrix4, worldMatrix: Matrix4): DrawTask[] {
     const drawTasks: DrawTask[] = [];
     for (let i = 0; i < this.subMeshes.length; i++) {
       const subMesh = this.subMeshes[i];
@@ -29,13 +29,14 @@ export class Model {
         });
       } else {
         // Material is transparent, sort, and draw in second render pass
-        vec3.set(this._submeshCenterPositionTmp, subMesh.extents.center.x, subMesh.extents.center.y, subMesh.extents.center.z);
-        vec3.transformMat4(this._cameraSpacePositionTmp, this._submeshCenterPositionTmp, viewModelMatrix);
+        this._cameraSpacePositionTmp
+          .setValue(subMesh.extents.center)
+          .multiplySelf(viewModelMatrix);
 
         drawTasks.push({
           draw: () => subMesh.draw(engine, worldMatrix),
           layer: 5,
-          order: this._cameraSpacePositionTmp[2],
+          order: this._cameraSpacePositionTmp.z,
         });
       }
     }
