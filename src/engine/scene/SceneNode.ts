@@ -79,7 +79,7 @@ export abstract class SceneNode {
    * @param child - The child node to add
    * @throws {Error} If the child already has a different parent
    */
-  public addChild(child: SceneNode): void {
+  public addChild<TNode extends SceneNode>(child: TNode): TNode {
     if (child.parent !== undefined) {
       throw new Error(`Cannot add node '${child.name}' as child of node '${this.name}': It is already the child of another node: '${child.parent.name}'`);
     } else if (this.children.some((existingChild) => existingChild === child)) {
@@ -99,6 +99,7 @@ export abstract class SceneNode {
       child.recomputeLocalRotationFromParent();
       child.recomputeLocalScaleFromParent();
     }
+    return child;
   }
 
   /**

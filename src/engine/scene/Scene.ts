@@ -13,7 +13,7 @@ export interface RenderLayer {
 
 export interface IScene {
 
-  addTopLevelNode(node: SceneNode): void;
+  addTopLevelNode(node: SceneNode): SceneNode;
   removeTopLevelNode(node: SceneNode): void;
   onUpdate(dt: number): void;
   draw(): void;
@@ -27,7 +27,7 @@ export interface IScene {
   set lighting(value: SceneLighting);
 }
 
-export class Scene implements IScene{
+export class Scene implements IScene {
   public activeCamera: CameraNode | undefined;
   public readonly engine: IEngine;
   private topLevelNodes: SceneNode[];
@@ -43,7 +43,7 @@ export class Scene implements IScene{
     }
   }
 
-  public addTopLevelNode(node: SceneNode): void {
+  public addTopLevelNode<TNode extends SceneNode>(node: TNode): TNode {
     if (node.parent !== undefined) {
       throw new Error(`Cannot add node '${node.name}' to scene as top-level node, it is already the child of '${node.parent.name}'`);
     } else if (this.topLevelNodes.some((topLevelNode) => topLevelNode === node)) {
@@ -51,6 +51,7 @@ export class Scene implements IScene{
     } else {
       this.topLevelNodes.push(node);
     }
+    return node;
   }
 
   public removeTopLevelNode(node: SceneNode): void {

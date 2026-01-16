@@ -1,4 +1,4 @@
-import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { CameraNode, ColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type ModelDefinition } from '@polyzone/engine/models';
 import { Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
@@ -26,6 +26,7 @@ interface SceneState {
   rotatingCollider: BoxColliderNode;
 }
 
+const MaxRuntimeSeconds = 10;
 const TestObjectsEnabled = false;
 const GridW = 20;
 const GridH = 20;
@@ -163,7 +164,7 @@ export class Runtime {
       x: 1, y: 1, z: 1,
     });
     staticColliderParent.addChild(staticCollider);
-    staticColliderParent.position.y = 1.5;
+    staticColliderParent.position.y = 3.5;
 
     const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
     const rotatingCollider = new BoxColliderNode(scene, "rotating_collider", 0, {
@@ -171,7 +172,42 @@ export class Runtime {
     });
     rotatingColliderParent.addChild(rotatingCollider);
     rotatingColliderParent.position.x = 1.2;
-    rotatingColliderParent.position.y = 1.5;
+    rotatingColliderParent.position.y = 3.5;
+
+
+    /* Movement test */
+    const size = 1;
+    function box(pos: Vector3, rot?: Vector3, scale?: Vector3): [SceneNode, ColliderNode] {
+      const model = new ModelNode(scene, "box", boxModel);
+      const collider = model.addChild(new BoxColliderNode(scene, "collider", 0, {
+        x: size, y: size, z: size,
+      }));
+      model.position = pos;
+      if (rot) {
+        model.rotation.euler.setValue(rot);
+      }
+      if (scale) {
+        model.scale = scale;
+      }
+      return [model, collider];
+    }
+
+    const gap = 0.2;
+    box(new Vector3(0, size / 2, 0));
+    const [mockColliderNodeB, mockColliderB] = box(
+      new Vector3(size - gap * 2, size * 1.5 + gap, 0),
+      Vector3.zero(),
+      new Vector3(1, 1, 1),
+    );
+
+    const requestedMove = new Vector3(gap * 1.8, - gap * 1.8, 0);
+    // mockColliderNodeB.position.addSelf(requestedMove);
+    mockColliderB.move(mockColliderNodeB, requestedMove);
+    // const speed = 0.2;
+    // const stop = setInterval(() => {
+    //   mockColliderB.move(mockColliderNodeB, new Vector3(speed / 60, -speed / 60, speed / 60));
+    // }, 16);
+    // setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
 
     this.scene = {
       burger,
@@ -202,8 +238,6 @@ export class Runtime {
         behaviours[behaviourIndex]();
       }
     }
-
-    const MaxRuntimeSeconds = 30;
 
     this.engine.run((dt, stop): void => {
       const scene = this.scene;

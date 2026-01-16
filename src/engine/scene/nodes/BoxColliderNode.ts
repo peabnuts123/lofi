@@ -13,12 +13,11 @@ export class BoxColliderNode extends SATColliderNode {
   public x: number;
   public y: number;
   public z: number;
-  // private verticesLocalSpace!: Vector3[];
 
   private static readonly NormalsLocalSpace: Vector3[] = [
-    new Vector3(0, 0, 1),
-    new Vector3(0, 1, 0),
     new Vector3(1, 0, 0),
+    new Vector3(0, 1, 0),
+    new Vector3(0, 0, 1),
   ];
   private _normalsWorldSpaceCache: Vector3[];
 

@@ -120,7 +120,7 @@ export abstract class ColliderNode extends DrawableSceneNode {
       // or we'll hit the max number of iterations
 
       if (options.iteration + 1 >= MaxComputeMoveIterations) {
-        console.warn(`WARN: Exceeded max iterations for 'computeMove()'`);
+        console.warn(`WARN: Exceeded max iterations for 'computeMove()'`, vector);
         return shortestResult;
       }
 

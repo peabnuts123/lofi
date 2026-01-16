@@ -88,9 +88,14 @@ export abstract class SATColliderNode extends ColliderNode {
       // However we'll take a longer result if that's all we have
       // So we just gotta track whether our best result is shorter or not
       const discardResult = !isResultShorterThanHintVector && bestResultIsShorterThanHintVector;
+      // @NOTE If all we have is results that are longer than the hint vector,
+      // then any shorter result is better, so we override the current best,
+      // even if it isn't shorter
+      // @NOTE This doesn't entirely prevent tunnelling, only in some scenarios.
+      const overrideCurrentShortest = isResultShorterThanHintVector && !bestResultIsShorterThanHintVector;
 
       // Track shortest overlap
-      if (!discardResult && (shortestOverlap === undefined || overlap < shortestOverlap)) {
+      if (!discardResult && (overrideCurrentShortest || shortestOverlap === undefined || overlap < shortestOverlap)) {
         shortestOverlap = overlap;
         shortestMTV = mtv;
         bestResultIsShorterThanHintVector = isResultShorterThanHintVector;
