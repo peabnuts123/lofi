@@ -18,6 +18,7 @@
     "baseUrl": ".",
     "paths": {
       "@polyzone/engine/*": ["src/engine/*"],
+      "@test/*": ["test/*"],
     },
 
     /* Linting */
@@ -30,6 +31,7 @@
   },
   "include": [
     "src",
+    "test",
     "eslint.config.mjs",
     "vite.config.ts",
     "vitest.config.ts",
