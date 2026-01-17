@@ -1,11 +1,12 @@
 import { Vector3 } from "@polyzone/engine/util/vector";
+import { AxisAlignedBoundingBox } from "@polyzone/engine/collision";
 import { ColliderNode, type CalculateIntersectionResult } from "./ColliderNode";
 
 export type SatProjection = [min: number, max: number]
 export abstract class SATColliderNode extends ColliderNode {
   protected abstract getSATNormals(): Vector3[];
   protected abstract getSATEdges(): Vector3[];
-  protected abstract projectToAxis(axis: Vector3, offset?: Vector3): SatProjection;
+  protected abstract getVerticesWorldSpace(offset?: Vector3): Vector3[];
 
   public intersects(other: ColliderNode): boolean {
     if (other instanceof SATColliderNode) {
@@ -13,6 +14,53 @@ export abstract class SATColliderNode extends ColliderNode {
     } else {
       throw new Error(`Unimplemented collider: ${other.constructor.name}`);
     }
+  }
+
+  public override getAABB(offset?: Vector3): AxisAlignedBoundingBox {
+    const verticesWorldSpace = this.getVerticesWorldSpace();
+    const min = new Vector3(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+    const max = new Vector3(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
+
+    for (const vertex of verticesWorldSpace) {
+      if (vertex.x < min.x) min.x = vertex.x;
+      if (vertex.x > max.x) max.x = vertex.x;
+      if (vertex.y < min.y) min.y = vertex.y;
+      if (vertex.y > max.y) max.y = vertex.y;
+      if (vertex.z < min.z) min.z = vertex.z;
+      if (vertex.z > max.z) max.z = vertex.z;
+    }
+
+    if (offset !== undefined) {
+      min.addSelf(offset);
+      max.addSelf(offset);
+    }
+
+    return new AxisAlignedBoundingBox({
+      xMin: min.x,
+      xMax: max.x,
+      yMin: min.y,
+      yMax: max.y,
+      zMin: min.z,
+      zMax: max.z,
+    });
+  }
+
+  protected projectToAxis(axis: Vector3, offset?: Vector3): SatProjection {
+    const verticesWorldSpace = this.getVerticesWorldSpace(offset);
+    let min: number = Number.MAX_SAFE_INTEGER;
+    let max: number = Number.MIN_SAFE_INTEGER;
+
+    for (const vertex of verticesWorldSpace) {
+      const projection = vertex.dot(axis); // @NOTE don't need to divide by axis length since axis is normalized
+      if (projection < min) {
+        min = projection;
+      }
+      if (projection > max) {
+        max = projection;
+      }
+    }
+
+    return [min, max];
   }
 
   protected calculateIntersection(other: ColliderNode, hintVector: Vector3): CalculateIntersectionResult | undefined {

@@ -1,12 +1,12 @@
-import { ImporterObj, type Mesh, type Triangle, type Model, type Vector2, type ImportCallbacks } from 'online-3d-viewer/source/engine/import/importerobj';
+import { ImporterObj, type Mesh, type Triangle as TriangleDefinition, type Model, type Vector2, type ImportCallbacks } from 'online-3d-viewer/source/engine/import/importerobj';
 
 import type { Vector3Definition } from '@polyzone/engine/util/vector';
 import type { Color3Definition } from '@polyzone/engine/util/Color3';
-import type { SubMeshDefinition, TextureCoordinate } from '@polyzone/engine/models/SubMesh';
+import type { SubMeshDefinition } from '@polyzone/engine/models/SubMesh';
 import type { MaterialDefinition } from '@polyzone/engine/materials/Material';
 import { canonicalisePath, getFileExtension } from '@polyzone/engine/util/path';
 import type { IFileSystem } from '@polyzone/engine/filesystem';
-import type { ModelDefinition } from '@polyzone/engine/models';
+import type { ModelDefinition, TextureCoordinate, TriangleIndices } from '@polyzone/engine/models';
 
 interface VertexInfo {
   position: Vector3Definition;
@@ -29,7 +29,7 @@ function canonicaliseDependencyPath(objPath: string, path: string): string {
 function loadVertex(
   objMesh: Mesh,
   vertexData: VertexInfo[],
-  triangle: Triangle,
+  triangle: TriangleDefinition,
   vertexIndex: number,
   materialIndex: number,
 ): void {
@@ -50,7 +50,7 @@ function loadVertex(
   function dereference<T, TArray extends Array<T>>(collection: TArray, prefix: string): T | undefined;
   function dereference<T, TArray extends Array<T>, TResult>(collection: TArray, prefix: string, map: (result: T) => TResult): TResult | undefined;
   function dereference<T, TArray extends Array<T>, TResult = T>(collection: TArray, prefix: string, map?: (result: T) => TResult): TResult | undefined {
-    const index = triangle[`${prefix}${vertexIndex}` as keyof Triangle];
+    const index = triangle[`${prefix}${vertexIndex}` as keyof TriangleDefinition];
     if (index === null) {
       return undefined;
     } else {
@@ -144,7 +144,7 @@ export abstract class ObjLoader {
       }
     } while (newFilePaths.length > 0);
 
-    // console.log(`[DEBUG] [ObjLoader] (loadModel) parsedModel:`, parsedModel);
+    console.log(`[DEBUG] [ObjLoader] (loadModel) parsedModel:`, parsedModel);
 
     // @NOTE @ASSUMPTION: objects always have exactly 1 root mesh
     // @TODO they probably don't. There's no harm in iterating through them, since we are just returning
@@ -154,7 +154,7 @@ export abstract class ObjLoader {
 
     // Mesh data is grouped by material
     const groupedVertexData: Record<string, VertexInfo[]> = {};
-    const groupedTriangleData: Record<string, number[][]> = {};
+    const groupedTriangleData: Record<string, TriangleIndices[]> = {};
     const groupedMaterialData: Record<string, MaterialDefinition> = {};
 
     for (const triangle of objMesh.triangles) {

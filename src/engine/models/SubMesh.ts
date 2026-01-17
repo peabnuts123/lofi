@@ -1,34 +1,22 @@
 import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
-import type { Color3Definition } from "@polyzone/engine/util/Color3";
-import { Vector3, type Vector3Definition } from "@polyzone/engine/util/vector";
+import { Vector3 } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { IEngine } from "@polyzone/engine/Engine";
 import { ShaderBlendingMode } from "@polyzone/engine/materials";
 import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
 import { Matrix3 } from "@polyzone/engine/util/Matrix3";
-
-export interface TextureCoordinate {
-  u: number;
-  v: number;
-}
+import { MeshGeometry, type MeshGeometryDefinition, type TextureCoordinate } from "./MeshGeometry";
+import type { Color4Definition } from "../util/Color4";
 
 export interface SubMeshDefinition {
-  geometry: GeometryDefinition;
+  geometry: MeshGeometryDefinition;
   material: MaterialDefinition;
 }
 
-export interface GeometryDefinition {
-  vertexPositions: Vector3Definition[];
-  vertexColors?: Color3Definition[];
-  vertexNormals?: Vector3Definition[];
-  textureCoordinates?: TextureCoordinate[];
-  triangles: number[][];
-}
-
 export class SubMesh {
-  private vao: WebGLVertexArrayObject;
-  private definition: GeometryDefinition;
-  public material: Material;
+  private readonly vao: WebGLVertexArrayObject;
+  private readonly _geometry: MeshGeometry;
+  public readonly material: Material;
   public readonly extents: {
     min: Vector3;
     center: Vector3;
@@ -37,16 +25,18 @@ export class SubMesh {
 
   private _normalTmp: Matrix3 = new Matrix3();
 
-  public constructor(engine: IEngine, geometry: GeometryDefinition, material: Material) {
+  public constructor(engine: IEngine, geometry: MeshGeometry, material: Material) {
     const { gl } = engine;
 
     const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
-    const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangles.flat()));
-    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 0xFF, g: 0xFF, b: 0xFF } satisfies Color3Definition));
-    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Uint8Array(vertexColorData.flatMap(c => [c.r, c.g, c.b, 0xFF])));
-    // @TODO If lacking normals, generate some sensible default
-    const vertexNormalData = geometry.vertexNormals ?? geometry.vertexPositions.map(() => ({ x: 0, y: 0, z: 0 } satisfies Vector3Definition));
-    const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexNormalData.flatMap((n) => [n.x, n.y, n.z])));
+    const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangleIndices.flat()));
+    const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexNormals.flatMap((n) => [n.x, n.y, n.z])));
+
+    /* Optional geometry data */
+    // @TODO Should we instead set a `define` if there are no vertex colors?
+    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 0xFF, g: 0xFF, b: 0xFF, a: 0xFF } satisfies Color4Definition));
+    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Uint8Array(vertexColorData.flatMap(c => [c.r, c.g, c.b, c.a])));
+    // @TODO Should we instead set a `define` if there are no texture coordinates?
     const vertexTextureCoordinateData = geometry.textureCoordinates ?? geometry.vertexPositions.map(() => ({ u: 0, v: 0 } as TextureCoordinate));
     const textureCoordinateBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexTextureCoordinateData.flatMap((t) => [t.u, t.v])));
 
@@ -112,7 +102,7 @@ export class SubMesh {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, faceIndexBuffer);
     gl.bindVertexArray(null);
 
-    this.definition = geometry;
+    this._geometry = geometry;
     this.material = material;
 
     // Calculate submesh extents
@@ -150,7 +140,8 @@ export class SubMesh {
 
   public static async fromDefinition(engine: IEngine, definition: SubMeshDefinition): Promise<SubMesh> {
     const material = await Material.fromDefinition(engine, definition.material);
-    return new SubMesh(engine, definition.geometry, material);
+    const geometry = new MeshGeometry(definition.geometry);
+    return new SubMesh(engine, geometry, material);
   }
 
   public draw(
@@ -229,11 +220,15 @@ export class SubMesh {
 
     // Draw
     gl.bindVertexArray(this.vao);
-    gl.drawElements(gl.TRIANGLES, this.definition.triangles.length * 3, gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, this.geometry.triangles.length * 3, gl.UNSIGNED_SHORT, 0);
     gl.bindVertexArray(null);
 
     gl.disable(gl.BLEND);
     gl.blendEquation(gl.FUNC_ADD);
     gl.depthMask(true);
+  }
+
+  public get geometry(): MeshGeometry {
+    return this._geometry;
   }
 }

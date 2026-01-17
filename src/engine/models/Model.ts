@@ -10,11 +10,11 @@ export interface ModelDefinition {
 }
 
 export class Model {
-  private subMeshes: SubMesh[];
-  private _cameraSpacePositionTmp: Vector3 = Vector3.zero();
+  private readonly _subMeshes: SubMesh[];
+  private readonly _cameraSpacePositionTmp: Vector3 = Vector3.zero();
 
   private constructor(subMeshes: SubMesh[]) {
-    this.subMeshes = subMeshes;
+    this._subMeshes = subMeshes;
   }
 
   public getDrawTasks(engine: IEngine, viewModelMatrix: Matrix4, worldMatrix: Matrix4): DrawTask[] {
@@ -51,10 +51,7 @@ export class Model {
     return new Model(subMeshes);
   }
 
-  public debug_getSubmesh(index: number): SubMesh {
-    if (index < 0 || index >= this.subMeshes.length) {
-      throw new Error(`Submesh ${index} is out of bounds`);
-    }
-    return this.subMeshes[index];
+  public get subMeshes(): SubMesh[] {
+    return this._subMeshes;
   }
 }

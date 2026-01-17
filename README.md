@@ -45,6 +45,7 @@ These items are roughly in priority order.
   - Changing of scenes
   - Consider renaming "model" to "mesh"
   - How do we manipulate materials?
+  - Should we use a #define to omit vertex colouring, texturing?
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.

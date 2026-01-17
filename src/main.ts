@@ -3,7 +3,7 @@ import { ObjLoader } from '@polyzone/engine/loaders';
 import { Runtime, type CartridgeDefinition } from './runtime';
 import { DebugModule } from './util/DebugModule';
 import { WebFileSystem } from './engine/filesystem/WebFileSystem';
-import type { GeometryDefinition } from './engine/models';
+import type { MeshGeometryDefinition } from './engine/models';
 import { ShaderBlendingMode } from './engine/materials';
 
 import './style.css';
@@ -13,8 +13,8 @@ DebugModule.register();
 const WHITE = { r: 0xFF, g: 0xFF, b: 0xFF };
 
 const filesystem = new WebFileSystem();
-const debug_model = await ObjLoader.loadModel('/models/burgerCheese.obj', filesystem);
-// const debug_model = await ObjLoader.loadModel('/models/detailDumpster_closed.obj', filesystem);
+const burgerModel = await ObjLoader.loadModel('/models/burgerCheese.obj', filesystem);
+const dumpsterModel = await ObjLoader.loadModel('/models/detailDumpster_closed.obj', filesystem);
 const cartridge: CartridgeDefinition = {
   models: [
     /* 00 - Ground */
@@ -30,7 +30,7 @@ const cartridge: CartridgeDefinition = {
       ],
     },
     /* 01 - Real model */
-    debug_model,
+    burgerModel,
     /* 02 - Blending mode: Average */
     {
       subMeshes: [
@@ -88,6 +88,8 @@ const cartridge: CartridgeDefinition = {
         },
       ],
     },
+    /* 06 - Dumpster model */
+    dumpsterModel,
   ],
 };
 
@@ -97,7 +99,7 @@ const runtime = new Runtime();
 await runtime.loadCartridge(canvas, cartridge);
 runtime.run();
 
-function cubeGeometry(): GeometryDefinition {
+function cubeGeometry(): MeshGeometryDefinition {
   return {
     vertexPositions: [
       // Front face (z = 0.5) - indices 0-3

@@ -197,8 +197,9 @@ export class DrawDebug {
 
 export interface IWireframeDrawable {
   /**
-   * An array of faces. Each face is a closed-loop poly-line
-   * represented by an array of points.
+   * An array of faces. Each face is represented by an array of points.
+   * Faces will be drawn as a closed-loop polyline that will join the last point
+   * to the first.
    */
   getWireframeFaces(): Vector3[][];
 }

@@ -1,4 +1,4 @@
-import { CameraNode, ColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type ModelDefinition } from '@polyzone/engine/models';
 import { Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
@@ -7,7 +7,6 @@ import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
-import { BoxColliderNode } from '@polyzone/engine/scene/nodes';
 import { Color4 } from '@polyzone/engine/util/Color4';
 
 export interface CartridgeDefinition {
@@ -164,15 +163,14 @@ export class Runtime {
       x: 1, y: 1, z: 1,
     });
     staticColliderParent.addChild(staticCollider);
-    staticColliderParent.position.y = 3.5;
+    staticColliderParent.position.y = 2.5;
 
     const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
-    const rotatingCollider = new BoxColliderNode(scene, "rotating_collider", 0, {
+    const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
       x: 1, y: 1, z: 1,
-    });
-    rotatingColliderParent.addChild(rotatingCollider);
+    }));
     rotatingColliderParent.position.x = 1.2;
-    rotatingColliderParent.position.y = 3.5;
+    rotatingColliderParent.position.y = 2.5;
 
 
     /* Movement test */
@@ -192,22 +190,25 @@ export class Runtime {
       return [model, collider];
     }
 
-    const gap = 0.2;
-    box(new Vector3(0, size / 2, 0));
-    const [mockColliderNodeB, mockColliderB] = box(
-      new Vector3(size - gap * 2, size * 1.5 + gap, 0),
-      Vector3.zero(),
-      new Vector3(1, 1, 1),
+    const speed = 0.35;
+
+    const dumpsterModel = await Model.fromDefinition(engine, cartridge.models[6]);
+
+    const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
+    const convexCollider = convexColliderNode.addChild(
+      new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
     );
 
-    const requestedMove = new Vector3(gap * 1.8, - gap * 1.8, 0);
-    // mockColliderNodeB.position.addSelf(requestedMove);
-    mockColliderB.move(mockColliderNodeB, requestedMove);
-    // const speed = 0.2;
-    // const stop = setInterval(() => {
-    //   mockColliderB.move(mockColliderNodeB, new Vector3(speed / 60, -speed / 60, speed / 60));
-    // }, 16);
-    // setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
+    convexColliderNode.scale.multiplySelf(2);
+
+    const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 1.3, 0));
+
+    const stop = setInterval(() => {
+      // Cruel test, make two dynamic colliders both move into each other
+      convexCollider.move(convexColliderNode, new Vector3(-speed / 60, 0, 0));
+      movingBoxCollider.move(movingBoxNode, new Vector3(speed / 60, 0, 0));
+    }, 16);
+    setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
 
     this.scene = {
       burger,
@@ -245,7 +246,7 @@ export class Runtime {
 
       /* Camera */
       scene.cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
-      scene.camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 2;
+      scene.camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
       scene.camera.pointAt(new Vector3(0, 0, 0));
 
       /* Collection of test objects */
@@ -288,9 +289,9 @@ export class Runtime {
       scene.rotatingColliderParent.rotation.z = time * 360 / 6;
       const collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
       if (collisionResult) {
-        scene.rotatingColliderParent.model.debug_getSubmesh(0).material.diffuseColor = Color4.red();
+        scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.red());
       } else {
-        scene.rotatingColliderParent.model.debug_getSubmesh(0).material.diffuseColor = Color4.white();
+        scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.white());
       }
 
       time += dt;
