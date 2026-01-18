@@ -18,7 +18,7 @@ export type ShaderBlendingMode = Enum<typeof ShaderBlendingMode>;
 export interface ShaderProgramOptions {
   hasDiffuseTexture: boolean;
   blendingMode: ShaderBlendingMode; // @TODO Should we just pass the material reference?
-  blackIsTransparent: boolean;
+  blackIsTransparent: boolean; // @NOTE specifically regarding the sampled texture. Should maybe rename.
   unlit: boolean;
 }
 

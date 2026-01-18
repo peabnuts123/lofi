@@ -15,7 +15,7 @@ These items are roughly in priority order.
   - [x] ~~Rotation vectors wrap somehow~~
   - [x] ~~Interface for colors is 0xFF, shader receives [0..1] (use `normalized` prop in gl calls)~~
   - [x] ~~Transparency in rendering~~
-  - [ ] Collision handling
+  - [x] ~~Collision handling~~
   - [ ] Picking / ray casting
   - [ ] 3D Animation including bones
   - [ ] Input system
@@ -46,6 +46,7 @@ These items are roughly in priority order.
   - Consider renaming "model" to "mesh"
   - How do we manipulate materials?
   - Should we use a #define to omit vertex colouring, texturing?
+  - Skyboxes
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.
