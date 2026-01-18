@@ -85,39 +85,3 @@ export function rayTriangleIntersection(origin: Vector3, direction: Vector3, tri
     return undefined;
   }
 }
-// @NOTE Raw logic version with full allocations, preserved for posterity
-// export function rayTriangleIntersection2(origin: Vector3, direction: Vector3, triangle: Triangle): number | undefined {
-//   const edge1 = triangle[1].subtract(triangle[0]);
-//   const edge2 = triangle[2].subtract(triangle[0]);
-
-//   const ray_cross_e2 = direction.cross(edge2);
-//   const det = edge1.dot(ray_cross_e2);
-
-//   if (det > -Number.EPSILON && det < Number.EPSILON) {
-//     return undefined; // This ray is parallel to this triangle.
-//   }
-
-//   const inv_det = 1.0 / det;
-//   const s = origin.subtract(triangle[0]);
-//   const u = inv_det * s.dot(ray_cross_e2);
-//   if (u < 0.0 || u > 1.0) {
-//     return undefined;
-//   }
-
-//   const s_cross_e1 = s.cross(edge1);
-//   const v = inv_det * direction.dot(s_cross_e1);
-//   if (v < 0.0 || u + v > 1.0) {
-//     return undefined;
-//   }
-//   // At this stage we can compute t to find out where the intersection point is on the line.
-//   const t = inv_det * edge2.dot(s_cross_e1);
-
-//   if (t > Number.EPSILON) { // ray intersection
-//     return t;
-//     // let intersection_point = origin + direction * t;
-//     // return Some(intersection_point);
-//   }
-//   else { // This means that there is a line intersection but not a ray intersection.
-//     return undefined;
-//   }
-// }
