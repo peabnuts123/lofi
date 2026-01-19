@@ -15,7 +15,7 @@ export interface SubMeshDefinition {
 
 export class SubMesh {
   private readonly vao: WebGLVertexArrayObject;
-  private readonly _geometry: MeshGeometry;
+  public readonly geometry: MeshGeometry;
   public readonly material: Material;
   public readonly extents: {
     min: Vector3;
@@ -102,7 +102,7 @@ export class SubMesh {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, faceIndexBuffer);
     gl.bindVertexArray(null);
 
-    this._geometry = geometry;
+    this.geometry = geometry;
     this.material = material;
 
     // Calculate submesh extents
@@ -162,6 +162,7 @@ export class SubMesh {
       this.material.diffuseColor.a / 255,
     ]));
 
+    // Blending
     switch (this.material.blendingMode) {
       case ShaderBlendingMode.None:
         // No blending. No-op.
@@ -226,9 +227,5 @@ export class SubMesh {
     gl.disable(gl.BLEND);
     gl.blendEquation(gl.FUNC_ADD);
     gl.depthMask(true);
-  }
-
-  public get geometry(): MeshGeometry {
-    return this._geometry;
   }
 }

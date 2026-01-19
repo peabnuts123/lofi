@@ -160,6 +160,29 @@ describe("Ray casting", () => {
       // Assert
       expect(result).toBeUndefined();
     });
+    test("0-width, axis aligned AABB", () => {
+      // Setup
+      const size = 1;
+      const aabb = new AxisAlignedBoundingBox({
+        xMin: -size,
+        xMax: size,
+        yMin: -size,
+        yMax: size,
+        zMin: -0,
+        zMax: 0,
+      });
+
+      const rayOrigin = new Vector3(0, 0, size * 2);
+      const rayDirection = new Vector3(0, 0, -size);
+
+      // Test
+      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const intersectionPoint = result === undefined ? undefined : rayDirection.multiply(result).addSelf(rayOrigin);
+
+      // Assert
+      expect(result).toBe(2);
+      expect(intersectionPoint).toEqual(new Vector3(0, 0, 0));
+    });
   });
 
   describe("Ray-Triangle intersection", () => {

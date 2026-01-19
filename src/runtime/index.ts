@@ -1,6 +1,6 @@
 import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
-import { Model, type ModelDefinition } from '@polyzone/engine/models';
-import { Vector3 } from '@polyzone/engine/util/vector';
+import { Model, type ModelDefinition, type Triangle } from '@polyzone/engine/models';
+import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
 import { Scene, SceneNode } from '@polyzone/engine/scene';
 import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
@@ -8,6 +8,9 @@ import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
 import { Color4 } from '@polyzone/engine/util/Color4';
+import { rayAABBIntersection, rayTriangleIntersection } from '@polyzone/engine/collision/ray';
+import { DrawDebug } from '@polyzone/engine/util/DrawDebug';
+import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
 
 export interface CartridgeDefinition {
   models: ModelDefinition[];
@@ -33,13 +36,17 @@ const GridSpacing = 0.5;
 
 export class Runtime {
   private engine: IEngine | undefined;
+  private theDANGSCENE: Scene | undefined;
 
   private scene: SceneState | undefined;
+  private debugCanvas: HTMLCanvasElement | undefined;
 
   public async loadCartridge(canvas: HTMLCanvasElement, cartridge: CartridgeDefinition): Promise<void> {
+    // Get debug canvas
+    this.debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
     const fileSystem = new WebFileSystem();
     const engine = this.engine = new Engine(canvas, fileSystem);
-    const scene = new Scene(engine);
+    const scene = this.theDANGSCENE = new Scene(engine);
     scene.lighting.ambientColor = new Color3(30, 30, 30);
 
     // Load models
@@ -51,6 +58,166 @@ export class Runtime {
     camera.position = new Vector3(-3.5, 2, 3.5);
     camera.pointAt(new Vector3(0, 0, 0));
     cameraOrigin.addChild(camera);
+
+    // @NOTE Click logic - extract to reusable function
+    const performRayCast = (normalizedX: number, normalizedY: number): ModelNode | undefined => {
+      const rayTarget = new Vector3(
+        normalizedX * 2 - 1,
+        1 - normalizedY * 2, // @NOTE Invert y
+        1, // @NOTE Near plane in NDC
+      ).multiplySelf(
+        camera.viewProjectionMatrix.invert(),
+      );
+
+      const rayDirection = rayTarget
+        .subtractSelf(camera.absolutePosition)
+        .normalizeSelf();
+
+      /*
+        ========
+        PHASE 1: AABB
+        ========
+       */
+      const possibleModels: ModelNode[] = [];
+      scene.forEachNodeInHierarchy((node) => {
+        if (node instanceof ModelNode) {
+          const aabb = node.getAABB();
+          const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabb);
+          if (result !== undefined) {
+            possibleModels.push(node);
+          }
+        }
+      });
+
+      /*
+        ========
+        PHASE 2: Triangle AABB
+        ========
+       */
+      const aabbTmp = AxisAlignedBoundingBox.unit();
+      const possibleTriangles: { triangle: Triangle, node: ModelNode }[] = [];
+      for (const possibleModel of possibleModels) {
+        const modelVertices = possibleModel.getVerticesWorldSpace();
+        for (const triangleIndices of possibleModel.model.allTriangleIndices) {
+          const triangle: Triangle = [
+            modelVertices[triangleIndices[0]],
+            modelVertices[triangleIndices[1]],
+            modelVertices[triangleIndices[2]],
+          ];
+          // Construct AABB for triangle
+          aabbTmp.xMin = Math.min(triangle[0].x, triangle[1].x, triangle[2].x);
+          aabbTmp.xMax = Math.max(triangle[0].x, triangle[1].x, triangle[2].x);
+          aabbTmp.yMin = Math.min(triangle[0].y, triangle[1].y, triangle[2].y);
+          aabbTmp.yMax = Math.max(triangle[0].y, triangle[1].y, triangle[2].y);
+          aabbTmp.zMin = Math.min(triangle[0].z, triangle[1].z, triangle[2].z);
+          aabbTmp.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
+
+          const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabbTmp);
+          if (result !== undefined) {
+            possibleTriangles.push({
+              triangle,
+              node: possibleModel,
+            });
+          }
+        }
+      }
+
+      /*
+        ========
+        PHASE 3: Triangle
+        ========
+       */
+      let shortestRayDistance: number = Number.MAX_SAFE_INTEGER;
+      let shortestRayResult: ModelNode | undefined = undefined;
+      for (const { triangle, node } of possibleTriangles) {
+        const result = rayTriangleIntersection(camera.absolutePosition, rayDirection, triangle);
+        if (result && result < shortestRayDistance) {
+          shortestRayDistance = result;
+          shortestRayResult = node;
+        }
+      }
+
+      return shortestRayResult; // Triangle
+    };
+
+    canvas.addEventListener('click', (e) => {
+      const clickNormalised = new Vector2(
+        e.offsetX / canvas.clientWidth,
+        e.offsetY / canvas.clientHeight,
+      );
+
+      const result = performRayCast(clickNormalised.x, clickNormalised.y);
+
+      if (result !== undefined) {
+        console.log(`Picked: `, result.name);
+      } else {
+        console.log(`NO RESULT`);
+      }
+    });
+
+    // @NOTE Debug ray trace visualization - press spacebar
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && this.debugCanvas) {
+        e.preventDefault();
+        console.log('Ray tracing scene to debug canvas...');
+
+        const debugCtx = this.debugCanvas.getContext('2d');
+        if (!debugCtx) return;
+
+        const debugWidth = this.debugCanvas.width;
+        const debugHeight = this.debugCanvas.height;
+
+        // Clear debug canvas
+        debugCtx.fillStyle = 'black';
+        debugCtx.fillRect(0, 0, debugWidth, debugHeight);
+
+        // Create image data for faster pixel manipulation
+        const imageData = debugCtx.createImageData(debugWidth, debugHeight);
+
+        // Simple hash function to convert string to color
+        const hashColor = (str: string): [number, number, number] => {
+          let hash = 0;
+          for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash = hash & hash; // Convert to 32bit integer
+          }
+          const r = (hash & 0xFF0000) >> 16;
+          const g = (hash & 0x00FF00) >> 8;
+          const b = hash & 0x0000FF;
+          return [r, g, b];
+        };
+
+        // Ray trace each pixel
+        const renderStart = performance.now();
+        for (let y = 0; y < debugHeight; y++) {
+          for (let x = 0; x < debugWidth; x++) {
+            const normalizedX = x / debugWidth;
+            const normalizedY = y / debugHeight;
+
+            const hitNode = performRayCast(normalizedX, normalizedY);
+
+            const pixelIndex = (y * debugWidth + x) * 4;
+
+            if (hitNode) {
+              const [r, g, b] = hashColor(hitNode.name);
+              imageData.data[pixelIndex] = r;
+              imageData.data[pixelIndex + 1] = g;
+              imageData.data[pixelIndex + 2] = b;
+              imageData.data[pixelIndex + 3] = 255; // Alpha
+            } else {
+              // No hit - leave black (already cleared)
+              imageData.data[pixelIndex + 3] = 255; // Alpha
+            }
+          }
+        }
+
+        const renderStop = performance.now();
+        console.log(`Ray trace render: ${renderStop - renderStart}ms (${(renderStop - renderStart) / (debugHeight * debugWidth)}ms per pixel)`);
+
+        debugCtx.putImageData(imageData, 0, 0);
+        console.log('Ray trace complete!');
+      }
+    });
 
     const LightDistance = 5;
     const lightOrigin = new ObjectNode(scene, 'light_origin');
@@ -268,6 +435,13 @@ export class Runtime {
           }
         }
       }
+
+      this.theDANGSCENE!.forEachNodeInHierarchy((node) => {
+        if (node instanceof ModelNode) {
+          const aabb = node.getAABB();
+          DrawDebug.drawWireframe(this.engine!, aabb, { color: Color4.green() });
+        }
+      });
 
       /* Burger */
       cycleBehaviours(() => {

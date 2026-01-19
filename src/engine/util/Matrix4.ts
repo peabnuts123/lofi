@@ -85,7 +85,7 @@ export class Matrix4 {
   }
   public multiply(matrix: Matrix4): Matrix4 {
     const result = this.clone();
-    return result.multiply(matrix);
+    return result.multiplySelf(matrix);
   }
 
   public reverseMultiplySelf(b: Matrix4): this {
