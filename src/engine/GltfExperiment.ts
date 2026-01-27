@@ -14,11 +14,20 @@ import { Matrix3 } from './util/Matrix3';
 import { DrawableSceneNode, type DrawTask, type IScene } from './scene';
 import { Matrix4 } from './util/Matrix4';
 import { Transform } from './util/Transform';
-import { Vector3 } from './util/vector';
+import { Vector2, Vector3 } from './util/vector';
 import { Quaternion } from './util/quaternion';
 import type { Rotation } from './util/Rotation';
+import { inverseLerp, lerp } from './util/math';
 
 const GlbMagic = [0x67, 0x6C, 0x54, 0x46];
+
+/*
+  @TODO Things we should maybe do
+    - Rename animation.length to `lengthSeconds`
+    - Rename `channels` to `tracks`?
+    - "looping" flags and such
+    - reset state when stop playing
+ */
 
 interface AttributeDefinition {
   buffer: TypedArray;
@@ -60,21 +69,198 @@ interface NodeDefinition {
   skin?: SkinDefinition;
 }
 
+type ArrayElementType<T> = T extends Array<infer ElementType> ? ElementType : never;
+
 interface AnimationChannelDefinition {
   targetNode: NodeDefinition;
   targetNodeProperty: GLTF.AnimationChannelTargetPath;
-  timestamps: AttributeDefinition; /* @TODO no `AttributeDefinition` some kind of typed array */        // SCALAR (float)
-  values: AttributeDefinition;     /* @TODO no `AttributeDefinition` some kind of typed array */        // SCALAR/VEC2/VEC3/etc
+  timestamps: Float32Array;
   interpolation: GLTF.AnimationSamplerInterpolation;
+  values: AnimationChannelValues;
 }
+interface ScalarAnimationChannelValues {
+  type: 'scalar';
+  values: number[];
+}
+interface Vec2AnimationChannelValues {
+  type: 'vec2';
+  values: Vector2[];
+}
+interface Vec3AnimationChannelValues {
+  type: 'vec3';
+  values: Vector3[];
+}
+interface QuatAnimationChannelValues {
+  type: 'quat';
+  values: Quaternion[];
+}
+
+type AnimationChannelValues = ScalarAnimationChannelValues | Vec2AnimationChannelValues | Vec3AnimationChannelValues | QuatAnimationChannelValues;
+type AnimationTypeValue = ArrayElementType<AnimationChannelValues['values']>;
+type AnimationChannelValueSetterFn = (value: AnimationTypeValue) => void;
+
+
+class AnimationChannel {
+  private readonly valueSetter: AnimationChannelValueSetterFn;
+  public readonly timestamps: Float32Array;
+  private readonly values: AnimationChannelValues;
+  private readonly interpolation: GLTF.AnimationSamplerInterpolation;
+
+  private constructor(
+    valueSetter: AnimationChannelValueSetterFn,
+    timestamps: Float32Array,
+    values: AnimationChannelValues,
+    interpolation: GLTF.AnimationSamplerInterpolation,
+  ) {
+    this.valueSetter = valueSetter;
+    this.timestamps = timestamps;
+    this.values = values;
+    this.interpolation = interpolation;
+  }
+
+  public assignAnimatedValue(previousTimestampIndex: number, nextTimestampIndex: undefined, animationTime: number): void;
+  public assignAnimatedValue(previousTimestampIndex: undefined, nextTimestampIndex: number, animationTime: number): void;
+  public assignAnimatedValue(previousTimestampIndex: number, nextTimestampIndex: number, animationTime: number): void;
+  public assignAnimatedValue(previousTimestampIndex: number | undefined, nextTimestampIndex: number | undefined, animationTime: number): void {
+    if (previousTimestampIndex === undefined && nextTimestampIndex === undefined) {
+      // @NOTE Theoretically impossible, but makes type checker satisfied
+      throw new Error(`Cannot assign animated value. No timestamp indices are defined`);
+    } else if (previousTimestampIndex === undefined) {
+      // Peg to initial value
+      this.valueSetter(this.values.values[nextTimestampIndex!]); // @NOTE Damn TypeScript, I thought you were smarter than this.
+    } else if (nextTimestampIndex === undefined) {
+      // Peg to final value
+      this.valueSetter(this.values.values[previousTimestampIndex]);
+    } else {
+      // Interpolate between two values
+
+      if (this.interpolation === 'LINEAR') {
+        /* Linear interpolation */
+        const t = inverseLerp(this.timestamps[previousTimestampIndex], this.timestamps[nextTimestampIndex], animationTime);
+
+        let value: AnimationTypeValue;
+        switch (this.values.type) {
+          case 'scalar': {
+            const a = this.values.values[previousTimestampIndex];
+            const b = this.values.values[nextTimestampIndex];
+            value = lerp(a, b, t);
+            break;
+          }
+          case 'vec2': {
+            const a = this.values.values[previousTimestampIndex];
+            const b = this.values.values[nextTimestampIndex];
+            value = new Vector2(
+              lerp(a.x, b.x, t),
+              lerp(a.y, b.y, t),
+            );
+            break;
+          }
+          case 'vec3': {
+            const a = this.values.values[previousTimestampIndex];
+            const b = this.values.values[nextTimestampIndex];
+            value = new Vector3(
+              lerp(a.x, b.x, t),
+              lerp(a.y, b.y, t),
+              lerp(a.z, b.z, t),
+            );
+            break;
+          }
+          case 'quat': {
+            const a = this.values.values[previousTimestampIndex];
+            const b = this.values.values[nextTimestampIndex];
+            value = new Quaternion(
+              lerp(a.x, b.x, t),
+              lerp(a.y, b.y, t),
+              lerp(a.z, b.z, t),
+              lerp(a.w, b.w, t),
+            );
+            break;
+          }
+          default:
+            throw new Error(`Animation with LINEAR interpolation has unimplemented value type: ${(this.values as { type: string }).type}`);
+        }
+
+        this.valueSetter(value);
+      } else if (this.interpolation === 'STEP') {
+        /* Step interpolation */
+        // Step is just constant with previous timestamp
+        this.valueSetter(this.values.values[previousTimestampIndex]);
+      } else if (this.interpolation === 'CUBICSPLINE') {
+        /* Cubic spline interpolation */
+        // @TODO
+        throw new Error(`CUBICSPLINE interpolation not yet implemented`);
+      } else {
+        throw new Error(`Animation interpolation type '${this.interpolation}' not yet implemented`);
+      }
+    }
+  }
+
+  public static fromDefinition(allNodes: MeshNode[], definition: AnimationChannelDefinition): AnimationChannel {
+    const targetNode = allNodes.find((node) => node.definition === definition.targetNode);
+    if (targetNode === undefined) {
+      throw new Error(`Could not find target node in set of all nodes`);
+    }
+
+    function valueSetter(value: AnimationTypeValue): void {
+      switch (definition.targetNodeProperty) {
+        case 'translation':
+          targetNode!.position = value as Vector3;
+          break;
+        case 'rotation':
+          targetNode!.rotation.set(value as Quaternion);
+          break;
+        case 'scale':
+          targetNode!.scale = value as Vector3;
+          break;
+        case 'weights':
+          // @TODO
+          throw new Error(`Unimplemented animation value setter property 'weights'`);
+        default:
+          throw new Error(`Unimplemented animation value setter property '${definition.targetNodeProperty}'`);
+      }
+    }
+
+    return new AnimationChannel(
+      valueSetter,
+      definition.timestamps,
+      definition.values,
+      definition.interpolation,
+    );
+  }
+}
+
 interface AnimationDefinition {
   name: string;
+  length: number;
   channels: AnimationChannelDefinition[];
+}
+
+export class Animation {
+  public readonly name: string;
+  public readonly length: number;
+  public readonly channels: AnimationChannel[];
+
+  public constructor(name: string, length: number, channels: AnimationChannel[]) {
+    this.name = name;
+    this.length = length;
+    this.channels = channels;
+  }
+
+  public static fromDefinition(allNodes: MeshNode[], definition: AnimationDefinition): Animation {
+    return new Animation(
+      definition.name,
+      definition.length,
+      definition.channels.map((channelDefinition) =>
+        AnimationChannel.fromDefinition(allNodes, channelDefinition),
+      ),
+    );
+  }
 }
 
 interface LoadedState {
   engine: IEngine;
   allNodeDefinitions: NodeDefinition[];
+  allAnimationDefinitions: AnimationDefinition[];
 }
 
 export interface ShaderProgramOptions {
@@ -435,28 +621,30 @@ export class SubMeshNew {
 
 interface MeshNodeArgs {
   name: string;
-  meshPrimitives: SubMeshNew[],
+  meshPrimitives: SubMeshNew[];
+  definition: NodeDefinition;
 }
 export class MeshNode {
-  // private children: MeshNode[];
   private meshPrimitives: SubMeshNew[];
-  // private _parent: MeshNode | undefined;
   public readonly name: string;
+  public readonly definition: NodeDefinition;
 
   private transform: Transform<MeshNode>;
 
   private readonly _worldMatrixTmp: Matrix4 = new Matrix4();
 
-  private constructor({ name, meshPrimitives }: MeshNodeArgs) {
+  private constructor({ name, meshPrimitives, definition }: MeshNodeArgs) {
     this.name = name;
     this.meshPrimitives = meshPrimitives;
     this.transform = new Transform<MeshNode>(this);
+    this.definition = definition;
   }
 
   public static fromDefinition(engine: IEngine, definition: NodeDefinition): MeshNode {
     const meshPrimitives: SubMeshNew[] = [];
     if (definition.mesh) {
       for (const meshPrimitiveDefinition of definition.mesh.primitives) {
+        // @TODO Instances of MeshNode are distinct but share SubMeshes/Primitives
         const material = new MaterialNew(engine, 'default', {
 
         }, {
@@ -469,6 +657,7 @@ export class MeshNode {
     return new MeshNode({
       name: definition.name,
       meshPrimitives: meshPrimitives,
+      definition,
     });
   }
 
@@ -507,27 +696,26 @@ export class MeshNode {
 export class GltfExperiment extends DrawableSceneNode {
   private readonly nodes: MeshNode[];
   private _viewModelMatrixTmp: Matrix4 = new Matrix4();
+  // private readonly allAnimationDefinitions: AnimationDefinition[];
+  private readonly allAnimations: Animation[];
 
-  private constructor(scene: IScene, { allNodeDefinitions, engine }: LoadedState) {
+  private currentAnimationTime: number = 0;
+  private currentAnimation: Animation | undefined;
+
+  private constructor(scene: IScene, { allNodeDefinitions, allAnimationDefinitions, engine }: LoadedState) {
     super(scene, 'gltf-experiment');
 
-    this.nodes = [];
-    const reverseNodeLookup: Array<[src: NodeDefinition, node: MeshNode]> = [];
-    function lookupNode(nodeDefinition: NodeDefinition): MeshNode {
-      for (const [src, node] of reverseNodeLookup) {
-        if (src === nodeDefinition) {
+    // Create nodes from definitions
+    this.nodes = allNodeDefinitions.map((nodeDefinition) => MeshNode.fromDefinition(engine, nodeDefinition));
+
+    const lookupNode = (nodeDefinition: NodeDefinition): MeshNode => {
+      for (const node of this.nodes) {
+        if (node.definition === nodeDefinition) {
           return node;
         }
       }
       throw new Error(`No corresponding node for node definition '${nodeDefinition.name}'`);
-    }
-
-    // Create nodes from definitions
-    for (const nodeDefinition of allNodeDefinitions) {
-      const node = MeshNode.fromDefinition(engine, nodeDefinition);
-      this.nodes.push(node);
-      reverseNodeLookup.push([nodeDefinition, node]);
-    }
+    };
 
     // Establish hierarchy
     for (const nodeDefinition of allNodeDefinitions) {
@@ -547,7 +735,14 @@ export class GltfExperiment extends DrawableSceneNode {
       node.scale = nodeDefinition.transform.scale;
     }
 
-    console.log(`Experiment data: `, this.nodes);
+    // Animations
+    this.allAnimations = [];
+    for (const animationDefinition of allAnimationDefinitions) {
+      const animation = Animation.fromDefinition(this.nodes, animationDefinition);
+      this.allAnimations.push(animation);
+    }
+
+    console.log(`Experiment data: `, this.nodes, this.allAnimations);
   }
 
   public static async load(gltfPath: string, filesystem: IFileSystem, engine: IEngine, scene: IScene): Promise<GltfExperiment> {
@@ -747,6 +942,7 @@ export class GltfExperiment extends DrawableSceneNode {
       const animationDefinition: AnimationDefinition = {
         name: animation.getName(),
         channels: [],
+        length: 0,
       };
       for (const channel of animation.listChannels()) {
         const targetNode = channel.getTargetNode();
@@ -754,11 +950,83 @@ export class GltfExperiment extends DrawableSceneNode {
 
         const sampler = channel.getSampler()!;
 
+        // @TODO
+        if (sampler.getInterpolation() === 'CUBICSPLINE') {
+          throw new Error(`CUBICSPLINE interpolation is not yet implemented`);
+        }
+
+        const inputAccessor = sampler.getInput()!;
+        if (inputAccessor.getComponentType() !== WebGL2RenderingContext.FLOAT) {
+          throw new Error(`Invalid animation sampler input: Accessor type must be GL_FLOAT`);
+        }
+
+        const outputAccessor = sampler.getOutput()!;
+        if (inputAccessor.getComponentType() !== WebGL2RenderingContext.FLOAT) {
+          throw new Error(`Invalid animation sampler output: Accessor type must be GL_FLOAT`);
+        }
+
+        /*
+          @TODO
+          Samplers using CUBICSPLINE interpolation will also contain in/out tangents in the output, with the layout:
+
+          in1, value1, out1, in2, value2, out2, in3, value3, out3, ...
+         */
+
+        function collectValues<T>(array: Float32Array, width: 1, mapFn: (value: number) => T): T[];
+        function collectValues<T>(array: Float32Array, width: 2, mapFn: (value1: number, value2: number) => T): T[];
+        function collectValues<T>(array: Float32Array, width: 3, mapFn: (value1: number, value2: number, value3: number) => T): T[];
+        function collectValues<T>(array: Float32Array, width: 4, mapFn: (value1: number, value2: number, value3: number, value4: number) => T): T[];
+        function collectValues<T>(array: Float32Array, width: number, mapFn: (...args: number[]) => T): T[] {
+          const result: T[] = [];
+          for (let i = 0; i < array.length; i += width) {
+            const view = array.subarray(i, i + width);
+            result.push(mapFn(...view));
+          }
+          return result;
+        }
+
+        // @TODO CUBICSPLINE!!!!! Can't read output like this for that scenario.
+        let outputValues: AnimationChannelValues;
+        switch (outputAccessor.getType()) {
+          case 'SCALAR':
+            outputValues = {
+              type: 'scalar',
+              values: collectValues(outputAccessor.getArray() as Float32Array, 1, (c) => c),
+            };
+            break;
+          case 'VEC2':
+            outputValues = {
+              type: 'vec2',
+              values: collectValues(outputAccessor.getArray() as Float32Array, 2, (x, y) => new Vector2(x, y)),
+            };
+            break;
+          case 'VEC3':
+            outputValues = {
+              type: 'vec3',
+              values: collectValues(outputAccessor.getArray() as Float32Array, 3, (x, y, z) => new Vector3(x, y, z)),
+            };
+            break;
+          case 'VEC4':
+            outputValues = {
+              type: 'quat',
+              values: collectValues(outputAccessor.getArray() as Float32Array, 4, (x, y, z, w) => new Quaternion(x, y, z, w)),
+            };
+            break;
+          default:
+            throw new Error(`Unsupported animation type: ${outputAccessor.getType()}, Animation target: ${lookupNodeDefinition(targetNode).name}['${channel.getTargetPath()}']`);
+        }
+
+        // Keep track of longest samplers
+        const channelLength = inputAccessor.getMax([])[0]; // @TODO Why is this API like this? What's with the arrays?
+        if (channelLength > animationDefinition.length) {
+          animationDefinition.length = channelLength;
+        }
+
         const channelDefinition: AnimationChannelDefinition = {
           targetNode: lookupNodeDefinition(targetNode),
           targetNodeProperty: channel.getTargetPath()!,
-          timestamps: readVertexAttributes(sampler.getInput()!),
-          values: readVertexAttributes(sampler.getOutput()!),
+          timestamps: inputAccessor.getArray() as Float32Array,
+          values: outputValues,
           interpolation: sampler.getInterpolation(),
         };
 
@@ -769,7 +1037,60 @@ export class GltfExperiment extends DrawableSceneNode {
       allAnimationDefinitions.push(animationDefinition);
     }
 
-    return new GltfExperiment(scene, { engine, allNodeDefinitions });
+    return new GltfExperiment(scene, { engine, allNodeDefinitions, allAnimationDefinitions });
+  }
+
+  public playAnimation(animationName: string): void {
+    const animation = this.allAnimations.find((animation) => animation.name === animationName);
+    if (!animation) {
+      throw new Error(`Cannot play animation. No animation exists with name '${animationName}'`);
+    }
+    this.currentAnimation = animation;
+    this.currentAnimationTime = 0;
+  }
+
+  public override onUpdate(dt: number): void {
+    if (this.currentAnimation) {
+      for (const channel of this.currentAnimation.channels) {
+        // @TODO we should probably move all of this into `Channel` anyways
+        // @TODO we should probably move all of this into `Channel` anyways
+        // @TODO we should probably move all of this into `Channel` anyways
+        if (channel.timestamps.length === 1) {
+          // @NOTE Special case, animation just has 1 keyframe /shrug
+          channel.assignAnimatedValue(0, undefined, this.currentAnimationTime);
+          continue;
+        }
+
+        // Find which 2 timestamps the current animation time lays between
+        let previousTimestampIndex: number | undefined = undefined;
+        let nextTimestampIndex: number | undefined = undefined;
+        for (let i = 0; i < channel.timestamps.length; i++) {
+          const timestamp = channel.timestamps[i];
+          if (timestamp <= this.currentAnimationTime) {
+            previousTimestampIndex = i;
+          } else {
+            nextTimestampIndex = i;
+            break;
+          }
+        }
+
+        // Pass off to animation channel to assign correct value
+        // @NOTE For fucks sake TypeScript
+        if (previousTimestampIndex !== undefined && nextTimestampIndex === undefined) {
+          channel.assignAnimatedValue(previousTimestampIndex, nextTimestampIndex, this.currentAnimationTime);
+        } else if (previousTimestampIndex === undefined && nextTimestampIndex !== undefined) {
+          channel.assignAnimatedValue(previousTimestampIndex, nextTimestampIndex, this.currentAnimationTime);
+        } else if (previousTimestampIndex !== undefined && nextTimestampIndex !== undefined) {
+          channel.assignAnimatedValue(previousTimestampIndex, nextTimestampIndex, this.currentAnimationTime);
+        } else {
+          throw new Error(`Logic error when playing animation '${this.currentAnimation.name}', can't locate index of current animation time within animation timestamps. (currentAnimationTime='${this.currentAnimationTime}') (timestamps='${channel.timestamps.join(',')}')`);
+        }
+      }
+      this.currentAnimationTime += dt;
+      if (this.currentAnimationTime > this.currentAnimation.length) {
+        this.currentAnimationTime %= this.currentAnimation.length;
+      }
+    }
   }
 
   public getDrawTasks(engine: IEngine): DrawTask[] {

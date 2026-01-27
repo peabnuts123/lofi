@@ -31,7 +31,7 @@ interface SceneState {
   gltfExperiment?: GltfExperiment;
 }
 
-const MaxRuntimeSeconds = 10;
+const MaxRuntimeSeconds = 20;
 const TestObjectsEnabled = false;
 const GridW = 20;
 const GridH = 20;
@@ -64,7 +64,8 @@ export class Runtime {
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
     const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
-    camera.position = new Vector3(-3.5, 2, 3.5);
+    // camera.position = new Vector3(-3.5, 2, 3.5);
+    camera.position = new Vector3(3.5, 2, -3.5);
     camera.position.multiplySelf(3); // @NOTE @DEBUG for glTF
     camera.pointAt(new Vector3(0, 0, 0));
     cameraOrigin.addChild(camera);
@@ -374,11 +375,12 @@ export class Runtime {
 
     /* GLTF Experiment */
     const gltfExperiment = await GltfExperiment.load(`/models/hifiguy.glb`, this.fileSystem, engine, scene);
+    gltfExperiment.playAnimation('Run');
 
     this.scene = {
       // burger,
-      camera,
-      cameraOrigin,
+      // camera,
+      // cameraOrigin,
       lightOrigin,
       testObjects,
       // staticCollider,
