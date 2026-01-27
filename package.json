@@ -28,6 +28,8 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
     "fflate": "^0.8.2",
     "online-3d-viewer": "^0.18.0"
   }

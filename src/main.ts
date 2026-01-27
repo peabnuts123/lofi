@@ -12,9 +12,10 @@ DebugModule.register();
 
 const WHITE = { r: 0xFF, g: 0xFF, b: 0xFF };
 
-const filesystem = new WebFileSystem();
-const burgerModel = await ObjLoader.loadModel('/models/burgerCheese.obj', filesystem);
-const dumpsterModel = await ObjLoader.loadModel('/models/detailDumpster_closed.obj', filesystem);
+const fileSystem = new WebFileSystem();
+const burgerModel = await ObjLoader.loadModel('/models/burgerCheese.obj', fileSystem);
+const dumpsterModel = await ObjLoader.loadModel('/models/detailDumpster_closed.obj', fileSystem);
+
 const cartridge: CartridgeDefinition = {
   models: [
     /* 00 - Ground */
@@ -95,7 +96,7 @@ const cartridge: CartridgeDefinition = {
 
 const canvas = document.getElementById('webgl-canvas') as HTMLCanvasElement;
 // @TODO delete runtime, inline here
-const runtime = new Runtime();
+const runtime = new Runtime(fileSystem);
 await runtime.loadCartridge(canvas, cartridge);
 runtime.run();
 

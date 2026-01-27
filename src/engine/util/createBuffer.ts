@@ -1,5 +1,6 @@
 export function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, data: AllowSharedBufferSource, usage?: GLenum): WebGLBuffer;
 export function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, size: GLsizeiptr, usage?: GLenum): WebGLBuffer;
+export function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage?: GLenum): WebGLBuffer;
 export function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage: GLenum = gl.STATIC_DRAW): WebGLBuffer {
   const AllowedBufferTypes: (keyof WebGL2RenderingContext)[] = [
     'ARRAY_BUFFER',

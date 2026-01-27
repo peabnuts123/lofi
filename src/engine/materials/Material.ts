@@ -14,6 +14,7 @@ export interface MaterialDefinition {
 }
 
 export interface MaterialConstructorOptions {
+  // @TODO some of these are args and some are options
   diffuseColor?: Color4;
   diffuseTexture?: Texture;
   blendingMode?: ShaderBlendingMode;
