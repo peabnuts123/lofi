@@ -2,28 +2,42 @@
 
 #pragma inject(defines)
 
+/* Vertex attributes */
+// Required
 in vec3 vertexPosition;
+in vec3 vertexNormal;
+// Optional
+// in vec2 textureCoord; // @TODO, optional
 #ifdef VERTEX_COLORS
 in vec4 vertexColor;
 #endif
-in vec3 vertexNormal;
-// in vec2 textureCoord;
+#ifdef SKIN
+in vec4 vertexJoints;
+in vec4 vertexWeights;
+#endif
 
+/* Uniforms */
+// Required
+uniform mat4 worldMatrix;
+uniform mat3 normalMatrix;
+// Optional
+#ifdef DIFFUSE_COLOR
+uniform vec4 diffuseColor;
+#endif
+#ifdef SKIN
+uniform mat4 jointMatrix[NUM_BONES];
+#endif
+
+/* Shader outputs */
 out vec4 fragmentColor;
 out vec2 fragmentTextureCoord;
 out vec3 fragmentLighting;
 
-#ifdef DIFFUSE_COLOR
-uniform vec4 diffuseColor;
-#endif
-uniform mat4 worldMatrix;
-uniform mat3 normalMatrix;
-
+/* UBOs */
 // @TODO use an #include for this
 layout(std140) uniform Camera {
   mat4 viewProjectionMatrix;
 };
-
 layout(std140) uniform Lighting {
   vec3 ambientLightColor;
   vec3 pointLight0Position;
@@ -37,8 +51,19 @@ layout(std140) uniform Lighting {
 };
 
 void main() {
-  vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0);
+  // Geometry
+#ifdef SKIN
+  mat4 skinMatrix = vertexWeights.x * jointMatrix[int(vertexJoints.x)] +
+    vertexWeights.y * jointMatrix[int(vertexJoints.y)] +
+    vertexWeights.z * jointMatrix[int(vertexJoints.z)] +
+    vertexWeights.w * jointMatrix[int(vertexJoints.w)];
+  vec4 worldPosition = skinMatrix * vec4(vertexPosition, 1.0f);
+#else
+  vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0f);
+#endif
   gl_Position = viewProjectionMatrix * worldPosition;
+
+  // Color
   fragmentColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 #ifdef VERTEX_COLORS
   fragmentColor *= vertexColor;
@@ -46,10 +71,12 @@ void main() {
 #ifdef DIFFUSE_COLOR
   fragmentColor *= diffuseColor;
 #endif
+
+  // Texturing
   // fragmentTextureCoord = textureCoord;
   fragmentTextureCoord = vec2(0.0f, 0.0f);
 
-  // // Lighting
+  // Lighting
   vec3 worldNormal = normalize(normalMatrix * vertexNormal);
   /* - Light 0 */
   vec3 light0Dir = normalize(pointLight0Position - worldPosition.xyz);
@@ -64,7 +91,7 @@ void main() {
   vec3 light3Dir = normalize(pointLight3Position - worldPosition.xyz);
   float light3Intensity = max(dot(worldNormal, light3Dir), 0.0f);
   fragmentLighting = ambientLightColor + (light0Intensity * pointLight0Color) + (light1Intensity * pointLight1Color) + (light2Intensity * pointLight2Color) + (light3Intensity * pointLight3Color);
-  // fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
+  // fragmentLighting = vec3(1.0f, 1.0f, 1.0f); // @NOTE disable lighting
 
 // @NOTE UNLIT is kind of a debug flag at the moment,
 // so it isn't efficient. If we wrap the lighting calculations
