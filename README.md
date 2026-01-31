@@ -1,11 +1,11 @@
-# LoPoly
+# LoFi
 > _lofi game engine to relax/study to._
 
-LoPoly is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.
+LoFi is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.
 
 ## Installation
 
-Work in progress. LoPoly is not published to npm yet, but it will be soon.
+Work in progress. LoFi is not published to npm yet, but it will be soon.
 
 ## Backlog
 These items are roughly in priority order.
