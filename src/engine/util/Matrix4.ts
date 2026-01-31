@@ -1,6 +1,7 @@
 import type { TypedArray } from "@gltf-transform/core";
 import type { Quaternion } from "./quaternion";
 import type { Vector3 } from "./vector";
+import { CannotInvertMatrixError } from "./Matrix3";
 
 
 export type Matrix4InitialValues = [
@@ -162,40 +163,40 @@ export class Matrix4 {
       a02 = this.m02, a12 = this.m12, a22 = this.m22, a32 = this.m32,
       a03 = this.m03, a13 = this.m13, a23 = this.m23, a33 = this.m33;
     const b00 = a00 * a11 - a10 * a01;
-    const b10 = a00 * a21 - a20 * a01;
-    const b20 = a00 * a31 - a30 * a01;
-    const b30 = a10 * a21 - a20 * a11;
+    const b01 = a00 * a21 - a20 * a01;
+    const b02 = a00 * a31 - a30 * a01;
+    const b03 = a10 * a21 - a20 * a11;
     const b04 = a10 * a31 - a30 * a11;
     const b05 = a20 * a31 - a30 * a21;
     const b06 = a02 * a13 - a12 * a03;
     const b07 = a02 * a23 - a22 * a03;
     const b08 = a02 * a33 - a32 * a03;
     const b09 = a12 * a23 - a22 * a13;
-    const b01 = a12 * a33 - a32 * a13;
+    const b10 = a12 * a33 - a32 * a13;
     const b11 = a22 * a33 - a32 * a23;
 
     // Calculate the determinant
-    let det = b00 * b11 - b10 * b01 + b20 * b09 + b30 * b08 - b04 * b07 + b05 * b06;
+    let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
     if (!det) {
-      throw new Error("Matrix4: Can't invert matrix, determinant is 0");
+      throw new CannotInvertMatrixError("Matrix4: Can't invert matrix, determinant is 0");
     }
     det = 1.0 / det;
-    this.m00 = (a11 * b11 - a21 * b01 + a31 * b09) * det;
-    this.m10 = (a20 * b01 - a10 * b11 - a30 * b09) * det;
-    this.m20 = (a13 * b05 - a23 * b04 + a33 * b30) * det;
-    this.m30 = (a22 * b04 - a12 * b05 - a32 * b30) * det;
+    this.m00 = (a11 * b11 - a21 * b10 + a31 * b09) * det;
+    this.m10 = (a20 * b10 - a10 * b11 - a30 * b09) * det;
+    this.m20 = (a13 * b05 - a23 * b04 + a33 * b03) * det;
+    this.m30 = (a22 * b04 - a12 * b05 - a32 * b03) * det;
     this.m01 = (a21 * b08 - a01 * b11 - a31 * b07) * det;
     this.m11 = (a00 * b11 - a20 * b08 + a30 * b07) * det;
-    this.m21 = (a23 * b20 - a03 * b05 - a33 * b10) * det;
-    this.m31 = (a02 * b05 - a22 * b20 + a32 * b10) * det;
-    this.m02 = (a01 * b01 - a11 * b08 + a31 * b06) * det;
-    this.m12 = (a10 * b08 - a00 * b01 - a30 * b06) * det;
-    this.m22 = (a03 * b04 - a13 * b20 + a33 * b00) * det;
-    this.m32 = (a12 * b20 - a02 * b04 - a32 * b00) * det;
+    this.m21 = (a23 * b02 - a03 * b05 - a33 * b01) * det;
+    this.m31 = (a02 * b05 - a22 * b02 + a32 * b01) * det;
+    this.m02 = (a01 * b10 - a11 * b08 + a31 * b06) * det;
+    this.m12 = (a10 * b08 - a00 * b10 - a30 * b06) * det;
+    this.m22 = (a03 * b04 - a13 * b02 + a33 * b00) * det;
+    this.m32 = (a12 * b02 - a02 * b04 - a32 * b00) * det;
     this.m03 = (a11 * b07 - a01 * b09 - a21 * b06) * det;
     this.m13 = (a00 * b09 - a10 * b07 + a20 * b06) * det;
-    this.m23 = (a13 * b10 - a03 * b30 - a23 * b00) * det;
-    this.m33 = (a02 * b30 - a12 * b10 + a22 * b00) * det;
+    this.m23 = (a13 * b01 - a03 * b03 - a23 * b00) * det;
+    this.m33 = (a02 * b03 - a12 * b01 + a22 * b00) * det;
     return this;
   }
   public invert(): Matrix4 {
@@ -277,5 +278,13 @@ export class Matrix4 {
       this.m02, this.m12, this.m22, this.m32,
       this.m03, this.m13, this.m23, this.m33,
     ]);
+  }
+
+  public prettyPrint(dp: number = 2): void {
+    console.log(
+    /*  */ `${this.m00.toFixed(dp)} ${this.m01.toFixed(dp)} ${this.m02.toFixed(dp)} ${this.m03.toFixed(dp)}\n`
+    /**/ + `${this.m10.toFixed(dp)} ${this.m11.toFixed(dp)} ${this.m12.toFixed(dp)} ${this.m13.toFixed(dp)}\n`
+    /**/ + `${this.m20.toFixed(dp)} ${this.m21.toFixed(dp)} ${this.m22.toFixed(dp)} ${this.m23.toFixed(dp)}\n`
+    /**/ + `${this.m30.toFixed(dp)} ${this.m31.toFixed(dp)} ${this.m32.toFixed(dp)} ${this.m33.toFixed(dp)}\n`);
   }
 }

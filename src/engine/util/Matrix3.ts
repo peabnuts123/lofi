@@ -79,8 +79,8 @@ export class Matrix3 {
       a02 = matrix.m02, a12 = matrix.m12, a22 = matrix.m22, a23 = matrix.m23,
       a30 = matrix.m30, a31 = matrix.m31, a32 = matrix.m32, a33 = matrix.m33;
     const b00 = a00 * a11 - a10 * a01;
-    const b10 = a00 * a21 - a20 * a01;
-    const b20 = a00 * a13 - a03 * a01;
+    const b01 = a00 * a21 - a20 * a01;
+    const b02 = a00 * a13 - a03 * a01;
     const b03 = a10 * a21 - a20 * a11;
     const b04 = a10 * a13 - a03 * a11;
     const b05 = a20 * a13 - a03 * a21;
@@ -88,25 +88,24 @@ export class Matrix3 {
     const b07 = a02 * a32 - a22 * a30;
     const b08 = a02 * a33 - a23 * a30;
     const b09 = a12 * a32 - a22 * a31;
-    const b01 = a12 * a33 - a23 * a31;
+    const b10 = a12 * a33 - a23 * a31;
     const b11 = a22 * a33 - a23 * a32;
 
     // Calculate the determinant
-    let det = b00 * b11 - b10 * b01 + b20 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+    let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
     if (!det) {
-      // return null;
-      throw new Error("Matrix3: Can't invert matrix, determinant is 0");
+      throw new CannotInvertMatrixError("Matrix3: Can't invert matrix, determinant is 0");
     }
     det = 1.0 / det;
-    this.m00 = (a11 * b11 - a21 * b01 + a13 * b09) * det;
+    this.m00 = (a11 * b11 - a21 * b10 + a13 * b09) * det;
     this.m10 = (a21 * b08 - a01 * b11 - a13 * b07) * det;
-    this.m20 = (a01 * b01 - a11 * b08 + a13 * b06) * det;
-    this.m01 = (a20 * b01 - a10 * b11 - a03 * b09) * det;
+    this.m20 = (a01 * b10 - a11 * b08 + a13 * b06) * det;
+    this.m01 = (a20 * b10 - a10 * b11 - a03 * b09) * det;
     this.m11 = (a00 * b11 - a20 * b08 + a03 * b07) * det;
-    this.m21 = (a10 * b08 - a00 * b01 - a03 * b06) * det;
+    this.m21 = (a10 * b08 - a00 * b10 - a03 * b06) * det;
     this.m02 = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-    this.m12 = (a32 * b20 - a30 * b05 - a33 * b10) * det;
-    this.m22 = (a30 * b04 - a31 * b20 + a33 * b00) * det;
+    this.m12 = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+    this.m22 = (a30 * b04 - a31 * b02 + a33 * b00) * det;
     return this;
   }
   public static normal(matrix: Matrix4): Matrix3 {
@@ -121,4 +120,14 @@ export class Matrix3 {
       this.m02, this.m12, this.m22,
     ]);
   }
+
+  public prettyPrint(dp: number = 2): void {
+    console.log(
+    /*  */ `${this.m00.toFixed(dp)} ${this.m01.toFixed(dp)} ${this.m02.toFixed(dp)}\n`
+    /**/ + `${this.m10.toFixed(dp)} ${this.m11.toFixed(dp)} ${this.m12.toFixed(dp)}\n`
+    /**/ + `${this.m20.toFixed(dp)} ${this.m21.toFixed(dp)} ${this.m22.toFixed(dp)}\n`);
+  }
+}
+
+export class CannotInvertMatrixError extends Error {
 }
