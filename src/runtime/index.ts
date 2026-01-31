@@ -63,11 +63,15 @@ export class Runtime {
     const burgerModel = await Model.fromDefinition(engine, cartridge.models[1]);
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
-    const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
+    // const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
     // camera.position = new Vector3(-3.5, 2, 3.5);
-    camera.position = new Vector3(3.5, 2, -3.5);
-    camera.position.multiplySelf(3); // @NOTE @DEBUG for glTF
-    camera.pointAt(new Vector3(0, 0, 0));
+    // camera.pointAt(new Vector3(0, 0, 0));
+
+    const camera = new CameraNode(scene, 'camera', 50, canvas.width / canvas.height);
+    camera.position = new Vector3(-2.5, 2, 2.5);
+    // camera.position = new Vector3(3.5, 2, -3.5);
+    // camera.position.multiplySelf(1); // @NOTE @DEBUG for glTF
+    camera.pointAt(new Vector3(0, 1, 0));
     cameraOrigin.addChild(camera);
 
     // @NOTE Click logic - extract to reusable function
@@ -252,10 +256,10 @@ export class Runtime {
     );
     lightOrigin.addChild(light2);
 
-    // const ground = new ModelNode(scene, 'ground', boxModel);
-    // ground.position.y = -0.5;
-    // ground.scale.x = 4;
-    // ground.scale.z = 4;
+    const ground = new ModelNode(scene, 'ground', boxModel);
+    ground.position.y = -0.5;
+    ground.scale.x = 4;
+    ground.scale.z = 4;
 
     /* Four Cardinal Boxes */
     // const eastBox = new ModelNode(scene, 'east', boxModel);
@@ -374,8 +378,51 @@ export class Runtime {
     // setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
 
     /* GLTF Experiment */
-    const gltfExperiment = await GltfExperiment.load(`/models/hifiguy.glb`, this.fileSystem, engine, scene);
-    gltfExperiment.playAnimation('Run');
+    // const gltfExperiment = await GltfExperiment.load(`/models/hifiguy.glb`, this.fileSystem, engine, scene);
+    // gltfExperiment.playAnimation('Run');
+    const gltfExperiment = await GltfExperiment.load(`/models/temp/Rig_Medium_General.glb`, this.fileSystem, engine, scene);
+    // gltfExperiment.scale.multiplySelf(2);
+    // gltfExperiment.playAnimation('Death_A', 1 / 10);
+    // gltfExperiment.playAnimation('Death_A_Pose');
+    // gltfExperiment.playAnimation('Death_B', 1 / 3);
+    // gltfExperiment.playAnimation('Death_B_Pose');
+    // gltfExperiment.playAnimation('Hit_A', 0.3);
+    // gltfExperiment.playAnimation('Hit_B', 0.3);
+    // gltfExperiment.playAnimation('Idle_A');
+    // gltfExperiment.playAnimation('Idle_B', 0.3);
+    // gltfExperiment.playAnimation('Interact', 1);
+    // gltfExperiment.playAnimation('PickUp');
+    // gltfExperiment.playAnimation('Spawn_Air');
+    // gltfExperiment.playAnimation('Spawn_Ground');
+    // gltfExperiment.playAnimation('T-Pose');
+    // gltfExperiment.playAnimation('Throw',);
+    // gltfExperiment.playAnimation('Use_Item');
+
+
+    const AnimationList = [
+      'Death_A',
+      'Death_B',
+      'Hit_A',
+      'Hit_B',
+      'Idle_A',
+      'Idle_B',
+      'Interact',
+      'PickUp',
+      'Spawn_Air',
+      'Spawn_Ground',
+      'T-Pose',
+      'Throw',
+      'Use_Item',
+    ];
+    let animationIndex = 0;
+    const stahp = setInterval(() => {
+      const animationName = AnimationList[animationIndex];
+      console.log(`Playing: '${animationName}'`);
+      gltfExperiment.playAnimation(animationName);
+      animationIndex = (animationIndex + 1) % AnimationList.length;
+    }, 1500);
+    setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
+
 
     this.scene = {
       // burger,

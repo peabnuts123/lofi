@@ -10,7 +10,7 @@ import { getAttribute, getUniform, ShaderBlendingMode } from './materials/Shader
 import { CameraUboIndex } from './scene/nodes/CameraNode';
 import { LightingUboIndex } from './scene/SceneLighting';
 import type { Color4 } from './util/Color4';
-import { Matrix3 } from './util/Matrix3';
+import { CannotInvertMatrixError, Matrix3 } from './util/Matrix3';
 import { DrawableSceneNode, type DrawTask, type IScene } from './scene';
 import { Matrix4 } from './util/Matrix4';
 import { Transform } from './util/Transform';
@@ -21,10 +21,13 @@ import { inverseLerp, lerp } from './util/math';
 import { mapBufferChunks } from './util/array';
 
 const GlbMagic = [0x67, 0x6C, 0x54, 0x46];
+const DEBUG_DRAW_BONES = false;
 
 /*
   @TODO Things we should maybe do
-    - pass through vertex attriute byte length
+    - pass through vertex attribute byte length
+    // - animation samples have weird scaling bug (?)
+    - gltfExperiment transform seems to be ignored (?)
     - Rename animation.length to `lengthSeconds`
     - Rename `channels` to `tracks`?
     - "looping" flags and such
@@ -175,12 +178,7 @@ class AnimationChannel {
           case 'quat': {
             const a = this.values.values[previousTimestampIndex];
             const b = this.values.values[nextTimestampIndex];
-            value = new Quaternion(
-              lerp(a.x, b.x, t),
-              lerp(a.y, b.y, t),
-              lerp(a.z, b.z, t),
-              lerp(a.w, b.w, t),
-            );
+            value = Quaternion.slerp(a, b, t);
             break;
           }
           default:
@@ -657,7 +655,13 @@ export class SubMeshNew {
     // }
 
     // Lighting
-    this._normalTmp.normalSelf(worldMatrix);
+    try {
+      this._normalTmp.normalSelf(worldMatrix);
+    } catch (e) {
+      // @NOTE Don't render if matrix cannot invert (e.g. scale=0)
+      if (e instanceof CannotInvertMatrixError) return;
+      else throw e;
+    }
     gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp.toArray());
 
     // Draw
@@ -783,6 +787,7 @@ export class GltfExperiment extends DrawableSceneNode {
 
   private currentAnimationTime: number = 0;
   private currentAnimation: Animation | undefined;
+  private debug_currentAnimationSpeed: number = 1;
 
   private constructor(scene: IScene, { allNodeDefinitions, allAnimationDefinitions, engine }: LoadedState) {
     super(scene, 'gltf-experiment');
@@ -983,6 +988,108 @@ export class GltfExperiment extends DrawableSceneNode {
 
           meshDefinition.primitives.push(primitiveDefinition);
         }
+      } else if (DEBUG_DRAW_BONES) {
+        /* @TODO @DEBUG Probably remove this. */
+        const size = 0.10;
+        nodeDefinition.mesh = {
+          primitives: [
+            {
+              mode: WebGL2RenderingContext.TRIANGLES,
+              positionData: {
+                buffer: new Float32Array([
+                  // Front face (z = size) - indices 0-3
+                  -size, -size, size,
+                  size, -size, size,
+                  size, size, size,
+                  -size, size, size,
+
+                  // Right face (x = size) - indices 4-7
+                  size, -size, size,
+                  size, -size, -size,
+                  size, size, -size,
+                  size, size, size,
+
+                  // Back face (z = -size) - indices 8-11
+                  size, -size, -size,
+                  -size, -size, -size,
+                  -size, size, -size,
+                  size, size, -size,
+
+                  // Left face (x = -size) - indices 12-15
+                  -size, -size, -size,
+                  -size, -size, size,
+                  -size, size, size,
+                  -size, size, -size,
+
+                  // Top face (y = size) - indices 16-19
+                  -size, size, size,
+                  size, size, size,
+                  size, size, -size,
+                  -size, size, -size,
+
+                  // Bottom face (y = -size) - indices 20-23
+                  -size, -size, -size,
+                  size, -size, -size,
+                  size, -size, size,
+                  -size, -size, size,
+                ]),
+                normalized: false,
+                size: 3,
+                type: WebGL2RenderingContext.FLOAT,
+              },
+              normalData: {
+                buffer: new Float32Array([
+                  // Front face (pointing towards +Z)
+                  0.0, 0.0, 1.0,
+                  0.0, 0.0, 1.0,
+                  0.0, 0.0, 1.0,
+                  0.0, 0.0, 1.0,
+
+                  // Right face (pointing towards +X)
+                  1.0, 0.0, 0.0,
+                  1.0, 0.0, 0.0,
+                  1.0, 0.0, 0.0,
+                  1.0, 0.0, 0.0,
+
+                  // Back face (pointing towards -Z)
+                  0.0, 0.0, -1.0,
+                  0.0, 0.0, -1.0,
+                  0.0, 0.0, -1.0,
+                  0.0, 0.0, -1.0,
+
+                  // Left face (pointing towards -X)
+                  -1.0, 0.0, 0.0,
+                  -1.0, 0.0, 0.0,
+                  -1.0, 0.0, 0.0,
+                  -1.0, 0.0, 0.0,
+
+                  // Top face (pointing towards +Y)
+                  0.0, 1.0, 0.0,
+                  0.0, 1.0, 0.0,
+                  0.0, 1.0, 0.0,
+                  0.0, 1.0, 0.0,
+
+                  // Bottom face (pointing towards -Y)
+                  0.0, -1.0, 0.0,
+                  0.0, -1.0, 0.0,
+                  0.0, -1.0, 0.0,
+                  0.0, -1.0, 0.0,
+                ]),
+                normalized: false,
+                size: 3,
+                type: WebGL2RenderingContext.FLOAT,
+              },
+              indicesBuffer: new Uint16Array([
+                0, 1, 2, 2, 3, 0,       // Front face
+                4, 5, 6, 6, 7, 4,       // Right face
+                8, 9, 10, 10, 11, 8,    // Back face
+                12, 13, 14, 14, 15, 12, // Left face
+                16, 17, 18, 18, 19, 16, // Top face
+                20, 21, 22, 22, 23, 20, // Bottom face
+              ]),
+            },
+          ],
+        };
       }
 
       const skin = node.getSkin();
@@ -1120,16 +1227,18 @@ export class GltfExperiment extends DrawableSceneNode {
     return new GltfExperiment(scene, { engine, allNodeDefinitions, allAnimationDefinitions });
   }
 
-  public playAnimation(animationName: string): void {
+  public playAnimation(animationName: string, speed: number = 1): void {
     const animation = this.allAnimations.find((animation) => animation.name === animationName);
     if (!animation) {
       throw new Error(`Cannot play animation. No animation exists with name '${animationName}'`);
     }
     this.currentAnimation = animation;
     this.currentAnimationTime = 0;
+    this.debug_currentAnimationSpeed = speed;
   }
 
   public override onUpdate(dt: number): void {
+    dt *= this.debug_currentAnimationSpeed; // @TODO @DEBUG
     if (this.currentAnimation) {
       for (const channel of this.currentAnimation.channels) {
         // @TODO we should probably move all of this into `Channel` anyways
