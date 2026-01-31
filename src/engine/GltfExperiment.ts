@@ -25,7 +25,7 @@ const DEBUG_DRAW_BONES = false;
 
 /*
   @TODO Things we should maybe do
-    - pass through vertex attribute byte length
+    // - pass through vertex attribute byte length
     // - animation samples have weird scaling bug (?)
     - gltfExperiment transform seems to be ignored (?)
     - Rename animation.length to `lengthSeconds`
@@ -35,16 +35,29 @@ const DEBUG_DRAW_BONES = false;
     - Material: Color, texture
     - "How many things?" when drawing mesh primitive from non-indexed buffer
     - AttributeDefinition missing properties
-    - MeshPrimitiveDefinition.indicesBuffer store type
+    // - MeshPrimitiveDefinition.indicesBuffer store type
     - Walk from scene entrypoint rather than read all nodes
+    - Test an animation with CubicSpline interpolation
+    - Test an animation that animates morph target weights
+    - Figure out how to decouple Shader from Mesh aka, how to re-use a material on different meshes
  */
 
 interface AttributeDefinition {
+  /** Raw typed array of data. */
   buffer: TypedArray;
-  size: number;
-  // @TODO byteSize
-  // @TODO count ?
-  type: GLTF.AccessorComponentType;
+  /** Number of components per element of data. For example, the element size of a Vector2 is 2. */
+  componentCount: number;
+  /**
+   * Number of bytes per component. For example, Float32 is 4 bytes.
+   * The full size of an element is calculated as `componentCount * componentSize`.
+   */
+  componentSize: number;
+  /** Type of each component e.g. `FLOAT`, `UNSIGNED_INT`, etc. */
+  componentType: GLTF.AccessorComponentType;
+  /**
+   * Specifies whether integer data values should be normalized (true) to [0, 1] (for unsigned types)
+   * or [-1, 1] (for signed types), or converted directly (false) when they are accessed.
+   */
   normalized: boolean;
 }
 interface MeshPrimitiveDefinition {
@@ -54,8 +67,12 @@ interface MeshPrimitiveDefinition {
   color0Data?: AttributeDefinition;       // VEC3 or VEC4
   joints0Data?: AttributeDefinition;      // VEC4
   weights0Data?: AttributeDefinition;     // VEC4
-  indicesBuffer?: TypedArray;             // SCALAR (unsigned int) // @TODO store type e.g. gl.UNSIGNED_SHORT
-  // @TODO count? indexed or not?
+  indices?: {
+    /** Raw typed array of index data. */
+    buffer: TypedArray;
+    /** Type of each index e.g. `UNSIGNED_INT` or `UNSIGNED_SHORT`*/
+    type: GLTF.AccessorComponentType;
+  },
   mode: GLTF.MeshPrimitiveMode;
   // @TODO material
 }
@@ -470,29 +487,18 @@ export class SubMeshNew {
 
     gl.bindVertexArray(this.vao);
 
-    gl.enableVertexAttribArray(material.shader.vertexPositionAttribute);
-    gl.enableVertexAttribArray(material.shader.vertexNormalAttribute);
-    if (material.shader.vertexColorAttribute) {
-      gl.enableVertexAttribArray(material.shader.vertexColorAttribute);
-    }
-    if (material.shader.vertexJointsAttribute) {
-      gl.enableVertexAttribArray(material.shader.vertexJointsAttribute);
-    }
-    if (material.shader.vertexWeightsAttribute) {
-      gl.enableVertexAttribArray(material.shader.vertexWeightsAttribute);
-    }
-
     /* Vertex positions */
-    // @TODO can probably do all in one go for AttributeDefinition
+    // @TODO can probably make a function that calls all of this for a given Attribute + AttributeDefinition
     {
+      gl.enableVertexAttribArray(material.shader.vertexPositionAttribute);
       const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.positionData.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.vertexAttribPointer(
         material.shader.vertexPositionAttribute,
-        primitive.positionData.size,
-        primitive.positionData.type,
+        primitive.positionData.componentCount,
+        primitive.positionData.componentType,
         primitive.positionData.normalized,
-        3 * Float32Array.BYTES_PER_ELEMENT, // @TODO
+        primitive.positionData.componentCount * primitive.positionData.componentSize,
         0,
       );
     }
@@ -500,14 +506,15 @@ export class SubMeshNew {
     /* Vertex normals */
     // @TODO generate normals somewhere
     if (primitive.normalData) {
+      gl.enableVertexAttribArray(material.shader.vertexNormalAttribute);
       const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.normalData.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
       gl.vertexAttribPointer(
         material.shader.vertexNormalAttribute,
-        primitive.normalData.size,
-        primitive.normalData.type,
+        primitive.normalData.componentCount,
+        primitive.normalData.componentType,
         primitive.normalData.normalized,
-        3 * Float32Array.BYTES_PER_ELEMENT, // @TODO
+        primitive.normalData.componentCount * primitive.normalData.componentSize,
         0,
       );
     } else {
@@ -516,41 +523,44 @@ export class SubMeshNew {
 
     /* Vertex colors */
     if (material.shader.vertexColorAttribute && primitive.color0Data) {
+      gl.enableVertexAttribArray(material.shader.vertexColorAttribute);
       const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.color0Data.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
       gl.vertexAttribPointer(
         material.shader.vertexColorAttribute,
-        primitive.color0Data.size,
-        primitive.color0Data.type,
+        primitive.color0Data.componentCount,
+        primitive.color0Data.componentType,
         primitive.color0Data.normalized,
-        4 * Uint8Array.BYTES_PER_ELEMENT, // @TODO
+        primitive.color0Data.componentCount * primitive.color0Data.componentSize,
         0,
       );
     }
 
     /* Joint indices */
     if (material.shader.vertexJointsAttribute && primitive.joints0Data) {
+      gl.enableVertexAttribArray(material.shader.vertexJointsAttribute);
       const jointsBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.joints0Data.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, jointsBuffer);
       gl.vertexAttribPointer(
         material.shader.vertexJointsAttribute,
-        primitive.joints0Data.size,
-        primitive.joints0Data.type,
+        primitive.joints0Data.componentCount,
+        primitive.joints0Data.componentType,
         primitive.joints0Data.normalized,
-        4 * Uint8Array.BYTES_PER_ELEMENT, // @TODO
+        primitive.joints0Data.componentCount * primitive.joints0Data.componentSize,
         0,
       );
     }
     /* Joint weights */
     if (material.shader.vertexWeightsAttribute && primitive.weights0Data) {
+      gl.enableVertexAttribArray(material.shader.vertexWeightsAttribute);
       const weightsBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.weights0Data.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, weightsBuffer);
       gl.vertexAttribPointer(
         material.shader.vertexWeightsAttribute,
-        primitive.weights0Data.size,
-        primitive.weights0Data.type,
+        primitive.weights0Data.componentCount,
+        primitive.weights0Data.componentType,
         primitive.weights0Data.normalized,
-        4 * Float32Array.BYTES_PER_ELEMENT, // @TODO
+        primitive.weights0Data.componentCount * primitive.weights0Data.componentSize,
         0,
       );
     }
@@ -558,9 +568,9 @@ export class SubMeshNew {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
     /* Indexed geometry */
-    if (primitive.indicesBuffer) {
+    if (primitive.indices) {
       console.log(`Primitive has indexed geometry:`, primitive);
-      const indicesBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, primitive.indicesBuffer);
+      const indicesBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, primitive.indices.buffer);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
     }
 
@@ -666,9 +676,9 @@ export class SubMeshNew {
 
     // Draw
     gl.bindVertexArray(this.vao);
-    if (this.primitiveDefinition.indicesBuffer) {
+    if (this.primitiveDefinition.indices) {
       // Indexed geometry
-      gl.drawElements(this.primitiveDefinition.mode, this.primitiveDefinition.indicesBuffer.length, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(this.primitiveDefinition.mode, this.primitiveDefinition.indices.buffer.length, this.primitiveDefinition.indices.type, 0);
     } else {
       // @TODO How many things?
       gl.drawArrays(this.primitiveDefinition.mode, 0, this.primitiveDefinition.positionData.buffer.length);
@@ -903,8 +913,9 @@ export class GltfExperiment extends DrawableSceneNode {
     function readVertexAttributes(accessor: Accessor): AttributeDefinition {
       return {
         buffer: accessor.getArray()!,
-        size: accessor.getElementSize(),
-        type: accessor.getComponentType(),
+        componentCount: accessor.getElementSize(),
+        componentSize: accessor.getComponentSize(),
+        componentType: accessor.getComponentType(),
         normalized: accessor.getNormalized(),
       };
     }
@@ -983,7 +994,10 @@ export class GltfExperiment extends DrawableSceneNode {
 
           const indicesAccessor = primitive.getIndices();
           if (indicesAccessor) {
-            primitiveDefinition.indicesBuffer = indicesAccessor.getArray()!;
+            primitiveDefinition.indices = {
+              buffer: indicesAccessor.getArray()!,
+              type: indicesAccessor.getComponentType(),
+            };
           }
 
           meshDefinition.primitives.push(primitiveDefinition);
@@ -1034,8 +1048,9 @@ export class GltfExperiment extends DrawableSceneNode {
                   -size, -size, size,
                 ]),
                 normalized: false,
-                size: 3,
-                type: WebGL2RenderingContext.FLOAT,
+                componentCount: 3,
+                componentSize: 4,
+                componentType: WebGL2RenderingContext.FLOAT,
               },
               normalData: {
                 buffer: new Float32Array([
@@ -1076,17 +1091,21 @@ export class GltfExperiment extends DrawableSceneNode {
                   0.0, -1.0, 0.0,
                 ]),
                 normalized: false,
-                size: 3,
-                type: WebGL2RenderingContext.FLOAT,
+                componentCount: 3,
+                componentSize: 4,
+                componentType: WebGL2RenderingContext.FLOAT,
               },
-              indicesBuffer: new Uint16Array([
-                0, 1, 2, 2, 3, 0,       // Front face
-                4, 5, 6, 6, 7, 4,       // Right face
-                8, 9, 10, 10, 11, 8,    // Back face
-                12, 13, 14, 14, 15, 12, // Left face
-                16, 17, 18, 18, 19, 16, // Top face
-                20, 21, 22, 22, 23, 20, // Bottom face
-              ]),
+              indices: {
+                buffer: new Uint8Array([
+                  0, 1, 2, 2, 3, 0,       // Front face
+                  4, 5, 6, 6, 7, 4,       // Right face
+                  8, 9, 10, 10, 11, 8,    // Back face
+                  12, 13, 14, 14, 15, 12, // Left face
+                  16, 17, 18, 18, 19, 16, // Top face
+                  20, 21, 22, 22, 23, 20, // Bottom face
+                ]),
+                type: WebGL2RenderingContext.UNSIGNED_BYTE,
+              },
             },
           ],
         };
