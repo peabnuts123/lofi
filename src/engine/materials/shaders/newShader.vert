@@ -7,7 +7,9 @@
 in vec3 vertexPosition;
 in vec3 vertexNormal;
 // Optional
-// in vec2 textureCoord; // @TODO, optional
+#ifdef DIFFUSE_TEXTURE
+in vec2 textureCoord;
+#endif
 #ifdef VERTEX_COLORS
 in vec4 vertexColor;
 #endif
@@ -25,13 +27,15 @@ uniform mat3 normalMatrix;
 uniform vec4 diffuseColor;
 #endif
 #ifdef SKIN
-uniform mat4 jointMatrix[NUM_BONES];
+uniform mat4 jointMatrix[MAX_BONES];
 #endif
 
 /* Shader outputs */
 out vec4 fragmentColor;
-out vec2 fragmentTextureCoord;
 out vec3 fragmentLighting;
+#ifdef DIFFUSE_TEXTURE
+out vec2 fragmentTextureCoord;
+#endif
 
 /* UBOs */
 // @TODO use an #include for this
@@ -72,9 +76,10 @@ void main() {
   fragmentColor *= diffuseColor;
 #endif
 
+#ifdef DIFFUSE_TEXTURE
   // Texturing
-  // fragmentTextureCoord = textureCoord;
-  fragmentTextureCoord = vec2(0.0f, 0.0f);
+  fragmentTextureCoord = textureCoord;
+#endif
 
   // Lighting
   vec3 worldNormal = normalize(normalMatrix * vertexNormal);

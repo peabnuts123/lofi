@@ -4,12 +4,17 @@
 
 precision mediump float;
 
+/* Fragment attributes */
 in vec4 fragmentColor;
-in vec2 fragmentTextureCoord;
 in vec3 fragmentLighting;
+#ifdef DIFFUSE_TEXTURE
+in vec2 fragmentTextureCoord;
+#endif
 
+/* Outputs */
 out vec4 outputColor;
 
+/* Uniforms */
 #ifdef DIFFUSE_TEXTURE
 uniform sampler2D sampler;
 #endif

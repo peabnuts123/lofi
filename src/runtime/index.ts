@@ -1,4 +1,4 @@
-import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { BoxColliderNode, CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type ModelDefinition, type Triangle } from '@polyzone/engine/models';
 import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
@@ -380,7 +380,9 @@ export class Runtime {
     /* GLTF Experiment */
     // const gltfExperiment = await GltfExperiment.load(`/models/hifiguy.glb`, this.fileSystem, engine, scene);
     // gltfExperiment.playAnimation('Run');
-    const gltfExperiment = await GltfExperiment.load(`/models/temp/Rig_Medium_General.glb`, this.fileSystem, engine, scene);
+    // const gltfExperiment = await GltfExperiment.load(`/models/temp/Rig_Medium_General.glb`, this.fileSystem, engine, scene);
+    // const gltfExperiment = await GltfExperiment.load(`/models/temp/rig_mage.glb`, this.fileSystem, engine, scene);
+    const gltfExperiment = await GltfExperiment.load(`/models/temp/mage/rig_mage.gltf`, this.fileSystem, engine, scene);
     // gltfExperiment.scale.multiplySelf(2);
     // gltfExperiment.playAnimation('Death_A', 1 / 10);
     // gltfExperiment.playAnimation('Death_A_Pose');

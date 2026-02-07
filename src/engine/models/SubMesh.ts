@@ -212,7 +212,7 @@ export class SubMesh {
       gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTexture.texture);
       gl.uniform1i(this.material.shader.textureSamplerUniform!, textureIndex);
     } else {
-      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.bindTexture(gl.TEXTURE_2D, null); // @TODO needed?
     }
 
     // Lighting

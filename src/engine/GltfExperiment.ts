@@ -6,10 +6,10 @@ import { createBuffer } from './util/createBuffer';
 
 import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
 import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
-import { getAttribute, getUniform, ShaderBlendingMode } from './materials/ShaderProgram';
+import { ShaderBlendingMode } from './materials/ShaderProgram';
 import { CameraUboIndex } from './scene/nodes/CameraNode';
 import { LightingUboIndex } from './scene/SceneLighting';
-import type { Color4 } from './util/Color4';
+import { Color4 } from './util/Color4';
 import { CannotInvertMatrixError, Matrix3 } from './util/Matrix3';
 import { DrawableSceneNode, type DrawTask, type IScene } from './scene';
 import { Matrix4 } from './util/Matrix4';
@@ -19,6 +19,8 @@ import { Quaternion } from './util/quaternion';
 import type { Rotation } from './util/Rotation';
 import { inverseLerp, lerp } from './util/math';
 import { mapBufferChunks } from './util/array';
+import { Texture } from './textures/Texture';
+import type { Color3 } from './util/Color3';
 
 const GlbMagic = [0x67, 0x6C, 0x54, 0x46];
 const DEBUG_DRAW_BONES = false;
@@ -27,21 +29,53 @@ const DEBUG_DRAW_BONES = false;
   @TODO Things we should maybe do
     // - pass through vertex attribute byte length
     // - animation samples have weird scaling bug (?)
-    - gltfExperiment transform seems to be ignored (?)
-    - Rename animation.length to `lengthSeconds`
-    - Rename `channels` to `tracks`?
-    - "looping" flags and such
-    - reset state when stop playing
-    - Material: Color, texture
-    - "How many things?" when drawing mesh primitive from non-indexed buffer
-    - AttributeDefinition missing properties
     // - MeshPrimitiveDefinition.indicesBuffer store type
-    - Walk from scene entrypoint rather than read all nodes
+    // - Material: Color, texture
+    - Texture transparency / GlTF alpha
     - Test an animation with CubicSpline interpolation
     - Test an animation that animates morph target weights
+    - Walk from scene entrypoint rather than read all nodes
+    - "How many things?" when drawing mesh primitive from non-indexed buffer
+    - Vertex color alpha
+    - Generate normals if missing
+
+    - gltfExperiment transform seems to be ignored (?)
+
+    - Okay, so what is the API for this stuff?
+      - Rename animation.length to `lengthSeconds` ?
+      - Rename `channels` to `tracks`?
+      - "looping" flags and such
+      - reset state when stop playing (? or is it working?)
+
+    - ? Should we honor texture.sampler properties such as `wrapS`, `wrapT`
+    - Do we need to reuse meshnode instead of instantiating mesh every time … ?
+    - Should we support `doubleSided`?
     - Figure out how to decouple Shader from Mesh aka, how to re-use a material on different meshes
+    - Animation Retargeting :think:
  */
 
+export class IdPool {
+  private pool: Set<number>;
+
+  public constructor() {
+    this.pool = new Set<number>();
+  }
+
+  /**
+   * Generate a new unique ID that has not been issued from the pool
+   * before.
+   */
+  public createNew(): number {
+    let newId: number;
+    do {
+      newId = Math.trunc(Math.random() * 0xF000_0000) + 0x1000_0000;
+    } while (this.pool.has(newId));
+
+    this.pool.add(newId);
+
+    return newId;
+  }
+}
 interface AttributeDefinition {
   /** Raw typed array of data. */
   buffer: TypedArray;
@@ -60,6 +94,15 @@ interface AttributeDefinition {
    */
   normalized: boolean;
 }
+interface MaterialDefinition {
+  name: string;
+  alphaMode: GLTF.MaterialAlphaMode;
+  diffuseColor?: Color4;
+  texture?: {
+    buffer: Uint8Array<ArrayBuffer>;
+    texCoord: number;
+  },
+}
 interface MeshPrimitiveDefinition {
   positionData: AttributeDefinition;      // VEC3
   normalData?: AttributeDefinition;       // VEC3
@@ -73,8 +116,9 @@ interface MeshPrimitiveDefinition {
     /** Type of each index e.g. `UNSIGNED_INT` or `UNSIGNED_SHORT`*/
     type: GLTF.AccessorComponentType;
   },
+  /** GL rendering mode e.g. TRIANGLES, LINES, TRIANGLE_FAN, etc. */
   mode: GLTF.MeshPrimitiveMode;
-  // @TODO material
+  material?: MaterialDefinition;
 }
 interface MeshDefinition {
   primitives: MeshPrimitiveDefinition[];
@@ -290,30 +334,115 @@ export interface ShaderProgramOptions {
   hasVertexColors: boolean;
   hasDiffuseTexture: boolean;
   blendingMode: ShaderBlendingMode; // @TODO Should we just pass the material reference?
-  blackIsTransparent: boolean; // @NOTE specifically regarding the sampled texture. Should maybe rename.
+  blackIsTransparent: boolean; // @NOTE specifically regarding the sampled texture. Should maybe rename. OR update shader
   unlit: boolean;
-  numJointBones: number; // @TODO This whole thing is jank
+  hasSkin: boolean;
 }
-export class ShaderProgramNew {
-  public readonly name: string;
+
+interface DrawTask2 {
+  renderPass: number; // @TODO how is this actually used?
+  glProgram: ShaderProgram2;
+  material: Material2;
+  mesh: {
+    id: number;
+    vao: WebGLVertexArrayObject;
+    draw: () => void,
+  },
+  uniforms: {
+    worldMatrix: Matrix4;
+    skinWeights?: Float32Array;
+  }
+}
+
+function sortDrawTasks(drawTasks: DrawTask2[]): void {
+  drawTasks.sort((taskA, taskB) => {
+    return taskA.renderPass - taskB.renderPass ||
+      taskA.glProgram.id - taskB.glProgram.id ||
+      taskA.material.id - taskB.material.id ||
+      taskA.mesh.id - taskB.mesh.id;
+  });
+}
+
+export class ShaderCache {
+  private static IdPool: IdPool = new IdPool();
+  private static cache: Record<string, ShaderProgram2> = {};
+
+  private static createCacheKey(options: ShaderProgramOptions): string {
+    const compositeKey: (keyof ShaderProgramOptions)[] = [
+      'blackIsTransparent',
+      'blendingMode',
+      'hasDiffuseColor',
+      'hasDiffuseTexture',
+      'hasSkin',
+      'hasVertexColors',
+      'unlit',
+    ];
+
+    // Approximate runtime validation that we aren't missing any keys from `options`
+    const missingKeys: (keyof ShaderProgramOptions)[] = [];
+    for (const optionsKey of Object.keys(options) as (keyof ShaderProgramOptions)[]) {
+      if (!compositeKey.includes(optionsKey)) {
+        missingKeys.push(optionsKey);
+      }
+    }
+    if (missingKeys.length > 0) {
+      console.warn(`[${ShaderCache.name}] (${this.createCacheKey.name}) WARNING: Unused properties from 'options' object: `, missingKeys);
+    }
+
+    return compositeKey
+      .map(key => options[key])
+      .join('|');
+  }
+
+  public static create(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: Material2): ShaderProgram2 {
+    const args: ShaderProgram2Args = {
+      vertexShaderSource: VertexShaderSource,
+      fragmentShaderSource: FragmentShaderSource,
+    };
+    const options: ShaderProgramOptions = {
+      blackIsTransparent: material.blackIsTransparent,
+      blendingMode: material.blendingMode,
+      hasDiffuseColor: material?.diffuseColor !== undefined,
+      hasDiffuseTexture: material?.diffuseTexture !== undefined,
+      // @NOTE @ASSUMPTION if skin attributes are defined then NodeDefinition has a skeleton defined
+      hasSkin: primitiveDefinition.joints0Data !== undefined && primitiveDefinition.weights0Data !== undefined,
+      hasVertexColors: primitiveDefinition.color0Data !== undefined,
+      unlit: material.unlit,
+    };
+
+    const cacheKey = ShaderCache.createCacheKey(options);
+
+    // Lookup shader in cache
+    const existingShader = ShaderCache.cache[cacheKey];
+    if (existingShader !== undefined) {
+      return existingShader;
+    } else {
+      // Create new shader and add to cache
+      const newShaderId = ShaderCache.IdPool.createNew();
+      const newShader = new ShaderProgram2(engine, newShaderId, args, options);
+      ShaderCache.cache[cacheKey] = newShader;
+      return newShader;
+    }
+  }
+}
+
+interface ShaderProgram2Args {
+  vertexShaderSource: string;
+  fragmentShaderSource: string;
+}
+export class ShaderProgram2 {
+  public static MaxBones = 64;
+
+  public readonly id: number;
+
+  private readonly gl: WebGL2RenderingContext;
   public readonly program: WebGLProgram;
-  // @TODO configurable attributes through extends?
-  public readonly vertexPositionAttribute: number;
-  public readonly vertexNormalAttribute: number;
-  public readonly vertexColorAttribute: number | undefined;
-  public readonly vertexJointsAttribute: number | undefined;
-  public readonly vertexWeightsAttribute: number | undefined;
 
-
-  public readonly normalMatrixUniform: WebGLUniformLocation;
-  public readonly worldMatrixUniform: WebGLUniformLocation | undefined;
-  public readonly diffuseColorUniform: WebGLUniformLocation | undefined;
-  public readonly jointMatrixUniform: WebGLUniformLocation | undefined;
-
-  public constructor(engine: IEngine, name: string, options: ShaderProgramOptions) {
+  public constructor(engine: IEngine, id: number, args: ShaderProgram2Args, options: ShaderProgramOptions) {
     const { gl } = engine;
 
-    this.name = name;
+    this.gl = gl;
+    this.id = id;
 
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -326,11 +455,11 @@ export class ShaderProgramNew {
     function inject(name: string, injected: string, src: string): string {
       return src.replace(new RegExp(`#pragma\\s+inject\\s*\\(\\s*${name}\\s*\\)\\s*$`, "m"), injected);
     }
-    const definesBlock = `#define _ShaderName ${name}\n` + ShaderProgramNew.getDefinesFromShaderOptions(options)
+    const definesBlock = `#define _ShaderId ${id}\n` + ShaderProgram2.getDefinesFromShaderOptions(options)
       .map((define) => `#define ${define}`).join('\n') + '\n';
-    const vertexShaderSource = inject('defines', definesBlock, VertexShaderSource);
+    const vertexShaderSource = inject('defines', definesBlock, args.vertexShaderSource);
     gl.shaderSource(vertexShader, vertexShaderSource);
-    const fragmentShaderSource = inject('defines', definesBlock, FragmentShaderSource);
+    const fragmentShaderSource = inject('defines', definesBlock, args.fragmentShaderSource);
     gl.shaderSource(fragmentShader, fragmentShaderSource);
     // console.log(`Shader '${name}'\n<VERTEX_SHADER>\n${vertexShaderSource}\n</VERTEX_SHADER>\n<FRAGMENT_SHADER>\n${fragmentShaderSource}\n</FRAGMENT_SHADER>`);
 
@@ -355,23 +484,31 @@ export class ShaderProgramNew {
       throw new Error(`Failed to link GL program: ${errorMessage}`);
     }
 
-    this.vertexPositionAttribute = getAttribute(gl, program, 'vertexPosition', true);
-    this.vertexNormalAttribute = getAttribute(gl, program, 'vertexNormal', true);
-    this.vertexColorAttribute = getAttribute(gl, program, 'vertexColor', false);
-    this.vertexJointsAttribute = getAttribute(gl, program, 'vertexJoints', false);
-    this.vertexWeightsAttribute = getAttribute(gl, program, 'vertexWeights', false);
-    // this.vertexTextureCoordinateAttribute = getAttribute(gl, program, 'textureCoord', true);
-
-    this.worldMatrixUniform = getUniform(gl, program, 'worldMatrix', false);
-    this.normalMatrixUniform = getUniform(gl, program, 'normalMatrix', true);
-    this.diffuseColorUniform = getUniform(gl, program, 'diffuseColor', false);
-    this.jointMatrixUniform = getUniform(gl, program, 'jointMatrix', false);
-    // this.textureSamplerUniform = getUniform(gl, program, 'sampler', false);
-
     const cameraUboBlockIndex = gl.getUniformBlockIndex(this.program, "Camera");
     gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
     const lightingUboBlockIndex = gl.getUniformBlockIndex(this.program, "Lighting");
     gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
+
+    // @TODO Handle missing
+    // @NOTE Non-existent UBO seems to return WebGL2RenderingContext.INVALID_INDEX
+  }
+
+  public getAttribute(attributeName: string): number | undefined {
+    const attribute = this.gl.getAttribLocation(this.program, attributeName);
+    if (attribute < 0) {
+      return undefined;
+    } else {
+      return attribute;
+    }
+  }
+
+  public getUniform(uniformName: string): WebGLUniformLocation | undefined {
+    const uniform = this.gl.getUniformLocation(this.program, uniformName);
+    if (!uniform) {
+      return undefined;
+    }
+
+    return uniform;
   }
 
   private static getDefinesFromShaderOptions(options: ShaderProgramOptions): string[] {
@@ -385,8 +522,8 @@ export class ShaderProgramNew {
       defines.push('VERTEX_COLORS');
     }
 
-    if (options.numJointBones) {
-      defines.push('SKIN', 'NUM_BONES ' + options.numJointBones);
+    if (options.hasSkin) {
+      defines.push('SKIN', 'MAX_BONES ' + ShaderProgram2.MaxBones);
     }
 
     if (options.hasDiffuseTexture) {
@@ -429,72 +566,126 @@ export class ShaderProgramNew {
   }
 }
 
-export interface MaterialConstructorArgs {
-  diffuseColor?: Color4;
-  numJointBones?: number;
-  // diffuseTexture?: Texture;
-}
-export interface MaterialConstructorOptions {
-  hasVertexColors?: boolean;
-  blendingMode?: ShaderBlendingMode;
-  blackIsTransparent?: boolean;
-  unlit?: boolean;
-}
+export class Material2 {
+  private static readonly IdPool: IdPool = new IdPool();
 
-export class MaterialNew {
+  public readonly id: number;
   public readonly name: string;
-  public readonly shader: ShaderProgramNew;
-
   public diffuseColor: Color4 | undefined;
+  public diffuseTexture: Texture | undefined;
+  public emissionColor: Color3 | undefined;
+  public unlit: boolean;
+  public blackIsTransparent: boolean;
   public blendingMode: ShaderBlendingMode;
 
-  public constructor(engine: IEngine, name: string, args: MaterialConstructorArgs, options: MaterialConstructorOptions) {
+  public constructor(name: string, initialValues?: Partial<Material2>) {
+    this.id = Material2.IdPool.createNew();
     this.name = name;
-    this.diffuseColor = args.diffuseColor;
+    this.diffuseColor = initialValues?.diffuseColor;
+    this.diffuseTexture = initialValues?.diffuseTexture;
+    this.emissionColor = initialValues?.emissionColor;
+    this.unlit = initialValues?.unlit ?? false;
+    this.blackIsTransparent = initialValues?.blackIsTransparent ?? false;
+    this.blendingMode = initialValues?.blendingMode ?? ShaderBlendingMode.None;
+  }
 
-    this.blendingMode = options.blendingMode ?? ShaderBlendingMode.None;
+  public static async fromDefinition(engine: IEngine, definition: MaterialDefinition): Promise<Material2> {
+    const material = new Material2(definition.name);
+    if (definition.diffuseColor !== undefined) {
+      material.diffuseColor = definition.diffuseColor;
+    }
 
-    this.shader = new ShaderProgramNew(engine, name, {
-      hasDiffuseColor: !!args.diffuseColor,
-      hasVertexColors: !!options.hasVertexColors,
-      // hasDiffuseTexture: !!args.diffuseTexture,
-      numJointBones: args.numJointBones ?? 0,
-      hasDiffuseTexture: false,
-      blendingMode: this.blendingMode,
-      blackIsTransparent: options.blackIsTransparent ?? false,
-      unlit: options.unlit ?? false,
-    });
+    if (definition.texture !== undefined) {
+      material.diffuseTexture = await Texture.loadFromBuffer(engine, definition.texture.buffer);
+    }
+
+    return material;
   }
 }
 
 export class SubMeshNew {
+  private static IdPool: IdPool = new IdPool();
+
+  private readonly id: number;
   private readonly vao: WebGLVertexArrayObject;
-  private readonly material: MaterialNew;
-  private readonly primitiveDefinition: MeshPrimitiveDefinition;
+  private readonly material: Material2;
+  private readonly shader: ShaderProgram2;
+  private readonly drawPrimitive: () => void;
 
-  private _normalTmp: Matrix3 = new Matrix3();
+  private constructor(
+    vao: WebGLVertexArrayObject,
+    material: Material2,
+    shader: ShaderProgram2,
+    drawPrimitive: () => void,
+  ) {
+    this.id = SubMeshNew.IdPool.createNew();
+    this.vao = vao;
+    this.material = material;
+    this.shader = shader;
+    this.drawPrimitive = drawPrimitive;
+  }
 
-  public constructor(engine: IEngine, primitive: MeshPrimitiveDefinition, material: MaterialNew) {
+  public draw2(
+    drawQueues: DrawQueues,
+    worldMatrix: Matrix4,
+    jointMatrices: Matrix4[] | undefined,
+  ): void {
+    // Joint matrices
+    let jointMatricesBytes: Float32Array | undefined = undefined;
+    if (jointMatrices) {
+      jointMatricesBytes = new Float32Array(ShaderProgram2.MaxBones * 16); // @TODO Don't allocate every frame
+      jointMatrices.forEach((jointMatrix, index) => {
+        jointMatricesBytes!.set(jointMatrix.toArray(), index * 16);
+      });
+    }
+
+    // @TODO transparency check
+    drawQueues.opaque.push({
+      renderPass: 0, // @TODO (?)
+      glProgram: this.shader,
+      material: this.material,
+      mesh: {
+        id: this.id,
+        vao: this.vao,
+        draw: this.drawPrimitive,
+      },
+      uniforms: {
+        worldMatrix,
+        skinWeights: jointMatricesBytes,
+      },
+    });
+  }
+
+  public static async fromDefinition(
+    engine: IEngine,
+    primitive: MeshPrimitiveDefinition,
+  ): Promise<SubMeshNew> {
     const { gl } = engine;
 
-    this.material = material;
-    this.primitiveDefinition = primitive;
+    const material = primitive.material ?
+      await Material2.fromDefinition(engine, primitive.material) :
+      new Material2('default');
+    const shader = ShaderCache.create(engine, primitive, material);
 
-    this.vao = gl.createVertexArray();
-    if (!this.vao) {
+    const vao = gl.createVertexArray();
+    if (!vao) {
       throw new Error('Failed to create VAO');
     }
 
-    gl.bindVertexArray(this.vao);
+    gl.bindVertexArray(vao);
 
     /* Vertex positions */
     // @TODO can probably make a function that calls all of this for a given Attribute + AttributeDefinition
     {
-      gl.enableVertexAttribArray(material.shader.vertexPositionAttribute);
+      const vertexPositionAttribute = shader.getAttribute('vertexPosition');
+      if (vertexPositionAttribute === undefined) {
+        throw new Error(`Could not find vertex attribute 'vertexPosition' in shader. Cannot render mesh primitive with no vertex position data.`);
+      }
+      gl.enableVertexAttribArray(vertexPositionAttribute);
       const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.positionData.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.vertexAttribPointer(
-        material.shader.vertexPositionAttribute,
+        vertexPositionAttribute,
         primitive.positionData.componentCount,
         primitive.positionData.componentType,
         primitive.positionData.normalized,
@@ -506,11 +697,15 @@ export class SubMeshNew {
     /* Vertex normals */
     // @TODO generate normals somewhere
     if (primitive.normalData) {
-      gl.enableVertexAttribArray(material.shader.vertexNormalAttribute);
+      const vertexNormalAttribute = shader.getAttribute('vertexNormal');
+      if (vertexNormalAttribute === undefined) {
+        throw new Error(`Could not find vertex attribute 'vertexNormal' in shader. Cannot render mesh primitive with no vertex normal data.`);
+      }
+      gl.enableVertexAttribArray(vertexNormalAttribute);
       const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.normalData.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
       gl.vertexAttribPointer(
-        material.shader.vertexNormalAttribute,
+        vertexNormalAttribute,
         primitive.normalData.componentCount,
         primitive.normalData.componentType,
         primitive.normalData.normalized,
@@ -522,12 +717,13 @@ export class SubMeshNew {
     }
 
     /* Vertex colors */
-    if (material.shader.vertexColorAttribute && primitive.color0Data) {
-      gl.enableVertexAttribArray(material.shader.vertexColorAttribute);
+    const vertexColorAttribute = shader.getAttribute('vertexColor');
+    if (vertexColorAttribute && primitive.color0Data) {
+      gl.enableVertexAttribArray(vertexColorAttribute);
       const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.color0Data.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
       gl.vertexAttribPointer(
-        material.shader.vertexColorAttribute,
+        vertexColorAttribute,
         primitive.color0Data.componentCount,
         primitive.color0Data.componentType,
         primitive.color0Data.normalized,
@@ -535,14 +731,33 @@ export class SubMeshNew {
         0,
       );
     }
+    const texCoordIndex = primitive.material?.texture?.texCoord;
+    const textureCoordAttribute = shader.getAttribute('textureCoord');
+    if (textureCoordAttribute && texCoordIndex !== undefined) {
+      const textureCoordAttributeData = primitive[`texCoord${texCoordIndex}Data` as keyof MeshPrimitiveDefinition] as (AttributeDefinition | undefined);
+      if (textureCoordAttributeData) {
+        gl.enableVertexAttribArray(textureCoordAttribute);
+        const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, textureCoordAttributeData.buffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.vertexAttribPointer(
+          textureCoordAttribute,
+          textureCoordAttributeData.componentCount,
+          textureCoordAttributeData.componentType,
+          textureCoordAttributeData.normalized,
+          textureCoordAttributeData.componentCount * textureCoordAttributeData.componentSize,
+          0,
+        );
+      }
+    }
 
     /* Joint indices */
-    if (material.shader.vertexJointsAttribute && primitive.joints0Data) {
-      gl.enableVertexAttribArray(material.shader.vertexJointsAttribute);
+    const vertexJointsAttribute = shader.getAttribute('vertexJoints');
+    if (vertexJointsAttribute && primitive.joints0Data) {
+      gl.enableVertexAttribArray(vertexJointsAttribute);
       const jointsBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.joints0Data.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, jointsBuffer);
       gl.vertexAttribPointer(
-        material.shader.vertexJointsAttribute,
+        vertexJointsAttribute,
         primitive.joints0Data.componentCount,
         primitive.joints0Data.componentType,
         primitive.joints0Data.normalized,
@@ -551,12 +766,13 @@ export class SubMeshNew {
       );
     }
     /* Joint weights */
-    if (material.shader.vertexWeightsAttribute && primitive.weights0Data) {
-      gl.enableVertexAttribArray(material.shader.vertexWeightsAttribute);
+    const vertexWeightsAttribute = shader.getAttribute('vertexWeights');
+    if (vertexWeightsAttribute && primitive.weights0Data) {
+      gl.enableVertexAttribArray(vertexWeightsAttribute);
       const weightsBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.weights0Data.buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, weightsBuffer);
       gl.vertexAttribPointer(
-        material.shader.vertexWeightsAttribute,
+        vertexWeightsAttribute,
         primitive.weights0Data.componentCount,
         primitive.weights0Data.componentType,
         primitive.weights0Data.normalized,
@@ -574,120 +790,31 @@ export class SubMeshNew {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
     }
 
-    gl.bindVertexArray(null);
-  }
-
-  public draw(
-    engine: IEngine,
-    worldMatrix: Matrix4,
-    jointMatrices: Matrix4[] | undefined,
-  ): void {
-    const { gl } = engine;
-
-    gl.useProgram(this.material.shader.program);
-    // World matrix
-    if (this.material.shader.worldMatrixUniform) {
-      gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix.toArray());
-    }
-
-    // Joint matrices
-    if (jointMatrices && this.material.shader.jointMatrixUniform) {
-      const jointMatricesBytes = new Float32Array(jointMatrices.length * 16); // @TODO Don't allocate every frame
-      jointMatrices.forEach((jointMatrix, index) => {
-        jointMatricesBytes.set(jointMatrix.toArray(), index * 16);
-      });
-      gl.uniformMatrix4fv(this.material.shader.jointMatrixUniform, false, jointMatricesBytes);
-    }
-
-    // Material
-    if (this.material.shader.diffuseColorUniform) {
-      gl.uniform4fv(this.material.shader.diffuseColorUniform, new Float32Array([
-        // @TODO material
-        // this.material.diffuseColor.r / 255,
-        // this.material.diffuseColor.g / 255,
-        // this.material.diffuseColor.b / 255,
-        // this.material.diffuseColor.a / 255,
-        1, 1, 1, 1,
-      ]));
-    }
-
-    // Blending
-    switch (this.material.blendingMode) {
-      case ShaderBlendingMode.None:
-        // No blending. No-op.
-        break;
-      case ShaderBlendingMode.Average:
-        // Average blending:
-        //   Transparent pixel (alpha = 0.5):   0.5 * src + 0.5 * dest
-        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case ShaderBlendingMode.Additive:
-        // Additive blending:
-        //   Transparent pixel (alpha = 0):     1 * src + 1 * dest
-        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case ShaderBlendingMode.Subtractive:
-        // Subtractive blending:
-        //   Transparent pixel (alpha = 0):     1 * src - 1 * dest
-        //   Opaque pixel (alpha = 1):          1 * src - 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case ShaderBlendingMode.SourceAlpha:
-        // "Source alpha" blending:
-        //   Transparent pixel (alpha = X):     X * src + (1-X) * dest
-        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-    }
-
-    // Texture
-    // if (this.material.diffuseTexture) {
-    //   const textureIndex = 0;
-    //   gl.activeTexture(gl.TEXTURE0 + textureIndex);
-    //   gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTexture.texture);
-    //   gl.uniform1i(this.material.shader.textureSamplerUniform!, textureIndex);
-    // } else {
-    // gl.bindTexture(gl.TEXTURE_2D, null);
-    // }
-
-    // Lighting
-    try {
-      this._normalTmp.normalSelf(worldMatrix);
-    } catch (e) {
-      // @NOTE Don't render if matrix cannot invert (e.g. scale=0)
-      if (e instanceof CannotInvertMatrixError) return;
-      else throw e;
-    }
-    gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp.toArray());
-
-    // Draw
-    gl.bindVertexArray(this.vao);
-    if (this.primitiveDefinition.indices) {
+    let drawPrimitive: () => void;
+    if (primitive.indices) {
       // Indexed geometry
-      gl.drawElements(this.primitiveDefinition.mode, this.primitiveDefinition.indices.buffer.length, this.primitiveDefinition.indices.type, 0);
+      const mode = primitive.mode;
+      const elementCount = primitive.indices.buffer.length;
+      const elementType = primitive.indices.type;
+      drawPrimitive = () => {
+        gl.drawElements(mode, elementCount, elementType, 0);
+      };
     } else {
       // @TODO How many things?
-      gl.drawArrays(this.primitiveDefinition.mode, 0, this.primitiveDefinition.positionData.buffer.length);
+      const count = primitive.positionData.buffer.length; // @TODO This is just a guess, untested
+      drawPrimitive = () => {
+        gl.drawArrays(primitive.mode, 0, count);
+      };
     }
+
     gl.bindVertexArray(null);
 
-    gl.disable(gl.BLEND);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.depthMask(true);
+    return new SubMeshNew(
+      vao,
+      material,
+      shader,
+      drawPrimitive,
+    );
   }
 }
 
@@ -729,17 +856,16 @@ export class MeshNode {
     this._jointMatricesTmp = skin.skeleton.map(() => new Matrix4());
   }
 
-  public static fromDefinition(engine: IEngine, definition: NodeDefinition): MeshNode {
+  public static async fromDefinition(engine: IEngine, definition: NodeDefinition): Promise<MeshNode> {
     const meshPrimitives: SubMeshNew[] = [];
     if (definition.mesh) {
       for (const meshPrimitiveDefinition of definition.mesh.primitives) {
         // @TODO Instances of MeshNode are distinct but share SubMeshes/Primitives
-        const material = new MaterialNew(engine, 'gltf_experiment', {
-          numJointBones: definition.skin ? definition.skin.jointNodeIndices.length : 0,
-        }, {
+        const subMesh = await SubMeshNew.fromDefinition(
+          engine,
+          meshPrimitiveDefinition,
+        );
 
-        });
-        const subMesh = new SubMeshNew(engine, meshPrimitiveDefinition, material);
         meshPrimitives.push(subMesh);
       }
     }
@@ -750,15 +876,14 @@ export class MeshNode {
     });
   }
 
-  public draw(
-    engine: IEngine,
+  public draw2(
+    drawQueues: DrawQueues,
     _viewModelMatrix: Matrix4,
     worldMatrix: Matrix4,
   ): void {
     if (this.meshPrimitives.length === 0) return; // @NOTE Don't bother doing math unless we need it
 
     this._worldMatrixTmp.setValue(worldMatrix).multiplySelf(this.worldMatrix);
-
     if (this.skin !== undefined) {
       this.skin.skeleton.forEach((bone, i) => {
         this._jointMatricesTmp![i].setValue(bone.worldMatrix).multiplySelf(this.skin!.inverseBindMatrices[i]);
@@ -766,7 +891,7 @@ export class MeshNode {
     }
 
     for (const subMesh of this.meshPrimitives) {
-      subMesh.draw(engine, this._worldMatrixTmp, this._jointMatricesTmp);
+      subMesh.draw2(drawQueues, this._worldMatrixTmp, this._jointMatricesTmp);
     }
   }
 
@@ -789,6 +914,10 @@ export class MeshNode {
   public get worldMatrix(): Matrix4 { return this.transform.worldMatrix; }
 }
 
+export interface DrawQueues {
+  opaque: DrawTask2[];
+  transparent: DrawTask2[];
+}
 export class GltfExperiment extends DrawableSceneNode {
   private readonly nodes: MeshNode[];
   private _viewModelMatrixTmp: Matrix4 = new Matrix4();
@@ -799,55 +928,16 @@ export class GltfExperiment extends DrawableSceneNode {
   private currentAnimation: Animation | undefined;
   private debug_currentAnimationSpeed: number = 1;
 
-  private constructor(scene: IScene, { allNodeDefinitions, allAnimationDefinitions, engine }: LoadedState) {
+  private _normalTmp: Matrix3 = new Matrix3();
+
+  private constructor(
+    scene: IScene,
+    nodes: MeshNode[],
+    allAnimations: Animation[],
+  ) {
     super(scene, 'gltf-experiment');
-
-    // Create nodes from definitions
-    this.nodes = allNodeDefinitions.map((nodeDefinition) => MeshNode.fromDefinition(engine, nodeDefinition));
-
-    // Build skins
-    allNodeDefinitions.forEach((nodeDefinition, i) => {
-      if (nodeDefinition.skin) {
-        const skeleton = nodeDefinition.skin.jointNodeIndices.map((jointNodeIndex) => this.nodes[jointNodeIndex]);
-        this.nodes[i].setSkin(new MeshSkin(skeleton, nodeDefinition.skin.inverseBindMatrices));
-      }
-    });
-
-    const lookupNode = (nodeDefinition: NodeDefinition): MeshNode => {
-      for (const node of this.nodes) {
-        if (node.definition === nodeDefinition) {
-          return node;
-        }
-      }
-      throw new Error(`No corresponding node for node definition '${nodeDefinition.name}'`);
-    };
-
-    // Establish hierarchy
-    for (const nodeDefinition of allNodeDefinitions) {
-      const node = lookupNode(nodeDefinition);
-      for (const childDefinition of nodeDefinition.children) {
-        const child = lookupNode(childDefinition);
-        node.addChild(child);
-      }
-    }
-
-    // Set transforms
-    for (const nodeDefinition of allNodeDefinitions) {
-      const node = lookupNode(nodeDefinition);
-      // node.tr
-      node.position = nodeDefinition.transform.position;
-      node.rotation.set(nodeDefinition.transform.rotation);
-      node.scale = nodeDefinition.transform.scale;
-    }
-
-    // Animations
-    this.allAnimations = [];
-    for (const animationDefinition of allAnimationDefinitions) {
-      const animation = Animation.fromDefinition(this.nodes, animationDefinition);
-      this.allAnimations.push(animation);
-    }
-
-    console.log(`Experiment data: `, this.nodes, this.allAnimations);
+    this.nodes = nodes;
+    this.allAnimations = allAnimations;
   }
 
   public static async load(gltfPath: string, filesystem: IFileSystem, engine: IEngine, scene: IScene): Promise<GltfExperiment> {
@@ -953,16 +1043,6 @@ export class GltfExperiment extends DrawableSceneNode {
             continue;
           }
           const primitiveDefinition: MeshPrimitiveDefinition = {
-            /*
-              // @DEBUG
-              0 POINTS
-              1 LINES
-              2 LINE_LOOP
-              3 LINE_STRIP
-              4 TRIANGLES
-              5 TRIANGLE_STRIP
-              6 TRIANGLE_FAN
-             */
             mode: primitive.getMode(),
             positionData: readVertexAttributes(positionAccessor),
           };
@@ -998,6 +1078,36 @@ export class GltfExperiment extends DrawableSceneNode {
               buffer: indicesAccessor.getArray()!,
               type: indicesAccessor.getComponentType(),
             };
+          }
+
+          const material = primitive.getMaterial();
+          if (material) {
+            const materialDefinition: MaterialDefinition = primitiveDefinition.material = {
+              name: material.getName(),
+              alphaMode: material.getAlphaMode(),
+            };
+            const diffuseColor = material.getBaseColorFactor();
+            if (diffuseColor) {
+              materialDefinition.diffuseColor = new Color4(
+                diffuseColor[0] * 0xFF,
+                diffuseColor[1] * 0xFF,
+                diffuseColor[2] * 0xFF,
+                diffuseColor[3] * 0xFF,
+              );
+            }
+
+            const texture = material.getBaseColorTexture()?.getImage();
+            if (texture) {
+              const textureInfo = material.getBaseColorTextureInfo()!;
+              const textureCoord = textureInfo?.getTexCoord();
+              materialDefinition.texture = {
+                buffer: texture,
+                texCoord: textureCoord,
+              };
+            }
+
+            // @TODO Should we support it?
+            // const isDoubleSided = material.getDoubleSided();
           }
 
           meshDefinition.primitives.push(primitiveDefinition);
@@ -1118,7 +1228,7 @@ export class GltfExperiment extends DrawableSceneNode {
           inverseBindMatrices: [],
         };
         console.log(`Node '${nodeDefinition.name}' has skin`);
-        // @TODO skeleton (root node)
+        // @TODO skeleton (root node) ?
         skinDefinition.jointNodeIndices = skin.listJoints().map((jointNode) => allNodes.indexOf(jointNode));
 
         const inverseBindMatricesAccessor = skin.getInverseBindMatrices();
@@ -1243,7 +1353,56 @@ export class GltfExperiment extends DrawableSceneNode {
       allAnimationDefinitions.push(animationDefinition);
     }
 
-    return new GltfExperiment(scene, { engine, allNodeDefinitions, allAnimationDefinitions });
+    // Create nodes from definitions
+    const nodes = await Promise.all(
+      allNodeDefinitions
+        .map((nodeDefinition) =>
+          MeshNode.fromDefinition(engine, nodeDefinition),
+        ));
+
+    // Build skins
+    allNodeDefinitions.forEach((nodeDefinition, i) => {
+      if (nodeDefinition.skin) {
+        const skeleton = nodeDefinition.skin.jointNodeIndices.map((jointNodeIndex) => nodes[jointNodeIndex]);
+        nodes[i].setSkin(new MeshSkin(skeleton, nodeDefinition.skin.inverseBindMatrices));
+      }
+    });
+
+    const lookupNode = (nodeDefinition: NodeDefinition): MeshNode => {
+      for (const node of nodes) {
+        if (node.definition === nodeDefinition) {
+          return node;
+        }
+      }
+      throw new Error(`No corresponding node for node definition '${nodeDefinition.name}'`);
+    };
+
+    // Establish hierarchy
+    for (const nodeDefinition of allNodeDefinitions) {
+      const node = lookupNode(nodeDefinition);
+      for (const childDefinition of nodeDefinition.children) {
+        const child = lookupNode(childDefinition);
+        node.addChild(child);
+      }
+    }
+
+    // Set transforms
+    for (const nodeDefinition of allNodeDefinitions) {
+      const node = lookupNode(nodeDefinition);
+      node.position = nodeDefinition.transform.position;
+      node.rotation.set(nodeDefinition.transform.rotation);
+      node.scale = nodeDefinition.transform.scale;
+    }
+
+    // Animations
+    const allAnimations = [];
+    for (const animationDefinition of allAnimationDefinitions) {
+      const animation = Animation.fromDefinition(nodes, animationDefinition);
+      allAnimations.push(animation);
+    }
+
+    console.log(`Experiment data: `, nodes, allAnimations);
+    return new GltfExperiment(scene, nodes, allAnimations);
   }
 
   public playAnimation(animationName: string, speed: number = 1): void {
@@ -1313,12 +1472,148 @@ export class GltfExperiment extends DrawableSceneNode {
 
     return [{
       draw: () => {
+        const drawQueues: DrawQueues = {
+          opaque: [],
+          transparent: [],
+        };
+
         for (const node of this.nodes) {
-          node.draw(engine, this._viewModelMatrixTmp, this.worldMatrix);
+          node.draw2(drawQueues, this._viewModelMatrixTmp, this.worldMatrix);
         }
+
+        sortDrawTasks(drawQueues.opaque);
+        sortDrawTasks(drawQueues.transparent);
+
+        this.drawQueue(engine, drawQueues.opaque);
+        this.drawQueue(engine, drawQueues.transparent);
       },
       layer: 0,
     }];
+  }
+
+  private drawQueue(engine: IEngine, drawQueue: DrawTask2[]): void {
+    const { gl } = engine;
+
+    let currentGlProgram: ShaderProgram2 = undefined!;
+    let currentMaterial: Material2 = undefined!;
+    let currentMesh: DrawTask2['mesh'] = undefined!;
+
+    for (const task of drawQueue) {
+
+      /* GL Program */
+      if (currentGlProgram !== task.glProgram) {
+        currentGlProgram = task.glProgram;
+        gl.useProgram(task.glProgram.program);
+      }
+
+      /* Material */
+      if (currentMaterial !== task.material) {
+        currentMaterial = task.material;
+        const diffuseColorUniform = currentGlProgram.getUniform('diffuseColor');
+        if (task.material.diffuseColor !== undefined && diffuseColorUniform) {
+          gl.uniform4fv(diffuseColorUniform, new Float32Array([
+            task.material.diffuseColor.r / 255,
+            task.material.diffuseColor.g / 255,
+            task.material.diffuseColor.b / 255,
+            task.material.diffuseColor.a / 255,
+            // 1, 1, 1, 1,
+          ]));
+        }
+
+        // Blending
+        switch (task.material.blendingMode) {
+          case ShaderBlendingMode.None:
+            // No blending. No-op.
+            break;
+          case ShaderBlendingMode.Average:
+            // Average blending:
+            //   Transparent pixel (alpha = 0.5):   0.5 * src + 0.5 * dest
+            //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            break;
+          case ShaderBlendingMode.Additive:
+            // Additive blending:
+            //   Transparent pixel (alpha = 0):     1 * src + 1 * dest
+            //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            break;
+          case ShaderBlendingMode.Subtractive:
+            // Subtractive blending:
+            //   Transparent pixel (alpha = 0):     1 * src - 1 * dest
+            //   Opaque pixel (alpha = 1):          1 * src - 0 * dest
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            break;
+          case ShaderBlendingMode.SourceAlpha:
+            // "Source alpha" blending:
+            //   Transparent pixel (alpha = X):     X * src + (1-X) * dest
+            //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            break;
+        }
+
+        // Texture
+        const textureSamplerUniform = currentGlProgram.getUniform('sampler');
+        if (textureSamplerUniform && task.material.diffuseTexture) {
+          const textureIndex = 0; // @TODO ?
+          gl.activeTexture(gl.TEXTURE0 + textureIndex);
+          gl.bindTexture(gl.TEXTURE_2D, task.material.diffuseTexture.texture);
+          gl.uniform1i(textureSamplerUniform, textureIndex);
+        } else {
+          gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+      }
+
+      /* Uniforms */
+      // World matrix uniform
+      const worldMatrixUniform = currentGlProgram.getUniform('worldMatrix');
+      if (worldMatrixUniform) {
+        gl.uniformMatrix4fv(worldMatrixUniform, false, task.uniforms.worldMatrix.toArray());
+      }
+
+      // Lighting uniform
+      const normalMatrixUniform = currentGlProgram.getUniform('normalMatrix');
+      if (normalMatrixUniform) {
+        try {
+          this._normalTmp.normalSelf(task.uniforms.worldMatrix);
+        } catch (e) {
+          // @NOTE Don't render if matrix cannot invert (e.g. scale=0)
+          if (e instanceof CannotInvertMatrixError) return;
+          else throw e;
+        }
+        gl.uniformMatrix3fv(normalMatrixUniform, false, this._normalTmp.toArray());
+      }
+
+      // Joint matrices uniform
+      const jointMatrixUniform = currentGlProgram.getUniform('jointMatrix');
+      if (task.uniforms.skinWeights && jointMatrixUniform) {
+        gl.uniformMatrix4fv(jointMatrixUniform, false, task.uniforms.skinWeights);
+      }
+
+      /* Mesh */
+      if (task.mesh !== currentMesh) {
+        currentMesh = task.mesh;
+        gl.bindVertexArray(task.mesh.vao);
+      }
+
+      currentMesh.draw();
+    }
+
+    gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.depthMask(true);
   }
 }
 

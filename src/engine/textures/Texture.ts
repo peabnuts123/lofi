@@ -21,7 +21,23 @@ export class Texture {
     const { gl } = engine;
     const textureFile = await engine.fileSystem.readFile(path);
     const blob = new Blob([textureFile.bytes as Uint8Array<ArrayBuffer>]);
-    const bitmap = await window.createImageBitmap(blob, { imageOrientation: "flipY"});
+    const bitmap = await window.createImageBitmap(blob, { imageOrientation: "flipY" });
+    return new Texture(engine, () => {
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        bitmap,
+      );
+    });
+  }
+
+  public static async loadFromBuffer(engine: IEngine, buffer: Uint8Array<ArrayBuffer>): Promise<Texture> {
+    const { gl } = engine;
+    const blob = new Blob([buffer]);
+    const bitmap = await window.createImageBitmap(blob, {  });
     return new Texture(engine, () => {
       gl.texImage2D(
         gl.TEXTURE_2D,
