@@ -338,10 +338,10 @@ export class Vector3 {
   }
   private multiplyMatrix4Self(matrix: Matrix4): this {
     const { x, y, z } = this;
-    const w = matrix["m03"] * this.x + matrix["m13"] * this.y + matrix["m23"] * this.z + matrix["m33"] || 1.0;
-    this.x = (matrix["m00"] * x + matrix["m10"] * y + matrix["m20"] * z + matrix["m30"]) / w;
-    this.y = (matrix["m01"] * x + matrix["m11"] * y + matrix["m21"] * z + matrix["m31"]) / w;
-    this.z = (matrix["m02"] * x + matrix["m12"] * y + matrix["m22"] * z + matrix["m32"]) / w;
+    const w = matrix["m30"] * this.x + matrix["m31"] * this.y + matrix["m32"] * this.z + matrix["m33"] || 1.0;
+    this.x = (matrix["m00"] * x + matrix["m01"] * y + matrix["m02"] * z + matrix["m03"]) / w;
+    this.y = (matrix["m10"] * x + matrix["m11"] * y + matrix["m12"] * z + matrix["m13"]) / w;
+    this.z = (matrix["m20"] * x + matrix["m21"] * y + matrix["m22"] * z + matrix["m23"]) / w;
     return this;
   }
   private multiplyNumberSelf(factor: number): this {
@@ -396,11 +396,11 @@ export class Vector3 {
     );
   }
   private multiplyMatrix4(matrix: Matrix4): Vector3 {
-    const w = matrix["m03"] * this.x + matrix["m13"] * this.y + matrix["m23"] * this.z + matrix["m33"] || 1.0;
+    const w = matrix["m30"] * this.x + matrix["m31"] * this.y + matrix["m32"] * this.z + matrix["m33"] || 1.0;
     return new Vector3(
-      (matrix["m00"] * this.x + matrix["m10"] * this.y + matrix["m20"] * this.z + matrix["m30"]) / w,
-      (matrix["m01"] * this.x + matrix["m11"] * this.y + matrix["m21"] * this.z + matrix["m31"]) / w,
-      (matrix["m02"] * this.x + matrix["m12"] * this.y + matrix["m22"] * this.z + matrix["m32"]) / w,
+      (matrix["m00"] * this.x + matrix["m01"] * this.y + matrix["m02"] * this.z + matrix["m03"]) / w,
+      (matrix["m10"] * this.x + matrix["m11"] * this.y + matrix["m12"] * this.z + matrix["m13"]) / w,
+      (matrix["m20"] * this.x + matrix["m21"] * this.y + matrix["m22"] * this.z + matrix["m23"]) / w,
     );
   }
   private multiplyNumber(factor: number): Vector3 {
