@@ -105,6 +105,10 @@ interface MaterialDefinition {
 }
 interface MeshPrimitiveDefinition {
   positionData: AttributeDefinition;      // VEC3
+  extents: {
+    min: Vector3,
+    max: Vector3,
+  },
   normalData?: AttributeDefinition;       // VEC3
   texCoord0Data?: AttributeDefinition;    // VEC2
   color0Data?: AttributeDefinition;       // VEC3 or VEC4
@@ -323,12 +327,6 @@ export class Animation {
   }
 }
 
-interface LoadedState {
-  engine: IEngine;
-  allNodeDefinitions: NodeDefinition[];
-  allAnimationDefinitions: AnimationDefinition[];
-}
-
 export interface ShaderProgramOptions {
   hasDiffuseColor: boolean;
   hasVertexColors: boolean;
@@ -352,6 +350,9 @@ interface DrawTask2 {
     worldMatrix: Matrix4;
     skinWeights?: Float32Array;
   }
+}
+interface TransparentDrawTask2 extends DrawTask2 {
+  depth: number;
 }
 
 function sortDrawTasks(drawTasks: DrawTask2[]): void {
@@ -599,8 +600,31 @@ export class Material2 {
       material.diffuseTexture = await Texture.loadFromBuffer(engine, definition.texture.buffer);
     }
 
+    switch (definition.alphaMode) {
+      case 'OPAQUE':
+        material.blendingMode = ShaderBlendingMode.None;
+        break;
+      case 'BLEND':
+        material.blendingMode = ShaderBlendingMode.SourceAlpha;
+        break;
+      // case 'MASK': // @TODO But how do we create a glTF file with this set?
+      //   break;
+      default:
+        throw new Error(`Unimplemented alpha mode: ${definition.alphaMode}`);
+    }
+
     return material;
   }
+
+  public get isTransparent(): boolean {
+    return this.blendingMode !== ShaderBlendingMode.None;
+  }
+}
+
+interface SubMeshExtents {
+  min: Vector3;
+  max: Vector3;
+  center: Vector3;
 }
 
 export class SubMeshNew {
@@ -610,23 +634,29 @@ export class SubMeshNew {
   private readonly vao: WebGLVertexArrayObject;
   private readonly material: Material2;
   private readonly shader: ShaderProgram2;
+  private readonly extents: SubMeshExtents;
   private readonly drawPrimitive: () => void;
+
+  private readonly _cameraSpacePositionTmp: Vector3 = Vector3.zero();
 
   private constructor(
     vao: WebGLVertexArrayObject,
     material: Material2,
     shader: ShaderProgram2,
+    extents: SubMeshExtents,
     drawPrimitive: () => void,
   ) {
     this.id = SubMeshNew.IdPool.createNew();
     this.vao = vao;
     this.material = material;
     this.shader = shader;
+    this.extents = extents;
     this.drawPrimitive = drawPrimitive;
   }
 
   public draw2(
     drawQueues: DrawQueues,
+    modelViewMatrix: Matrix4,
     worldMatrix: Matrix4,
     jointMatrices: Matrix4[] | undefined,
   ): void {
@@ -639,8 +669,7 @@ export class SubMeshNew {
       });
     }
 
-    // @TODO transparency check
-    drawQueues.opaque.push({
+    const drawTask: DrawTask2 = {
       renderPass: 0, // @TODO (?)
       glProgram: this.shader,
       material: this.material,
@@ -653,7 +682,22 @@ export class SubMeshNew {
         worldMatrix,
         skinWeights: jointMatricesBytes,
       },
-    });
+    };
+
+    if (this.material.isTransparent) {
+      // Transform local-space extents to world camera space
+      // for depth sorting
+      this._cameraSpacePositionTmp
+        .setValue(this.extents.center)
+        .multiplySelf(modelViewMatrix);
+
+      drawQueues.transparent.push({
+        ...drawTask,
+        depth: this._cameraSpacePositionTmp.z,
+      });
+    } else {
+      drawQueues.opaque.push(drawTask);
+    }
   }
 
   public static async fromDefinition(
@@ -693,6 +737,12 @@ export class SubMeshNew {
         0,
       );
     }
+
+    const meshExtents: SubMeshExtents = {
+      min: primitive.extents.min,
+      max: primitive.extents.max,
+      center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
+    };
 
     /* Vertex normals */
     // @TODO generate normals somewhere
@@ -813,6 +863,7 @@ export class SubMeshNew {
       vao,
       material,
       shader,
+      meshExtents,
       drawPrimitive,
     );
   }
@@ -843,6 +894,8 @@ export class MeshNode {
 
   private readonly _worldMatrixTmp: Matrix4 = new Matrix4();
   private _jointMatricesTmp: Matrix4[] | undefined;
+  private _modelViewMatrixTmp: Matrix4 = new Matrix4();
+
 
   private constructor({ name, meshPrimitives, definition }: MeshNodeArgs) {
     this.name = name;
@@ -878,7 +931,7 @@ export class MeshNode {
 
   public draw2(
     drawQueues: DrawQueues,
-    _viewModelMatrix: Matrix4,
+    viewMatrix: Matrix4,
     worldMatrix: Matrix4,
   ): void {
     if (this.meshPrimitives.length === 0) return; // @NOTE Don't bother doing math unless we need it
@@ -890,8 +943,12 @@ export class MeshNode {
       });
     }
 
+    this._modelViewMatrixTmp
+      .setValue(viewMatrix)
+      .multiplySelf(this._worldMatrixTmp);
+
     for (const subMesh of this.meshPrimitives) {
-      subMesh.draw2(drawQueues, this._worldMatrixTmp, this._jointMatricesTmp);
+      subMesh.draw2(drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp);
     }
   }
 
@@ -916,11 +973,10 @@ export class MeshNode {
 
 export interface DrawQueues {
   opaque: DrawTask2[];
-  transparent: DrawTask2[];
+  transparent: TransparentDrawTask2[];
 }
 export class GltfExperiment extends DrawableSceneNode {
   private readonly nodes: MeshNode[];
-  private _viewModelMatrixTmp: Matrix4 = new Matrix4();
   // private readonly allAnimationDefinitions: AnimationDefinition[];
   private readonly allAnimations: Animation[];
 
@@ -1036,15 +1092,21 @@ export class GltfExperiment extends DrawableSceneNode {
           primitives: [],
         };
         for (const primitive of mesh.listPrimitives()) {
-          // @TODO material
           const positionAccessor = primitive.getAttribute('POSITION');
           if (!positionAccessor) {
             console.warn(`Skipping mesh primitive with no POSITION attributes in node '${nodeDefinition.name}'`);
             continue;
           }
+
+          const positionMinComponents = positionAccessor.getMin([]);
+          const positionMaxComponents = positionAccessor.getMax([]);
           const primitiveDefinition: MeshPrimitiveDefinition = {
             mode: primitive.getMode(),
             positionData: readVertexAttributes(positionAccessor),
+            extents: {
+              min: new Vector3(positionMinComponents[0], positionMinComponents[1], positionMinComponents[2]),
+              max: new Vector3(positionMaxComponents[0], positionMaxComponents[1], positionMaxComponents[2]),
+            },
           };
 
           const normalAccessor = primitive.getAttribute('NORMAL');
@@ -1161,6 +1223,10 @@ export class GltfExperiment extends DrawableSceneNode {
                 componentCount: 3,
                 componentSize: 4,
                 componentType: WebGL2RenderingContext.FLOAT,
+              },
+              extents: {
+                min: new Vector3(-size, -size, -size),
+                max: new Vector3(size, size, size),
               },
               normalData: {
                 buffer: new Float32Array([
@@ -1401,6 +1467,7 @@ export class GltfExperiment extends DrawableSceneNode {
       allAnimations.push(animation);
     }
 
+    console.log(`Experiment data (definitions): `, allNodeDefinitions, allAnimationDefinitions);
     console.log(`Experiment data: `, nodes, allAnimations);
     return new GltfExperiment(scene, nodes, allAnimations);
   }
@@ -1466,9 +1533,6 @@ export class GltfExperiment extends DrawableSceneNode {
       // No scene or no camera = no draw tasks
       return [];
     }
-    this._viewModelMatrixTmp
-      .setValue(viewMatrix)
-      .multiplySelf(this.worldMatrix);
 
     return [{
       draw: () => {
@@ -1478,11 +1542,11 @@ export class GltfExperiment extends DrawableSceneNode {
         };
 
         for (const node of this.nodes) {
-          node.draw2(drawQueues, this._viewModelMatrixTmp, this.worldMatrix);
+          node.draw2(drawQueues, viewMatrix, this.worldMatrix);
         }
 
         sortDrawTasks(drawQueues.opaque);
-        sortDrawTasks(drawQueues.transparent);
+        drawQueues.transparent.sort((drawTaskA, drawTaskB) => drawTaskA.depth - drawTaskB.depth);
 
         this.drawQueue(engine, drawQueues.opaque);
         this.drawQueue(engine, drawQueues.transparent);
