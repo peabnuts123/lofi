@@ -6,7 +6,6 @@ import { createBuffer } from './util/createBuffer';
 
 import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
 import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
-import { ShaderBlendingMode } from './materials/ShaderProgram';
 import { CameraUboIndex } from './scene/nodes/CameraNode';
 import { LightingUboIndex } from './scene/SceneLighting';
 import { Color4 } from './util/Color4';
@@ -38,6 +37,7 @@ const DEBUG_DRAW_BONES = false;
     - "How many things?" when drawing mesh primitive from non-indexed buffer
     - Vertex color alpha
     - Generate normals if missing
+    - ? Should we honour texture.sampler properties such as `wrapS`, `wrapT`
 
     - gltfExperiment transform seems to be ignored (?)
 
@@ -47,9 +47,8 @@ const DEBUG_DRAW_BONES = false;
       - "looping" flags and such
       - reset state when stop playing (? or is it working?)
 
-    - ? Should we honor texture.sampler properties such as `wrapS`, `wrapT`
-    - Do we need to reuse meshnode instead of instantiating mesh every time … ?
     - Should we support `doubleSided`?
+    - Do we need to reuse meshnode instead of instantiating mesh every time … ?
     - Figure out how to decouple Shader from Mesh aka, how to re-use a material on different meshes
     - Animation Retargeting :think:
  */
@@ -96,7 +95,7 @@ interface AttributeDefinition {
 }
 interface MaterialDefinition {
   name: string;
-  alphaMode: GLTF.MaterialAlphaMode;
+  alpha: { mode: 'OPAQUE' } | { mode: 'BLEND' } | { mode: 'MASK', cutoff: number };
   diffuseColor?: Color4;
   texture?: {
     buffer: Uint8Array<ArrayBuffer>;
@@ -332,7 +331,6 @@ export interface ShaderProgramOptions {
   hasVertexColors: boolean;
   hasDiffuseTexture: boolean;
   blendingMode: ShaderBlendingMode; // @TODO Should we just pass the material reference?
-  blackIsTransparent: boolean; // @NOTE specifically regarding the sampled texture. Should maybe rename. OR update shader
   unlit: boolean;
   hasSkin: boolean;
 }
@@ -365,24 +363,32 @@ function sortDrawTasks(drawTasks: DrawTask2[]): void {
 }
 
 export class ShaderCache {
-  private static IdPool: IdPool = new IdPool();
-  private static cache: Record<string, ShaderProgram2> = {};
+  private static readonly IdPool: IdPool = new IdPool();
+  private static readonly cache: Record<string, ShaderProgram2> = {};
+  /**
+   * List of properties we know we are referencing in the generation of a cache key.
+   */
+  private static readonly KnownCacheProperties: (keyof ShaderProgramOptions)[] = [
+    'blendingMode',
+    'hasDiffuseColor',
+    'hasDiffuseTexture',
+    'hasSkin',
+    'hasVertexColors',
+    'unlit',
+  ];
 
   private static createCacheKey(options: ShaderProgramOptions): string {
-    const compositeKey: (keyof ShaderProgramOptions)[] = [
-      'blackIsTransparent',
-      'blendingMode',
-      'hasDiffuseColor',
-      'hasDiffuseTexture',
-      'hasSkin',
-      'hasVertexColors',
-      'unlit',
-    ];
-
-    // Approximate runtime validation that we aren't missing any keys from `options`
+    /*
+     * @NOTE
+     * Simple fail-safe to make sure we never cache a shader without referencing a property.
+     * We just maintain a list of properties that we "know" we are using in the generation
+     * of the cache key, and validate that against all keys on the options object.
+     * If somebody adds a new key to `ShaderProgramOptions` without updating this logic,
+     * this will produce a warning.
+     */
     const missingKeys: (keyof ShaderProgramOptions)[] = [];
     for (const optionsKey of Object.keys(options) as (keyof ShaderProgramOptions)[]) {
-      if (!compositeKey.includes(optionsKey)) {
+      if (!ShaderCache.KnownCacheProperties.includes(optionsKey)) {
         missingKeys.push(optionsKey);
       }
     }
@@ -390,9 +396,14 @@ export class ShaderCache {
       console.warn(`[${ShaderCache.name}] (${this.createCacheKey.name}) WARNING: Unused properties from 'options' object: `, missingKeys);
     }
 
-    return compositeKey
-      .map(key => options[key])
-      .join('|');
+    return [
+      options.blendingMode.type,
+      options.hasDiffuseColor,
+      options.hasDiffuseTexture,
+      options.hasSkin,
+      options.hasVertexColors,
+      options.unlit,
+    ].join('|');
   }
 
   public static create(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: Material2): ShaderProgram2 {
@@ -401,7 +412,6 @@ export class ShaderCache {
       fragmentShaderSource: FragmentShaderSource,
     };
     const options: ShaderProgramOptions = {
-      blackIsTransparent: material.blackIsTransparent,
       blendingMode: material.blendingMode,
       hasDiffuseColor: material?.diffuseColor !== undefined,
       hasDiffuseTexture: material?.diffuseTexture !== undefined,
@@ -531,32 +541,32 @@ export class ShaderProgram2 {
       defines.push('DIFFUSE_TEXTURE');
     }
 
-    switch (options.blendingMode) {
-      case ShaderBlendingMode.None:
+    switch (options.blendingMode.type) {
+      case 'None':
         /* No blending, will set alpha = 1.0 in shader by default */
         break;
-      case ShaderBlendingMode.Average:
+      case 'Average':
         /* Averaged blending. Transparent pixels set to alpha=0.5f for blending */
         defines.push('FIXED_TRANSPARENCY_ALPHA 0.5f');
         break;
-      case ShaderBlendingMode.Additive:
+      case 'Additive':
         /* Additive blending. Transparent pixels set to alpha=0.0f for blending */
         defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
         break;
-      case ShaderBlendingMode.Subtractive:
+      case 'Subtractive':
         /* Subtractive blending. Transparent pixels set to alpha=0.0f for blending */
         defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
         break;
-      case ShaderBlendingMode.SourceAlpha:
-        /* Source alpha - do not manipulate shader output alpha */
-        defines.push('USE_SOURCE_ALPHA_FOR_TRANSPARENCY');
+      case 'AlphaBlend':
+        /* Alpha blend. Do not manipulate shader output alpha */
+        defines.push('ALPHA_BLENDING');
+        break;
+      case 'AlphaClip':
+        /* Alpha clip. Pixels with alpha less than the cutoff are discarded, otherwise rendered as opaque */
+        defines.push('ALPHA_CLIPPING');
         break;
       default:
-        throw new Error(`Unimplemented blending mode: '${options.blendingMode}'`);
-    }
-
-    if (options.blackIsTransparent) {
-      defines.push("BLACK_IS_TRANSPARENT");
+        throw new Error(`Unimplemented blending mode: '${(options.blendingMode as { type: unknown }).type}'`);
     }
 
     if (options.unlit) {
@@ -567,6 +577,42 @@ export class ShaderProgram2 {
   }
 }
 
+export type NoneBlendingMode = {
+  type: 'None';
+};
+export type AverageBlendingMode = {
+  type: 'Average';
+};
+export type AdditiveBlendingMode = {
+  type: 'Additive';
+};
+export type SubtractiveBlendingMode = {
+  type: 'Subtractive';
+};
+export type AlphaBlendBlendingMode = {
+  type: 'AlphaBlend';
+};
+export type AlphaClipBlendingMode = {
+  type: 'AlphaClip';
+  cutoff: number;
+};
+export type ShaderBlendingMode =
+  NoneBlendingMode |
+  AverageBlendingMode |
+  AdditiveBlendingMode |
+  SubtractiveBlendingMode |
+  AlphaBlendBlendingMode |
+  AlphaClipBlendingMode;
+export type BlendingModeType = ShaderBlendingMode['type'];
+export const ShaderBlendingMode = {
+  None: () => ({ type: 'None' }),
+  Average: () => ({ type: 'Average' }),
+  Additive: () => ({ type: 'Additive' }),
+  Subtractive: () => ({ type: 'Subtractive' }),
+  AlphaBlend: () => ({ type: 'AlphaBlend' }),
+  AlphaClip: (cutoff: number) => ({ type: 'AlphaClip', cutoff }),
+} satisfies { [type in BlendingModeType]: (...args: any[]) => Extract<ShaderBlendingMode, { type: type }> };
+
 export class Material2 {
   private static readonly IdPool: IdPool = new IdPool();
 
@@ -576,7 +622,6 @@ export class Material2 {
   public diffuseTexture: Texture | undefined;
   public emissionColor: Color3 | undefined;
   public unlit: boolean;
-  public blackIsTransparent: boolean;
   public blendingMode: ShaderBlendingMode;
 
   public constructor(name: string, initialValues?: Partial<Material2>) {
@@ -586,8 +631,7 @@ export class Material2 {
     this.diffuseTexture = initialValues?.diffuseTexture;
     this.emissionColor = initialValues?.emissionColor;
     this.unlit = initialValues?.unlit ?? false;
-    this.blackIsTransparent = initialValues?.blackIsTransparent ?? false;
-    this.blendingMode = initialValues?.blendingMode ?? ShaderBlendingMode.None;
+    this.blendingMode = initialValues?.blendingMode ?? ShaderBlendingMode.None();
   }
 
   public static async fromDefinition(engine: IEngine, definition: MaterialDefinition): Promise<Material2> {
@@ -595,29 +639,25 @@ export class Material2 {
     if (definition.diffuseColor !== undefined) {
       material.diffuseColor = definition.diffuseColor;
     }
-
     if (definition.texture !== undefined) {
       material.diffuseTexture = await Texture.loadFromBuffer(engine, definition.texture.buffer);
     }
 
-    switch (definition.alphaMode) {
+    switch (definition.alpha.mode) {
       case 'OPAQUE':
-        material.blendingMode = ShaderBlendingMode.None;
+        material.blendingMode = ShaderBlendingMode.None();
         break;
       case 'BLEND':
-        material.blendingMode = ShaderBlendingMode.SourceAlpha;
+        material.blendingMode = ShaderBlendingMode.AlphaBlend();
         break;
-      // case 'MASK': // @TODO But how do we create a glTF file with this set?
-      //   break;
+      case 'MASK':
+        material.blendingMode = ShaderBlendingMode.AlphaClip(definition.alpha.cutoff);
+        break;
       default:
-        throw new Error(`Unimplemented alpha mode: ${definition.alphaMode}`);
+        throw new Error(`Unimplemented alpha mode: ${(definition.alpha as { mode: unknown }).mode}`);
     }
 
     return material;
-  }
-
-  public get isTransparent(): boolean {
-    return this.blendingMode !== ShaderBlendingMode.None;
   }
 }
 
@@ -684,7 +724,13 @@ export class SubMeshNew {
       },
     };
 
-    if (this.material.isTransparent) {
+    const materialBlendingMode = this.material.blendingMode.type;
+    const isMaterialTransparent = materialBlendingMode === 'Additive' ||
+      materialBlendingMode === 'AlphaBlend' ||
+      materialBlendingMode === 'Average' ||
+      materialBlendingMode === 'Subtractive';
+
+    if (isMaterialTransparent) {
       // Transform local-space extents to world camera space
       // for depth sorting
       this._cameraSpacePositionTmp
@@ -1146,7 +1192,10 @@ export class GltfExperiment extends DrawableSceneNode {
           if (material) {
             const materialDefinition: MaterialDefinition = primitiveDefinition.material = {
               name: material.getName(),
-              alphaMode: material.getAlphaMode(),
+              alpha: {
+                mode: material.getAlphaMode(),
+                cutoff: material.getAlphaCutoff(),
+              },
             };
             const diffuseColor = material.getBaseColorFactor();
             if (diffuseColor) {
@@ -1585,11 +1634,11 @@ export class GltfExperiment extends DrawableSceneNode {
         }
 
         // Blending
-        switch (task.material.blendingMode) {
-          case ShaderBlendingMode.None:
+        switch (task.material.blendingMode.type) {
+          case 'None':
             // No blending. No-op.
             break;
-          case ShaderBlendingMode.Average:
+          case 'Average':
             // Average blending:
             //   Transparent pixel (alpha = 0.5):   0.5 * src + 0.5 * dest
             //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
@@ -1598,7 +1647,7 @@ export class GltfExperiment extends DrawableSceneNode {
             gl.blendEquation(gl.FUNC_ADD);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             break;
-          case ShaderBlendingMode.Additive:
+          case 'Additive':
             // Additive blending:
             //   Transparent pixel (alpha = 0):     1 * src + 1 * dest
             //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
@@ -1607,7 +1656,7 @@ export class GltfExperiment extends DrawableSceneNode {
             gl.blendEquation(gl.FUNC_ADD);
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             break;
-          case ShaderBlendingMode.Subtractive:
+          case 'Subtractive':
             // Subtractive blending:
             //   Transparent pixel (alpha = 0):     1 * src - 1 * dest
             //   Opaque pixel (alpha = 1):          1 * src - 0 * dest
@@ -1616,8 +1665,8 @@ export class GltfExperiment extends DrawableSceneNode {
             gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             break;
-          case ShaderBlendingMode.SourceAlpha:
-            // "Source alpha" blending:
+          case 'AlphaBlend':
+            // Alpha blending:
             //   Transparent pixel (alpha = X):     X * src + (1-X) * dest
             //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
             gl.enable(gl.BLEND);
@@ -1625,6 +1674,19 @@ export class GltfExperiment extends DrawableSceneNode {
             gl.blendEquation(gl.FUNC_ADD);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             break;
+          case 'AlphaClip': {
+            // Alpha clipping:
+            //  No blending.
+            //  Transparent pixel (alpha < cutoff):  0 * src + 1 * dest (discarded)
+            //  Opaque pixel (alpha >= cutoff):      1 * src + 0 * dest
+            const alphaCutoffUniform = currentGlProgram.getUniform('alphaCutoff');
+            if (alphaCutoffUniform) {
+              gl.uniform1f(alphaCutoffUniform, task.material.blendingMode.cutoff);
+            }
+            break;
+          }
+          default:
+            throw new Error(`Unimplemented blending mode: ${(task.material.blendingMode as { type: unknown }).type}`);
         }
 
         // Texture

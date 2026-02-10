@@ -380,56 +380,43 @@ export class Runtime {
     /* GLTF Experiment */
     // const gltfExperiment = await GltfExperiment.load(`/models/hifiguy.glb`, this.fileSystem, engine, scene);
     // gltfExperiment.playAnimation('Run');
+    // const gltfExperiment = await GltfExperiment.load(`/models/temp/plant/plant.gltf`, this.fileSystem, engine, scene);
+    const gltfExperiment = await GltfExperiment.load(`/models/temp/transparent_cubes.glb`, this.fileSystem, engine, scene);
+
     // const gltfExperiment = await GltfExperiment.load(`/models/temp/Rig_Medium_General.glb`, this.fileSystem, engine, scene);
     // const gltfExperiment = await GltfExperiment.load(`/models/temp/rig_mage.glb`, this.fileSystem, engine, scene);
-    const gltfExperiment = await GltfExperiment.load(`/models/temp/mage/rig_mage.gltf`, this.fileSystem, engine, scene);
-    // gltfExperiment.scale.multiplySelf(2);
-    // gltfExperiment.playAnimation('Death_A', 1 / 10);
-    // gltfExperiment.playAnimation('Death_A_Pose');
-    // gltfExperiment.playAnimation('Death_B', 1 / 3);
-    // gltfExperiment.playAnimation('Death_B_Pose');
-    // gltfExperiment.playAnimation('Hit_A', 0.3);
-    // gltfExperiment.playAnimation('Hit_B', 0.3);
-    // gltfExperiment.playAnimation('Idle_A');
-    // gltfExperiment.playAnimation('Idle_B', 0.3);
-    // gltfExperiment.playAnimation('Interact', 1);
-    // gltfExperiment.playAnimation('PickUp');
-    // gltfExperiment.playAnimation('Spawn_Air');
-    // gltfExperiment.playAnimation('Spawn_Ground');
-    // gltfExperiment.playAnimation('T-Pose');
-    // gltfExperiment.playAnimation('Throw',);
-    // gltfExperiment.playAnimation('Use_Item');
-
-
-    const AnimationList = [
-      'Death_A',
-      'Death_B',
-      'Hit_A',
-      'Hit_B',
-      'Idle_A',
-      'Idle_B',
-      'Interact',
-      'PickUp',
-      'Spawn_Air',
-      'Spawn_Ground',
-      'T-Pose',
-      'Throw',
-      'Use_Item',
+    // const gltfExperiment = await GltfExperiment.load(`/models/temp/mage/rig_mage.gltf`, this.fileSystem, engine, scene);
+    const AnimationList: string[] = [
+      // 'Death_A',
+      // 'Death_B',
+      // 'Hit_A',
+      // 'Hit_B',
+      // 'Idle_A',
+      // 'Idle_B',
+      // 'Interact',
+      // 'PickUp',
+      // 'Spawn_Air',
+      // 'Spawn_Ground',
+      // 'T-Pose',
+      // 'Throw',
+      // 'Use_Item',
     ];
-    let animationIndex = 0;
-    const stahp = setInterval(() => {
-      const animationName = AnimationList[animationIndex];
-      console.log(`Playing: '${animationName}'`);
-      gltfExperiment.playAnimation(animationName);
-      animationIndex = (animationIndex + 1) % AnimationList.length;
-    }, 1500);
-    setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
+    if (AnimationList.length > 0) {
+      let animationIndex = 0;
+      const stahp = setInterval(() => {
+        const animationName = AnimationList[animationIndex];
+        console.log(`Playing: '${animationName}'`);
+        gltfExperiment.playAnimation(animationName);
+        animationIndex = (animationIndex + 1) % AnimationList.length;
+      }, 1500);
+      setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
+    }
 
 
     this.scene = {
       // burger,
       // camera,
-      // cameraOrigin,
+      cameraOrigin,
       lightOrigin,
       testObjects,
       // staticCollider,

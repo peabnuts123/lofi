@@ -18,16 +18,13 @@ out vec4 outputColor;
 #ifdef DIFFUSE_TEXTURE
 uniform sampler2D sampler;
 #endif
+#ifdef ALPHA_CLIPPING
+uniform float alphaCutoff;
+#endif
 
 void main() {
 #ifdef DIFFUSE_TEXTURE
   vec4 sampledColor = texture(sampler, fragmentTextureCoord);
-#ifdef BLACK_IS_TRANSPARENT
-  // If blackIsTransparent is set, always discard black, regardless of blending mode
-  if (sampledColor.rgb == vec3(0.0)) {
-    discard;
-  }
-#endif
 #endif
 
   outputColor = fragmentColor * vec4(fragmentLighting, 1.0f)
@@ -36,15 +33,19 @@ void main() {
 #endif
   ;
 
-#ifdef FIXED_TRANSPARENCY_ALPHA
+#if defined(FIXED_TRANSPARENCY_ALPHA)
   // Fixed alpha value for transparent pixels
   float isOpaque = step(1.0f, outputColor.a);
   outputColor.a = mix(FIXED_TRANSPARENCY_ALPHA, 1.0f, isOpaque);
+#elif defined(ALPHA_BLENDING)
+  // Alpha blending (outputColor.a remains untouched)
+#elif defined(ALPHA_CLIPPING)
+  // Alpha clipping
+  if (outputColor.a < alphaCutoff) {
+    discard;
+  }
 #else
-#ifndef USE_SOURCE_ALPHA_FOR_TRANSPARENCY
-  // If not fixed alpha OR source alpha, then disable transparency
+  // Pixel is opaque
   outputColor.a = 1.0f;
-#endif
-  // else use source alpha (outputColor.a remains untouched)
 #endif
 }
