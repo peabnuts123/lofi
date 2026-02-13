@@ -1,22 +1,16 @@
-import type { IEngine } from "@polyzone/engine/Engine";
+import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
 
 import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";
-import { DrawableSceneNode, type OrderedDrawTask, type UnorderedDrawTask } from "./DrawableSceneNode";
+import { DrawableSceneNode } from "./DrawableSceneNode";
 import { CameraNode } from "./nodes/CameraNode";
-
-export interface RenderLayer {
-  order: number;
-  unorderedDrawTasks: UnorderedDrawTask[];
-  orderedDrawTasks: OrderedDrawTask[];
-}
 
 export interface IScene {
 
   addTopLevelNode(node: SceneNode): SceneNode;
   removeTopLevelNode(node: SceneNode): void;
   onUpdate(dt: number): void;
-  draw(): void;
+  draw(drawQueues: DrawQueues): void;
   forEachNodeInHierarchy(fn: (node: SceneNode) => void): void;
 
   get activeCamera(): CameraNode | undefined;
@@ -69,70 +63,12 @@ export class Scene implements IScene {
     });
   }
 
-  public draw(): void {
-    const renderLayers: RenderLayer[] = [];
+  public draw(drawQueues: DrawQueues): void {
     this.forEachNodeInHierarchy((node) => {
       if (node instanceof DrawableSceneNode) {
-        const drawTasks = node.getDrawTasks(this.engine);
-        for (const drawTask of drawTasks) {
-          // Find the layer this drawTask is part of OR
-          // the position in the `layers` array where the layer
-          // SHOULD be.
-          let layer: RenderLayer | undefined = undefined;
-          let layerIndex = 0;
-          for (; layerIndex < renderLayers.length; layerIndex++) {
-            if (renderLayers[layerIndex].order === drawTask.layer) {
-              // Found layer with matching order
-              layer = renderLayers[layerIndex];
-              break;
-            }
-            if (renderLayers[layerIndex].order > drawTask.layer) {
-              // We found the place where the layer SHOULD be
-              // so break early, a new layer will be added
-              break;
-            }
-          }
-          // If we didn't find `layer` then we know `layerIndex` is where it should live
-          if (layer === undefined) {
-            layer = {
-              order: drawTask.layer,
-              unorderedDrawTasks: [],
-              orderedDrawTasks: [],
-            };
-            renderLayers.splice(layerIndex, 0, layer);
-          }
-
-          // Queue ordered vs unordered tasks into appropriate lists
-          if ('order' in drawTask) {
-            // Find place in task list using insertion sort
-            let taskIndex = 0;
-            for (; taskIndex < layer.orderedDrawTasks.length; taskIndex++) {
-              if (layer.orderedDrawTasks[taskIndex].order > drawTask.order) {
-                // Found place in list
-                break;
-              }
-            }
-            // `taskIndex` is now either the index in the list at which to insert,
-            // or the length of the array (if we're adding to the end)
-            layer.orderedDrawTasks.splice(taskIndex, 0, drawTask);
-
-          } else {
-            // Draw task has no order, just add it to the end of the collection
-            layer.unorderedDrawTasks.push(drawTask);
-          }
-        }
+        node.draw(this.engine, drawQueues);
       }
     });
-
-    // Render each layer in order
-    for (const renderLayer of renderLayers) {
-      for (const drawTask of renderLayer.unorderedDrawTasks) {
-        drawTask.draw();
-      }
-      for (const drawTask of renderLayer.orderedDrawTasks) {
-        drawTask.draw();
-      }
-    }
   }
 
   public forEachNodeInHierarchy(fn: (node: SceneNode) => void): void {

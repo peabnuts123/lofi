@@ -1,7 +1,11 @@
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { IEngine } from "@polyzone/engine/Engine";
 
-import { ShaderBlendingMode, ShaderProgram } from "./ShaderProgram";
+import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
+import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
+
+import { ShaderProgram } from "./ShaderProgram";
+import { ShaderBlendingMode } from "./ShaderBlendingMode";
 
 interface UboBufferProperty {
   index: number;
@@ -14,12 +18,15 @@ export class Ubo<TPropertyName extends string> {
   public constructor(engine: IEngine, uboName: string, uboIndex: number, propertyNames: readonly TPropertyName[]) {
     const { gl } = engine;
 
-    // @NOTE We need to look up how big the ubo is in bytes by referencing a real shader
-    const referenceShader = new ShaderProgram(engine, '__temp', {
-      hasDiffuseTexture: true,
-      blendingMode: ShaderBlendingMode.None,
-      blackIsTransparent: false,
-      unlit: false,
+    // @NOTE Look up how big the ubo is in bytes to avoid having to hardcode a brittle value.
+    // To do this, we create a real shader instance and read from that.
+    // The @ASSUMPTION is that Ubo definitions will always be the same size across
+    // all shaders and present in the default shader.
+    // This is a somewhat brittle assumption, but will work for now. In the future,
+    // we may have to develop a more sophisticated, robust system for UBOs.
+    const referenceShader = new ShaderProgram(engine, -1, {
+      fragmentShaderSource: FragmentShaderSource,
+      vertexShaderSource: VertexShaderSource,
      });
 
     // Look up UBO size in bytes

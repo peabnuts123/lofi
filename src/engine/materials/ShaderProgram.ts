@@ -1,46 +1,47 @@
 import { CameraUboIndex } from '@polyzone/engine/scene/nodes/CameraNode';
 import { LightingUboIndex } from '@polyzone/engine/scene/SceneLighting';
 import type { IEngine } from '@polyzone/engine/Engine';
-import type { Enum } from '@polyzone/engine/util/enum';
 
-import VertexShaderSource from './shaders/shader.vert?raw';
-import FragmentShaderSource from './shaders/shader.frag?raw';
-
-export const ShaderBlendingMode = {
-  None: 0,
-  Average: 1,
-  Additive: 2,
-  Subtractive: 3,
-  SourceAlpha: 4,
-} as const;
-export type ShaderBlendingMode = Enum<typeof ShaderBlendingMode>;
+import { ShaderBlendingMode } from './ShaderBlendingMode';
 
 export interface ShaderProgramOptions {
+  hasDiffuseColor: boolean;
+  hasVertexColors: boolean;
   hasDiffuseTexture: boolean;
-  blendingMode: ShaderBlendingMode; // @TODO Should we just pass the material reference?
-  blackIsTransparent: boolean; // @NOTE specifically regarding the sampled texture. Should maybe rename.
+  blendingMode: ShaderBlendingMode;
   unlit: boolean;
+  hasSkin: boolean;
 }
+export const DefaultShaderProgramOptions: ShaderProgramOptions = {
+  hasDiffuseColor: false,
+  hasVertexColors: false,
+  hasDiffuseTexture: false,
+  blendingMode: ShaderBlendingMode.None(),
+  unlit: false,
+  hasSkin: false,
+};
 
+export interface ShaderProgramArgs {
+  vertexShaderSource: string;
+  fragmentShaderSource: string;
+}
 export class ShaderProgram {
-  public readonly name: string;
-  public readonly program: WebGLProgram;
-  public readonly vertexPositionAttribute: number;
-  public readonly vertexColorAttribute: number;
-  public readonly vertexNormalAttribute: number;
-  public readonly vertexTextureCoordinateAttribute: number;
-  public readonly worldMatrixUniform: WebGLUniformLocation;
-  public readonly normalMatrixUniform: WebGLUniformLocation;
-  public readonly diffuseColorUniform: WebGLUniformLocation;
-  public readonly textureSamplerUniform: WebGLUniformLocation | undefined;
+  public static MaxBones = 64;
 
-  public constructor(engine: IEngine, name: string, options: ShaderProgramOptions) {
+  public readonly id: number;
+
+  private readonly gl: WebGL2RenderingContext;
+  public readonly program: WebGLProgram;
+
+  public constructor(engine: IEngine, id: number, args: ShaderProgramArgs, options?: Partial<ShaderProgramOptions>) {
     const { gl } = engine;
 
-    this.name = name;
+    this.gl = gl;
+    this.id = id;
+
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    const program = gl.createProgram();
+    const program = this.program = gl.createProgram();
 
     if (!vertexShader || !fragmentShader || !program) {
       throw new Error(`Failed to allocate GL objects`);
@@ -49,11 +50,14 @@ export class ShaderProgram {
     function inject(name: string, injected: string, src: string): string {
       return src.replace(new RegExp(`#pragma\\s+inject\\s*\\(\\s*${name}\\s*\\)\\s*$`, "m"), injected);
     }
-    const definesBlock = `#define _ShaderName ${name}\n` + ShaderProgram.getDefinesFromShaderOptions(options)
+    const definesBlock = `#define _ShaderId ${id}\n` + ShaderProgram.getDefinesFromShaderOptions({
+      ...DefaultShaderProgramOptions,
+      ...options,
+    })
       .map((define) => `#define ${define}`).join('\n') + '\n';
-    const vertexShaderSource = inject('defines', definesBlock, VertexShaderSource);
+    const vertexShaderSource = inject('defines', definesBlock, args.vertexShaderSource);
     gl.shaderSource(vertexShader, vertexShaderSource);
-    const fragmentShaderSource = inject('defines', definesBlock, FragmentShaderSource);
+    const fragmentShaderSource = inject('defines', definesBlock, args.fragmentShaderSource);
     gl.shaderSource(fragmentShader, fragmentShaderSource);
     // console.log(`Shader '${name}'\n<VERTEX_SHADER>\n${vertexShaderSource}\n</VERTEX_SHADER>\n<FRAGMENT_SHADER>\n${fragmentShaderSource}\n</FRAGMENT_SHADER>`);
 
@@ -78,57 +82,81 @@ export class ShaderProgram {
       throw new Error(`Failed to link GL program: ${errorMessage}`);
     }
 
-    this.program = program;
-
-    this.vertexPositionAttribute = getAttribute(gl, program, 'vertexPosition', true);
-    this.vertexColorAttribute = getAttribute(gl, program, 'vertexColor', true);
-    this.vertexNormalAttribute = getAttribute(gl, program, 'vertexNormal', true);
-    this.vertexTextureCoordinateAttribute = getAttribute(gl, program, 'textureCoord', true);
-
-    this.worldMatrixUniform = getUniform(gl, program, 'worldMatrix', true);
-    this.normalMatrixUniform = getUniform(gl, program, 'normalMatrix', true);
-    this.diffuseColorUniform = getUniform(gl, program, 'diffuseColor', true);
-    this.textureSamplerUniform = getUniform(gl, program, 'sampler', false);
-
     const cameraUboBlockIndex = gl.getUniformBlockIndex(this.program, "Camera");
-    gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
+    if (cameraUboBlockIndex !== WebGL2RenderingContext.INVALID_INDEX) {
+      gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
+    }
     const lightingUboBlockIndex = gl.getUniformBlockIndex(this.program, "Lighting");
-    gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
+    if (lightingUboBlockIndex !== WebGL2RenderingContext.INVALID_INDEX) {
+      gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
+    }
+  }
+
+  public getAttribute(attributeName: string): number | undefined {
+    const attribute = this.gl.getAttribLocation(this.program, attributeName);
+    if (attribute < 0) {
+      return undefined;
+    } else {
+      return attribute;
+    }
+  }
+
+  public getUniform(uniformName: string): WebGLUniformLocation | undefined {
+    const uniform = this.gl.getUniformLocation(this.program, uniformName);
+    if (!uniform) {
+      return undefined;
+    }
+
+    return uniform;
   }
 
   private static getDefinesFromShaderOptions(options: ShaderProgramOptions): string[] {
     const defines: string[] = [];
 
+    if (options.hasDiffuseColor) {
+      defines.push('DIFFUSE_COLOR');
+    }
+
+    if (options.hasVertexColors) {
+      defines.push('VERTEX_COLORS');
+    }
+
+    if (options.hasSkin) {
+      defines.push('SKIN', 'MAX_BONES ' + ShaderProgram.MaxBones);
+    }
+
     if (options.hasDiffuseTexture) {
       defines.push('DIFFUSE_TEXTURE');
     }
 
-    switch (options.blendingMode) {
-      case ShaderBlendingMode.None:
-        /* No blending, will set alpha = 1.0 in shader by default */
-        break;
-      case ShaderBlendingMode.Average:
-        /* Averaged blending. Transparent pixels set to alpha=0.5f for blending */
-        defines.push('FIXED_TRANSPARENCY_ALPHA 0.5f');
-        break;
-      case ShaderBlendingMode.Additive:
-        /* Additive blending. Transparent pixels set to alpha=0.0f for blending */
-        defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
-        break;
-      case ShaderBlendingMode.Subtractive:
-        /* Subtractive blending. Transparent pixels set to alpha=0.0f for blending */
-        defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
-        break;
-      case ShaderBlendingMode.SourceAlpha:
-        /* Source alpha - do not manipulate shader output alpha */
-        defines.push('USE_SOURCE_ALPHA_FOR_TRANSPARENCY');
-        break;
-      default:
-        throw new Error(`Unimplemented blending mode: '${options.blendingMode}'`);
-    }
-
-    if (options.blackIsTransparent) {
-      defines.push("BLACK_IS_TRANSPARENT");
+    if (options.blendingMode) {
+      switch (options.blendingMode.type) {
+        case 'None':
+          /* No blending, will set alpha = 1.0 in shader by default */
+          break;
+        case 'Average':
+          /* Averaged blending. Transparent pixels set to alpha=0.5f for blending */
+          defines.push('FIXED_TRANSPARENCY_ALPHA 0.5f');
+          break;
+        case 'Additive':
+          /* Additive blending. Transparent pixels set to alpha=0.0f for blending */
+          defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
+          break;
+        case 'Subtractive':
+          /* Subtractive blending. Transparent pixels set to alpha=0.0f for blending */
+          defines.push('FIXED_TRANSPARENCY_ALPHA 0.0f');
+          break;
+        case 'AlphaBlend':
+          /* Alpha blend. Do not manipulate shader output alpha */
+          defines.push('ALPHA_BLENDING');
+          break;
+        case 'AlphaClip':
+          /* Alpha clip. Pixels with alpha less than the cutoff are discarded, otherwise rendered as opaque */
+          defines.push('ALPHA_CLIPPING');
+          break;
+        default:
+          throw new Error(`Unimplemented blending mode: '${(options.blendingMode as { type: unknown }).type}'`);
+      }
     }
 
     if (options.unlit) {
@@ -137,35 +165,4 @@ export class ShaderProgram {
 
     return defines;
   }
-}
-
-
-export function getAttribute(gl: WebGL2RenderingContext, program: WebGLShader, attributeName: string, required: true): number;
-export function getAttribute(gl: WebGL2RenderingContext, program: WebGLShader, attributeName: string, required: false): number | undefined;
-export function getAttribute(gl: WebGL2RenderingContext, program: WebGLShader, attributeName: string, required: boolean): number | undefined {
-  const attribute = gl.getAttribLocation(program, attributeName);
-  if (attribute < 0) {
-    if (required) {
-      throw new Error(`Failed to look up attribute location '${attributeName}' in shader`);
-    } else {
-      return undefined;
-    }
-  }
-
-  return attribute;
-}
-
-export function getUniform(gl: WebGL2RenderingContext, program: WebGLShader, uniformName: string, required: true): WebGLUniformLocation;
-export function getUniform(gl: WebGL2RenderingContext, program: WebGLShader, uniformName: string, required: false): WebGLUniformLocation | undefined;
-export function getUniform(gl: WebGL2RenderingContext, program: WebGLShader, uniformName: string, required: boolean): WebGLUniformLocation | undefined {
-  const uniform = gl.getUniformLocation(program, uniformName);
-  if (!uniform) {
-    if (required) {
-      throw new Error(`Failed to look up uniform location '${uniformName}' in shader`);
-    } else {
-      return undefined;
-    }
-  }
-
-  return uniform;
 }

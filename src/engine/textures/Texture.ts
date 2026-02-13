@@ -34,9 +34,9 @@ export class Texture {
     });
   }
 
-  public static async loadFromBuffer(engine: IEngine, buffer: Uint8Array<ArrayBuffer>): Promise<Texture> {
+  public static async loadFromBuffer(engine: IEngine, buffer: Uint8Array): Promise<Texture> {
     const { gl } = engine;
-    const blob = new Blob([buffer]);
+    const blob = new Blob([buffer as Uint8Array<ArrayBuffer>]);
     const bitmap = await window.createImageBitmap(blob, {  });
     return new Texture(engine, () => {
       gl.texImage2D(

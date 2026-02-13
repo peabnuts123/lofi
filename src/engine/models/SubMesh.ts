@@ -1,231 +1,270 @@
-import { Material, type MaterialDefinition } from "@polyzone/engine/materials/Material";
+import { Material } from "@polyzone/engine/materials/Material";
 import { Vector3 } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
-import type { IEngine } from "@polyzone/engine/Engine";
-import { ShaderBlendingMode } from "@polyzone/engine/materials";
+import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
+import { ShaderCache, ShaderProgram } from "@polyzone/engine/materials";
 import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
-import { Matrix3 } from "@polyzone/engine/util/Matrix3";
-import { MeshGeometry, type MeshGeometryDefinition, type TextureCoordinate } from "./MeshGeometry";
-import type { Color4Definition } from "../util/Color4";
+import { IdPool } from "@polyzone/engine/util/IdPool";
+import type { DrawTask } from "@polyzone/engine/scene/DrawableSceneNode";
+import type { AttributeDefinition, MeshPrimitiveDefinition } from "@polyzone/engine/loaders/definitions";
 
-export interface SubMeshDefinition {
-  geometry: MeshGeometryDefinition;
-  material: MaterialDefinition;
+export interface SubMeshExtents {
+  min: Vector3;
+  max: Vector3;
+  center: Vector3;
 }
 
 export class SubMesh {
+  private static readonly IdPool: IdPool = new IdPool();
+
+  private readonly id: number;
   private readonly vao: WebGLVertexArrayObject;
-  public readonly geometry: MeshGeometry;
-  public readonly material: Material;
-  public readonly extents: {
-    min: Vector3;
-    center: Vector3;
-    max: Vector3;
-  };
+  private readonly material: Material;
+  private readonly shader: ShaderProgram;
+  private readonly extents: SubMeshExtents;
+  private readonly drawPrimitive: () => void;
 
-  private _normalTmp: Matrix3 = new Matrix3();
+  private readonly _cameraSpacePositionTmp: Vector3 = Vector3.zero();
 
-  public constructor(engine: IEngine, geometry: MeshGeometry, material: Material) {
-    const { gl } = engine;
-
-    const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexPositions.flatMap(v => [v.x, v.y, v.z])));
-    const faceIndexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geometry.triangleIndices.flat()));
-    const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(geometry.vertexNormals.flatMap((n) => [n.x, n.y, n.z])));
-
-    /* Optional geometry data */
-    // @TODO Should we instead set a `define` if there are no vertex colors?
-    const vertexColorData = geometry.vertexColors ?? geometry.vertexPositions.map(() => ({ r: 0xFF, g: 0xFF, b: 0xFF, a: 0xFF } satisfies Color4Definition));
-    const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Uint8Array(vertexColorData.flatMap(c => [c.r, c.g, c.b, c.a])));
-    // @TODO Should we instead set a `define` if there are no texture coordinates?
-    const vertexTextureCoordinateData = geometry.textureCoordinates ?? geometry.vertexPositions.map(() => ({ u: 0, v: 0 } as TextureCoordinate));
-    const textureCoordinateBuffer = createBuffer(gl, gl.ARRAY_BUFFER, new Float32Array(vertexTextureCoordinateData.flatMap((t) => [t.u, t.v])));
-
-    this.vao = gl.createVertexArray();
-    if (!this.vao) {
-      throw new Error('Failed to create VAO');
-    }
-
-    gl.bindVertexArray(this.vao);
-
-    gl.enableVertexAttribArray(material.shader.vertexPositionAttribute);
-    gl.enableVertexAttribArray(material.shader.vertexColorAttribute);
-    gl.enableVertexAttribArray(material.shader.vertexNormalAttribute);
-    gl.enableVertexAttribArray(material.shader.vertexTextureCoordinateAttribute);
-
-    // Vertex positions
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.vertexAttribPointer(
-      material.shader.vertexPositionAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      3 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-    );
-
-    // Vertex colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.vertexAttribPointer(
-      material.shader.vertexColorAttribute,
-      4,
-      gl.UNSIGNED_BYTE,
-      true,
-      4 * Uint8Array.BYTES_PER_ELEMENT,
-      0,
-    );
-
-    // Vertex normals
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.vertexAttribPointer(
-      material.shader.vertexNormalAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      3 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-    );
-
-    // Vertex texture coordinates
-    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-    gl.vertexAttribPointer(
-      material.shader.vertexTextureCoordinateAttribute,
-      2,
-      gl.FLOAT,
-      false,
-      2 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-    );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-    // Face indices
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, faceIndexBuffer);
-    gl.bindVertexArray(null);
-
-    this.geometry = geometry;
+  private constructor(
+    vao: WebGLVertexArrayObject,
+    material: Material,
+    shader: ShaderProgram,
+    extents: SubMeshExtents,
+    drawPrimitive: () => void,
+  ) {
+    this.id = SubMesh.IdPool.createNew();
+    this.vao = vao;
     this.material = material;
-
-    // Calculate submesh extents
-    if (geometry.vertexPositions.length === 0) {
-      this.extents = {
-        min: Vector3.zero(),
-        max: Vector3.zero(),
-        center: Vector3.zero(),
-      };
-    } else {
-      const vertexExtentsMin = new Vector3(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
-      const vertexExtentsMax = new Vector3(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
-      for (const vertex of geometry.vertexPositions) {
-        if (vertex.x < vertexExtentsMin.x) vertexExtentsMin.x = vertex.x;
-        if (vertex.x > vertexExtentsMax.x) vertexExtentsMax.x = vertex.x;
-
-        if (vertex.y < vertexExtentsMin.y) vertexExtentsMin.y = vertex.y;
-        if (vertex.y > vertexExtentsMax.y) vertexExtentsMax.y = vertex.y;
-
-        if (vertex.z < vertexExtentsMin.z) vertexExtentsMin.z = vertex.z;
-        if (vertex.z > vertexExtentsMax.z) vertexExtentsMax.z = vertex.z;
-      }
-
-      this.extents = {
-        min: vertexExtentsMin,
-        max: vertexExtentsMax,
-        center: new Vector3(
-          (vertexExtentsMin.x + vertexExtentsMax.x) / 2,
-          (vertexExtentsMin.y + vertexExtentsMax.y) / 2,
-          (vertexExtentsMin.z + vertexExtentsMax.z) / 2,
-        ),
-      };
-    }
-  }
-
-  public static async fromDefinition(engine: IEngine, definition: SubMeshDefinition): Promise<SubMesh> {
-    const material = await Material.fromDefinition(engine, definition.material);
-    const geometry = new MeshGeometry(definition.geometry);
-    return new SubMesh(engine, geometry, material);
+    this.shader = shader;
+    this.extents = extents;
+    this.drawPrimitive = drawPrimitive;
   }
 
   public draw(
-    engine: IEngine,
+    drawQueues: DrawQueues,
+    modelViewMatrix: Matrix4,
     worldMatrix: Matrix4,
+    jointMatrices: Matrix4[] | undefined,
   ): void {
+    // Joint matrices
+    let jointMatricesBytes: Float32Array | undefined = undefined;
+    if (jointMatrices) {
+      jointMatricesBytes = new Float32Array(ShaderProgram.MaxBones * 16); // @TODO Don't allocate every frame
+      if (jointMatrices.length > ShaderProgram.MaxBones) {
+        console.warn(`Model skin has more than the max number of bones (${ShaderProgram.MaxBones})! Skin will not work correctly`);
+      }
+      jointMatrices.forEach((jointMatrix, index) => {
+        if (index < ShaderProgram.MaxBones) {
+          jointMatricesBytes!.set(jointMatrix.toArray(), index * 16);
+        }
+      });
+    }
+
+    const drawTask: DrawTask = {
+      renderPass: 0, // @TODO (?)
+      glProgram: this.shader,
+      material: this.material,
+      mesh: {
+        id: this.id,
+        vao: this.vao,
+        draw: this.drawPrimitive,
+      },
+      uniforms: {
+        worldMatrix: worldMatrix.clone(), // @NOTE We can't hold reference to a tmp value
+        skinWeights: jointMatricesBytes,
+      },
+    };
+
+    const materialBlendingMode = this.material.blendingMode.type;
+    const isMaterialTransparent = materialBlendingMode === 'Additive' ||
+      materialBlendingMode === 'AlphaBlend' ||
+      materialBlendingMode === 'Average' ||
+      materialBlendingMode === 'Subtractive';
+
+    if (isMaterialTransparent) {
+      // Transform local-space extents to world camera space
+      // for depth sorting
+      this._cameraSpacePositionTmp
+        .setValue(this.extents.center)
+        .multiplySelf(modelViewMatrix);
+
+      drawQueues.transparent.push({
+        ...drawTask,
+        depth: this._cameraSpacePositionTmp.z,
+      });
+    } else {
+      drawQueues.opaque.push(drawTask);
+    }
+  }
+
+  public static async fromDefinition(
+    engine: IEngine,
+    primitive: MeshPrimitiveDefinition,
+  ): Promise<SubMesh> {
     const { gl } = engine;
 
-    gl.useProgram(this.material.shader.program);
-    // World matrix
-    gl.uniformMatrix4fv(this.material.shader.worldMatrixUniform, false, worldMatrix.toArray());
+    const material = primitive.material ?
+      await Material.fromDefinition(engine, primitive.material) :
+      new Material('default');
+    const shader = ShaderCache.create(engine, primitive, material);
 
-    // Material
-    gl.uniform4fv(this.material.shader.diffuseColorUniform, new Float32Array([
-      this.material.diffuseColor.r / 255,
-      this.material.diffuseColor.g / 255,
-      this.material.diffuseColor.b / 255,
-      this.material.diffuseColor.a / 255,
-    ]));
-
-    // Blending
-    switch (this.material.blendingMode) {
-      case ShaderBlendingMode.None:
-        // No blending. No-op.
-        break;
-      case ShaderBlendingMode.Average:
-        // Average blending:
-        //   Transparent pixel (alpha = 0.5):   0.5 * src + 0.5 * dest
-        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case ShaderBlendingMode.Additive:
-        // Additive blending:
-        //   Transparent pixel (alpha = 0):     1 * src + 1 * dest
-        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case ShaderBlendingMode.Subtractive:
-        // Subtractive blending:
-        //   Transparent pixel (alpha = 0):     1 * src - 1 * dest
-        //   Opaque pixel (alpha = 1):          1 * src - 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case ShaderBlendingMode.SourceAlpha:
-        // "Source alpha" blending:
-        //   Transparent pixel (alpha = X):     X * src + (1-X) * dest
-        //   Opaque pixel (alpha = 1):          1 * src + 0 * dest
-        gl.enable(gl.BLEND);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        break;
+    const vao = gl.createVertexArray();
+    if (!vao) {
+      throw new Error('Failed to create VAO');
     }
 
-    // Texture
-    if (this.material.diffuseTexture) {
-      const textureIndex = 0;
-      gl.activeTexture(gl.TEXTURE0 + textureIndex);
-      gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTexture.texture);
-      gl.uniform1i(this.material.shader.textureSamplerUniform!, textureIndex);
+    gl.bindVertexArray(vao);
+
+    /* Vertex positions */
+    // @TODO can probably make a function that calls all of this for a given Attribute + AttributeDefinition
+    {
+      const vertexPositionAttribute = shader.getAttribute('vertexPosition');
+      if (vertexPositionAttribute === undefined) {
+        throw new Error(`Could not find vertex attribute 'vertexPosition' in shader. Cannot render mesh primitive with no vertex position data.`);
+      }
+      gl.enableVertexAttribArray(vertexPositionAttribute);
+      const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.positionData.buffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.vertexAttribPointer(
+        vertexPositionAttribute,
+        primitive.positionData.componentCount,
+        primitive.positionData.componentType,
+        primitive.positionData.normalized,
+        primitive.positionData.componentCount * primitive.positionData.componentSize,
+        0,
+      );
+    }
+
+    const meshExtents: SubMeshExtents = {
+      min: primitive.extents.min,
+      max: primitive.extents.max,
+      center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
+    };
+
+    /* Vertex normals */
+    // @TODO generate normals somewhere
+    const vertexNormalAttribute = shader.getAttribute('vertexNormal');
+    if (vertexNormalAttribute) {
+      if (primitive.normalData) {
+        if (vertexNormalAttribute === undefined) {
+          throw new Error(`Could not find vertex attribute 'vertexNormal' in shader. Cannot render mesh primitive with no vertex normal data.`);
+        }
+        gl.enableVertexAttribArray(vertexNormalAttribute);
+        const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.normalData.buffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.vertexAttribPointer(
+          vertexNormalAttribute,
+          primitive.normalData.componentCount,
+          primitive.normalData.componentType,
+          primitive.normalData.normalized,
+          primitive.normalData.componentCount * primitive.normalData.componentSize,
+          0,
+        );
+      } else {
+        throw new Error(`Missing normals - we must generate them`);
+      }
+    }
+
+
+    /* Vertex colors */
+    const vertexColorAttribute = shader.getAttribute('vertexColor');
+    if (vertexColorAttribute && primitive.color0Data) {
+      gl.enableVertexAttribArray(vertexColorAttribute);
+      const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.color0Data.buffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+      gl.vertexAttribPointer(
+        vertexColorAttribute,
+        primitive.color0Data.componentCount,
+        primitive.color0Data.componentType,
+        primitive.color0Data.normalized,
+        primitive.color0Data.componentCount * primitive.color0Data.componentSize,
+        0,
+      );
+    }
+    const texCoordIndex = primitive.material?.diffuseTexture?.texCoord;
+    const textureCoordAttribute = shader.getAttribute('textureCoord');
+    if (textureCoordAttribute && texCoordIndex !== undefined) {
+      const textureCoordAttributeData = primitive[`texCoord${texCoordIndex}Data` as keyof MeshPrimitiveDefinition] as (AttributeDefinition | undefined);
+      if (textureCoordAttributeData) {
+        gl.enableVertexAttribArray(textureCoordAttribute);
+        const colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, textureCoordAttributeData.buffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.vertexAttribPointer(
+          textureCoordAttribute,
+          textureCoordAttributeData.componentCount,
+          textureCoordAttributeData.componentType,
+          textureCoordAttributeData.normalized,
+          textureCoordAttributeData.componentCount * textureCoordAttributeData.componentSize,
+          0,
+        );
+      }
+    }
+
+    /* Joint indices */
+    const vertexJointsAttribute = shader.getAttribute('vertexJoints');
+    if (vertexJointsAttribute && primitive.joints0Data) {
+      gl.enableVertexAttribArray(vertexJointsAttribute);
+      const jointsBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.joints0Data.buffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, jointsBuffer);
+      gl.vertexAttribPointer(
+        vertexJointsAttribute,
+        primitive.joints0Data.componentCount,
+        primitive.joints0Data.componentType,
+        primitive.joints0Data.normalized,
+        primitive.joints0Data.componentCount * primitive.joints0Data.componentSize,
+        0,
+      );
+    }
+    /* Joint weights */
+    const vertexWeightsAttribute = shader.getAttribute('vertexWeights');
+    if (vertexWeightsAttribute && primitive.weights0Data) {
+      gl.enableVertexAttribArray(vertexWeightsAttribute);
+      const weightsBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.weights0Data.buffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, weightsBuffer);
+      gl.vertexAttribPointer(
+        vertexWeightsAttribute,
+        primitive.weights0Data.componentCount,
+        primitive.weights0Data.componentType,
+        primitive.weights0Data.normalized,
+        primitive.weights0Data.componentCount * primitive.weights0Data.componentSize,
+        0,
+      );
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    /* Indexed geometry */
+    if (primitive.indices) {
+      const indicesBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, primitive.indices.buffer);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
+    }
+
+    let drawPrimitive: () => void;
+    if (primitive.indices) {
+      // Indexed geometry
+      const mode = primitive.mode;
+      const elementCount = primitive.indices.buffer.length;
+      const elementType = primitive.indices.componentType;
+      drawPrimitive = () => {
+        gl.drawElements(mode, elementCount, elementType, 0);
+      };
     } else {
-      gl.bindTexture(gl.TEXTURE_2D, null); // @TODO needed?
+      // @TODO How many things?
+      const count = primitive.positionData.buffer.length; // @TODO This is just a guess, untested
+      drawPrimitive = () => {
+        gl.drawArrays(primitive.mode, 0, count);
+      };
     }
 
-    // Lighting
-    this._normalTmp.normalSelf(worldMatrix);
-    gl.uniformMatrix3fv(this.material.shader.normalMatrixUniform, false, this._normalTmp.toArray());
-
-    // Draw
-    gl.bindVertexArray(this.vao);
-    gl.drawElements(gl.TRIANGLES, this.geometry.triangles.length * 3, gl.UNSIGNED_SHORT, 0);
     gl.bindVertexArray(null);
 
-    gl.disable(gl.BLEND);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.depthMask(true);
+    return new SubMesh(
+      vao,
+      material,
+      shader,
+      meshExtents,
+      drawPrimitive,
+    );
   }
 }

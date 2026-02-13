@@ -1,5 +1,5 @@
-import { BoxColliderNode, CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
-import { Model, type ModelDefinition, type Triangle } from '@polyzone/engine/models';
+import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { Model, type Triangle } from '@polyzone/engine/models';
 import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
 import { Scene, SceneNode } from '@polyzone/engine/scene';
@@ -7,12 +7,11 @@ import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
-import { Color4 } from '@polyzone/engine/util/Color4';
+// import { Color4 } from '@polyzone/engine/util/Color4';
 import { rayAABBIntersection, rayTriangleIntersection } from '@polyzone/engine/collision/ray';
-import { DrawDebug } from '@polyzone/engine/util/DrawDebug';
+// import { DrawDebug } from '@polyzone/engine/util/DrawDebug';
 import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
-import { GltfExperiment } from '@polyzone/engine/GltfExperiment';
-import type { IFileSystem } from '@polyzone/engine/filesystem';
+import type { ModelDefinition } from '@polyzone/engine/loaders/definitions';
 
 export interface CartridgeDefinition {
   models: ModelDefinition[];
@@ -27,8 +26,6 @@ interface SceneState {
   staticCollider?: BoxColliderNode;
   rotatingColliderParent?: ModelNode;
   rotatingCollider?: BoxColliderNode;
-
-  gltfExperiment?: GltfExperiment;
 }
 
 const MaxRuntimeSeconds = 20;
@@ -44,12 +41,6 @@ export class Runtime {
   private scene: SceneState | undefined;
   private debugCanvas: HTMLCanvasElement | undefined;
 
-  private readonly fileSystem: IFileSystem;
-
-  public constructor(fileSystem: IFileSystem) {
-    this.fileSystem = fileSystem;
-  }
-
   public async loadCartridge(canvas: HTMLCanvasElement, cartridge: CartridgeDefinition): Promise<void> {
     // Get debug canvas
     this.debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
@@ -63,15 +54,9 @@ export class Runtime {
     const burgerModel = await Model.fromDefinition(engine, cartridge.models[1]);
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
-    // const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
-    // camera.position = new Vector3(-3.5, 2, 3.5);
-    // camera.pointAt(new Vector3(0, 0, 0));
-
-    const camera = new CameraNode(scene, 'camera', 50, canvas.width / canvas.height);
-    camera.position = new Vector3(-2.5, 2, 2.5);
-    // camera.position = new Vector3(3.5, 2, -3.5);
-    // camera.position.multiplySelf(1); // @NOTE @DEBUG for glTF
-    camera.pointAt(new Vector3(0, 1, 0));
+    const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
+    camera.position = new Vector3(-3.5, 2, 3.5);
+    camera.pointAt(new Vector3(0, 0, 0));
     cameraOrigin.addChild(camera);
 
     // @NOTE Click logic - extract to reusable function
@@ -262,30 +247,30 @@ export class Runtime {
     ground.scale.z = 4;
 
     /* Four Cardinal Boxes */
-    // const eastBox = new ModelNode(scene, 'east', boxModel);
-    // eastBox.position.x = -1.5;
-    // eastBox.scale.y = 0.1;
-    // eastBox.position.y = eastBox.scale.y / 2;
-    // const westBox = new ModelNode(scene, 'west', boxModel);
-    // westBox.position.x = 1.5;
-    // westBox.scale.y = 0.2;
-    // westBox.position.y = westBox.scale.y / 2;
-    // const southBox = new ModelNode(scene, 'south', boxModel);
-    // southBox.position.z = -1.5;
-    // southBox.scale.y = 0.3;
-    // southBox.position.y = southBox.scale.y / 2;
-    // const northBox = new ModelNode(scene, 'north', boxModel);
-    // northBox.position.z = 1.5;
-    // northBox.scale.y = 0.4;
-    // northBox.position.y = northBox.scale.y / 2;
+    const eastBox = new ModelNode(scene, 'east', boxModel);
+    eastBox.position.x = -1.5;
+    eastBox.scale.y = 0.1;
+    eastBox.position.y = eastBox.scale.y / 2;
+    const westBox = new ModelNode(scene, 'west', boxModel);
+    westBox.position.x = 1.5;
+    westBox.scale.y = 0.2;
+    westBox.position.y = westBox.scale.y / 2;
+    const southBox = new ModelNode(scene, 'south', boxModel);
+    southBox.position.z = -1.5;
+    southBox.scale.y = 0.3;
+    southBox.position.y = southBox.scale.y / 2;
+    const northBox = new ModelNode(scene, 'north', boxModel);
+    northBox.position.z = 1.5;
+    northBox.scale.y = 0.4;
+    northBox.position.y = northBox.scale.y / 2;
 
 
     /* Burger */
-    // const burger = new ModelNode(scene, 'burger', burgerModel);
-    // burger.scale.multiplySelf(2);
-    // const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-    // miniBurger.position = new Vector3(0, 0, 0.75);
-    // burger.addChild(miniBurger);
+    const burger = new ModelNode(scene, 'burger', burgerModel);
+    burger.scale.multiplySelf(2);
+    const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+    miniBurger.position = new Vector3(0, 0, 0.75);
+    burger.addChild(miniBurger);
 
     /* Test Objects */
     let testObjects: ModelNode[][] | undefined = undefined;
@@ -309,26 +294,30 @@ export class Runtime {
     }
 
     /* Blending test stuff */
-    // const blendingModel_average = await Model.fromDefinition(engine, cartridge.models[2]);
-    // const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel_average);
-    // blendingAverage.position.x = 1.5;
-    // blendingAverage.position.y = 0.5;
-    // blendingAverage.position.z = 1.5;
-    // const blendingModel_additive = await Model.fromDefinition(engine, cartridge.models[3]);
-    // const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel_additive);
-    // blendingAdditive.position.x = -1.5;
-    // blendingAdditive.position.y = 0.5;
-    // blendingAdditive.position.z = 1.5;
-    // const blendingModel_subtractive = await Model.fromDefinition(engine, cartridge.models[4]);
-    // const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel_subtractive);
-    // blendingSubtractive.position.x = 1.5;
-    // blendingSubtractive.position.y = 0.5;
-    // blendingSubtractive.position.z = -1.5;
-    // const blendingModel_sourceAlpha = await Model.fromDefinition(engine, cartridge.models[5]);
-    // const blendingSourceAlpha = new ModelNode(scene, 'blending_sourceAlpha', blendingModel_sourceAlpha);
-    // blendingSourceAlpha.position.x = -1.5;
-    // blendingSourceAlpha.position.y = 0.5;
-    // blendingSourceAlpha.position.z = -1.5;
+    const blendingModel_average = await Model.fromDefinition(engine, cartridge.models[2]);
+    // @TODO assign material
+    const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel_average);
+    blendingAverage.position.x = 1.5;
+    blendingAverage.position.y = 0.5;
+    blendingAverage.position.z = 1.5;
+    const blendingModel_additive = await Model.fromDefinition(engine, cartridge.models[2]);
+    // @TODO assign material
+    const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel_additive);
+    blendingAdditive.position.x = -1.5;
+    blendingAdditive.position.y = 0.5;
+    blendingAdditive.position.z = 1.5;
+    const blendingModel_subtractive = await Model.fromDefinition(engine, cartridge.models[2]);
+    // @TODO assign material
+    const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel_subtractive);
+    blendingSubtractive.position.x = 1.5;
+    blendingSubtractive.position.y = 0.5;
+    blendingSubtractive.position.z = -1.5;
+    const blendingModel_sourceAlpha = await Model.fromDefinition(engine, cartridge.models[2]);
+    // @TODO assign material
+    const blendingSourceAlpha = new ModelNode(scene, 'blending_sourceAlpha', blendingModel_sourceAlpha);
+    blendingSourceAlpha.position.x = -1.5;
+    blendingSourceAlpha.position.y = 0.5;
+    blendingSourceAlpha.position.z = -1.5;
 
     /* Intersecting Colliders */
     // const colliderModel = await Model.fromDefinition(engine, cartridge.models[0]);
@@ -363,7 +352,7 @@ export class Runtime {
     //   return [model, collider];
     // }
     // const speed = 0.35;
-    // const dumpsterModel = await Model.fromDefinition(engine, cartridge.models[6]);
+    // const dumpsterModel = await Model.fromDefinition(engine, cartridge.models[3]);
     // const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
     // const convexCollider = convexColliderNode.addChild(
     //   new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
@@ -377,36 +366,36 @@ export class Runtime {
     // }, 16);
     // setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
 
-    /* GLTF Experiment */
-    // const gltfExperiment = await GltfExperiment.load(`/models/hifiguy.glb`, this.fileSystem, engine, scene);
-    // gltfExperiment.playAnimation('Run');
-    // const gltfExperiment = await GltfExperiment.load(`/models/temp/plant/plant.gltf`, this.fileSystem, engine, scene);
-    const gltfExperiment = await GltfExperiment.load(`/models/temp/transparent_cubes.glb`, this.fileSystem, engine, scene);
-
-    // const gltfExperiment = await GltfExperiment.load(`/models/temp/Rig_Medium_General.glb`, this.fileSystem, engine, scene);
-    // const gltfExperiment = await GltfExperiment.load(`/models/temp/rig_mage.glb`, this.fileSystem, engine, scene);
-    // const gltfExperiment = await GltfExperiment.load(`/models/temp/mage/rig_mage.gltf`, this.fileSystem, engine, scene);
+    /* Animation */
+    const animatedModel = await Model.fromDefinition(engine, cartridge.models[4]);
+    const nonAnimatedModel = await Model.fromDefinition(engine, cartridge.models[5]);
+    const figure1 = new ModelNode(scene, 'figure-1', nonAnimatedModel);
+    figure1.animationSource = animatedModel;
+    figure1.position.x = -1;
+    const figure2 = new ModelNode(scene, 'figure-2', animatedModel);
+    figure2.position.x = 1;
     const AnimationList: string[] = [
-      // 'Death_A',
-      // 'Death_B',
-      // 'Hit_A',
-      // 'Hit_B',
-      // 'Idle_A',
-      // 'Idle_B',
-      // 'Interact',
-      // 'PickUp',
-      // 'Spawn_Air',
-      // 'Spawn_Ground',
-      // 'T-Pose',
-      // 'Throw',
-      // 'Use_Item',
+      'Death_A',
+      'Death_B',
+      'Hit_A',
+      'Hit_B',
+      'Idle_A',
+      'Idle_B',
+      'Interact',
+      'PickUp',
+      'Spawn_Air',
+      'Spawn_Ground',
+      'T-Pose',
+      'Throw',
+      'Use_Item',
     ];
     if (AnimationList.length > 0) {
+      figure1.playAnimation(AnimationList[AnimationList.length - 1]);
       let animationIndex = 0;
       const stahp = setInterval(() => {
         const animationName = AnimationList[animationIndex];
         console.log(`Playing: '${animationName}'`);
-        gltfExperiment.playAnimation(animationName);
+        figure1.playAnimation(animationName);
         animationIndex = (animationIndex + 1) % AnimationList.length;
       }, 1500);
       setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
@@ -414,15 +403,14 @@ export class Runtime {
 
 
     this.scene = {
-      // burger,
-      // camera,
+      burger,
+      camera,
       cameraOrigin,
       lightOrigin,
       testObjects,
       // staticCollider,
       // rotatingColliderParent,
       // rotatingCollider,
-      gltfExperiment,
     };
   }
 
@@ -482,8 +470,8 @@ export class Runtime {
 
       this.theDANGSCENE!.forEachNodeInHierarchy((node) => {
         if (node instanceof ModelNode) {
-          const aabb = node.getAABB();
-          DrawDebug.drawWireframe(this.engine!, aabb, { color: Color4.green() });
+          // const aabb = node.getAABB();
+          // DrawDebug.drawWireframe(this.engine!, aabb, { color: Color4.green() });
         }
       });
 
@@ -512,19 +500,17 @@ export class Runtime {
         scene.rotatingColliderParent.rotation.y = time * 360 / 8;
         scene.rotatingColliderParent.rotation.z = time * 360 / 6;
 
-        if (scene.rotatingCollider && scene.staticCollider) {
-          const collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
-          if (collisionResult) {
-            scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.red());
-          } else {
-            scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.white());
-          }
-        }
+        // @TODO bring this beat back
+        // if (scene.rotatingCollider && scene.staticCollider) {
+        //   // const _collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
+        //   // @TODO proper material stuff
+        //   // if (collisionResult) {
+        //   //   scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.red());
+        //   // } else {
+        //   //   scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.white());
+        //   // }
+        // }
       }
-
-      // if (scene.gltfExperiment) {
-      //   scene.gltfExperiment.draw(dt);
-      // }
 
       time += dt;
 

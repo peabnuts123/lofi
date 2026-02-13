@@ -280,8 +280,8 @@ export class Matrix4 {
     ]);
   }
 
-  public prettyPrint(dp: number = 2): void {
-    console.log(
+  public prettyPrint(dp: number = 2, message: string = ""): void {
+    console.log(message,
     /*  */ `${this.m00.toFixed(dp)} ${this.m01.toFixed(dp)} ${this.m02.toFixed(dp)} ${this.m03.toFixed(dp)}\n`
     /**/ + `${this.m10.toFixed(dp)} ${this.m11.toFixed(dp)} ${this.m12.toFixed(dp)} ${this.m13.toFixed(dp)}\n`
     /**/ + `${this.m20.toFixed(dp)} ${this.m21.toFixed(dp)} ${this.m22.toFixed(dp)} ${this.m23.toFixed(dp)}\n`

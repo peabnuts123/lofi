@@ -1,115 +1,155 @@
-import type { IEngine } from "@polyzone/engine/Engine";
-import type { DrawTask } from "@polyzone/engine/scene";
+import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
 import { Vector3 } from "@polyzone/engine/util/vector";
 import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
-import type { Color4 } from "@polyzone/engine/util/Color4";
-import { Lazy } from "@polyzone/engine/util/Lazy";
+import type { ModelDefinition, NodeDefinition } from "@polyzone/engine/loaders/definitions";
+import { Animation } from "@polyzone/engine/animation";
 
-import { SubMesh, type SubMeshDefinition } from "./SubMesh";
-import type { Edge, EdgeIndices, TextureCoordinate, Triangle, TriangleIndices } from "./MeshGeometry";
-
-export interface ModelDefinition {
-  subMeshes: SubMeshDefinition[];
-}
+import type { Edge, EdgeIndices, Triangle, TriangleIndices } from "./MeshGeometry";
+import { MeshNode } from "./MeshNode";
+import { MeshSkin } from "./MeshSkin";
 
 export class Model {
-  public readonly subMeshes: SubMesh[];
-  private readonly _cameraSpacePositionTmp: Vector3 = Vector3.zero();
+  private readonly rootNodes: MeshNode[];
+  public readonly allNodes: MeshNode[];
+  public readonly animations: Animation[];
 
-  private constructor(subMeshes: SubMesh[]) {
-    this.subMeshes = subMeshes;
+  private constructor(rootNodes: MeshNode[], allNodes: MeshNode[], animations: Animation[]) {
+    this.rootNodes = rootNodes;
+    this.allNodes = allNodes;
+    this.animations = animations;
   }
 
-  public getDrawTasks(engine: IEngine, viewModelMatrix: Matrix4, worldMatrix: Matrix4): DrawTask[] {
-    const drawTasks: DrawTask[] = [];
-    for (let i = 0; i < this.subMeshes.length; i++) {
-      const subMesh = this.subMeshes[i];
+  public createInstance(): Model {
+    const newRootNodes: MeshNode[] = [];
+    const newNodes: MeshNode[] = [];
 
-      if (!subMesh.material.isTransparent) {
-        drawTasks.push({
-          draw: () => subMesh.draw(engine, worldMatrix),
-          layer: 0,
-        });
-      } else {
-        // Material is transparent, sort, and draw in second render pass
-        this._cameraSpacePositionTmp
-          .setValue(subMesh.extents.center)
-          .multiplySelf(viewModelMatrix);
+    const tidyUpTasks: (() => void)[] = [];
+    const oldToNewLookup = new Map<MeshNode, MeshNode>();
 
-        drawTasks.push({
-          draw: () => subMesh.draw(engine, worldMatrix),
-          layer: 5,
-          order: this._cameraSpacePositionTmp.z,
+    function createModelPartInstance(modelPart: MeshNode): MeshNode {
+      const instance = modelPart.createInstance();
+
+      newNodes.push(instance);
+      oldToNewLookup.set(modelPart, instance);
+
+      for (const childModelPart of modelPart.children) {
+        const childInstance = createModelPartInstance(childModelPart);
+        instance.addChild(childInstance);
+        childInstance.position = childModelPart.position;
+        childInstance.rotation.q.setValue(childModelPart.rotation.q);
+        childInstance.scale = childModelPart.scale;
+      }
+
+      if (modelPart.skin) {
+        // Map old skeleton parts to new instances, but we first need to wait
+        // until we've created instances of all the model parts before we
+        // can look them up.
+        tidyUpTasks.push(() => {
+          instance.skin = new MeshSkin(
+            modelPart.skin!.skeleton.map((prototypePart) => {
+              const instance = oldToNewLookup.get(prototypePart);
+              if (!instance) {
+                // @NOTE Hopefully, this should not be possible
+                throw new Error(`Error creating model instance. Model part skin references node that could not be found in list of new model part instances`);
+              }
+              return instance;
+            }),
+            modelPart.skin!.inverseBindMatrices,
+          );
         });
       }
+
+      return instance;
     }
 
-    return drawTasks;
+    for (const rootNode of this.rootNodes) {
+      const instance = createModelPartInstance(rootNode);
+      newRootNodes.push(instance);
+      instance.position = rootNode.transform.position;
+      instance.rotation.q.setValue(rootNode.transform.rotation.q);
+      instance.scale = rootNode.transform.scale;
+    }
+
+    tidyUpTasks.forEach((task) => task());
+
+    return new Model(
+      newRootNodes,
+      newNodes,
+      this.animations,
+    );
+  }
+
+  public draw(drawQueues: DrawQueues, viewMatrix: Matrix4, worldMatrix: Matrix4): void {
+    for (const modelPart of this.allNodes) {
+      modelPart.draw(
+        drawQueues,
+        viewMatrix,
+        worldMatrix,
+      );
+    }
   }
 
   public static async fromDefinition(engine: IEngine, definition: ModelDefinition): Promise<Model> {
-    const subMeshes = await Promise.all(definition.subMeshes.map((subMeshDefinition) =>
-      SubMesh.fromDefinition(engine, subMeshDefinition),
-    ));
-    return new Model(subMeshes);
+    const tidyUpTasks: (() => void)[] = [];
+    const modelPartLookup = new Map<NodeDefinition, MeshNode>();
+    const rootNodes: MeshNode[] = [];
+    const allNodes: MeshNode[] = [];
+
+    for (const rootNode of definition.rootNodes) {
+      const modelPart = await createModelPart(rootNode);
+      modelPart.position = rootNode.transform.position;
+      modelPart.rotation.set(rootNode.transform.rotation);
+      modelPart.scale = rootNode.transform.scale;
+      rootNodes.push(modelPart);
+    }
+
+    async function createModelPart(nodeDefinition: NodeDefinition): Promise<MeshNode> {
+      const modelPart = await MeshNode.fromDefinition(engine, nodeDefinition);
+
+      modelPartLookup.set(nodeDefinition, modelPart);
+      allNodes.push(modelPart);
+
+      // Build skin
+      if (nodeDefinition.skin) {
+        tidyUpTasks.push(() => {
+          const skeleton = nodeDefinition.skin!.jointNodes.map((jointNode) => modelPartLookup.get(jointNode)!);
+          modelPart.skin = new MeshSkin(skeleton, nodeDefinition.skin!.inverseBindMatrices);
+        });
+      }
+
+      // Instantiate children
+      for (const childDefinition of nodeDefinition.children) {
+        const child = await createModelPart(childDefinition);
+        modelPart.addChild(child);
+        // @NOTE We have to have established the hierarchy first, otherwise
+        // position/rotation/scale will be wrong, since it is updated when you
+        // call `addChild()`
+        child.position = childDefinition.transform.position;
+        child.rotation.set(childDefinition.transform.rotation);
+        child.scale = childDefinition.transform.scale;
+      }
+
+      return modelPart;
+    }
+
+    // Animations
+    const animations: Animation[] = [];
+    for (const animationDefinition of definition.animations) {
+      const animation = new Animation(animationDefinition);
+      animations.push(animation);
+    }
+
+    tidyUpTasks.forEach((task) => task());
+
+    return new Model(rootNodes, allNodes, animations);
   }
 
-  /* @NOTE These properties cached since editing geometry is currently not possible */
-  public get allVertexPositions(): Vector3[] { return this._allVertexPositions.value; }
-  private _allVertexPositions = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.vertexPositions);
-  });
-  public get allVertexNormals(): Vector3[] { return this._allVertexNormals.value; }
-  public _allVertexNormals = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.vertexNormals);
-  });
-  public get allTriangles(): Triangle[] { return this._allTriangles.value; }
-  public _allTriangles = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.triangles);
-  });
-  public get allTriangleIndices(): TriangleIndices[] { return this._allTriangleIndices.value; }
-  public _allTriangleIndices = new Lazy(() => {
-    let totalVertices = 0;
-    return this.subMeshes.flatMap((subMesh) => {
-      const result = subMesh.geometry.triangleIndices.map((triangleIndices) => [
-        triangleIndices[0] + totalVertices,
-        triangleIndices[1] + totalVertices,
-        triangleIndices[2] + totalVertices,
-      ] satisfies TriangleIndices);
-
-      totalVertices += subMesh.geometry.vertexPositions.length;
-
-      return result;
-    });
-  });
-  public get allTriangleNormals(): Vector3[] { return this._allTriangleNormals.value; }
-  public _allTriangleNormals = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.triangleNormals);
-  });
-  public get allEdges(): Edge[] { return this._allEdges.value; }
-  public _allEdges = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.edges);
-  });
-  public get allEdgeIndices(): EdgeIndices[] { return this._allEdgeIndices.value; }
-  public _allEdgeIndices = new Lazy(() => {
-    let totalVertices = 0;
-    return this.subMeshes.flatMap((subMesh) => {
-      const result = subMesh.geometry.edgeIndices.map((edgeIndices) => [
-        edgeIndices[0] + totalVertices,
-        edgeIndices[1] + totalVertices,
-      ] satisfies EdgeIndices);
-
-      totalVertices += subMesh.geometry.vertexPositions.length;
-
-      return result;
-    });
-  });
-  public get allVertexColors(): Color4[] { return this._allVertexColors.value; }
-  public _allVertexColors = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.vertexColors || []);
-  });
-  public get allTextureCoordinates(): TextureCoordinate[] { return this._allTextureCoordinates.value; }
-  public _allTextureCoordinates = new Lazy(() => {
-    return this.subMeshes.flatMap((subMesh) => subMesh.geometry.textureCoordinates || []);
-  });
+  // @TODO cache these somehow
+  public get allVertexPositions(): Vector3[] { return this.allNodes.flatMap((node) => node.allVertexPositions ?? []); }
+  public get allVertexNormals(): Vector3[] { return this.allNodes.flatMap((node) => node.allVertexNormals ?? []); }
+  public get allTriangles(): Triangle[] { return this.allNodes.flatMap((node) => node.allTriangles ?? []); }
+  public get allTriangleIndices(): TriangleIndices[] { return this.allNodes.flatMap((node) => node.allTriangleIndices ?? []); }
+  public get allTriangleNormals(): Vector3[] { return this.allNodes.flatMap((node) => node.allTriangleNormals ?? []); }
+  public get allEdges(): Edge[] { return this.allNodes.flatMap((node) => node.allEdges ?? []); }
+  public get allEdgeIndices(): EdgeIndices[] { return this.allNodes.flatMap((node) => node.allEdgeIndices ?? []); }
 }

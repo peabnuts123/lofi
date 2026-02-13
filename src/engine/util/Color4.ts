@@ -9,10 +9,10 @@ export interface Color4Definition {
 
 
 export class Color4 {
-  public _r: number;
-  public _g: number;
-  public _b: number;
-  public _a: number;
+  private _r: number;
+  private _g: number;
+  private _b: number;
+  private _a: number;
 
   public constructor(color: Color3, a?: number);
   public constructor(r: number, g: number, b: number, a?: number);

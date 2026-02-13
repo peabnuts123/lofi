@@ -1,7 +1,6 @@
 
 import type { IEngine } from "@polyzone/engine/Engine";
-import { CameraUboIndex } from "@polyzone/engine/scene/nodes/CameraNode";
-import { getAttribute, getUniform } from "@polyzone/engine/materials/ShaderProgram";
+import { ShaderProgram } from "@polyzone/engine/materials";
 
 import { Vector3 } from "./vector";
 import { Color4 } from "./Color4";
@@ -13,8 +12,9 @@ const DebugVertexShaderSource = `#version 300 es
     mat4 viewProjectionMatrix;
   };
 
-  uniform mat4 worldMatrix;
   in vec3 vertexPosition;
+
+  uniform mat4 worldMatrix;
 
   void main() {
     gl_Position = viewProjectionMatrix * worldMatrix * vec4(vertexPosition, 1.0);
@@ -24,9 +24,9 @@ const DebugVertexShaderSource = `#version 300 es
 const DebugFragmentShaderSource = `#version 300 es
   precision mediump float;
 
-  uniform vec4 color;
-
   out vec4 outputColor;
+
+  uniform vec4 color;
 
   void main() {
     outputColor = color;
@@ -51,13 +51,14 @@ const DefaultDrawOptions: DrawOptions = {
 };
 
 export class DrawDebug {
-  private static shaderProgram: WebGLProgram;
+  private static shaderProgram: ShaderProgram;
   private static vertexPositionAttribute: number;
   private static worldMatrixUniform: WebGLUniformLocation;
   private static colorUniform: WebGLUniformLocation;
   private static vertexBuffer: WebGLBuffer;
 
   public static drawPolyLine(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions> = {}): void {
+    throw new Error(`This is not updated to work with the new pipeline yet`);
     // Map linePoints into (0,1)(1,2),(2,3), etc.
     const vertexPointData = linePoints
       .slice(0, linePoints.length - 1)
@@ -72,6 +73,7 @@ export class DrawDebug {
   }
 
   public static drawWireframe(engine: IEngine, wireframe: IWireframeDrawable, options: Partial<DrawOptions> = {}): void {
+    throw new Error(`This is not updated to work with the new pipeline yet`);
     // Map faces into closed-loop polylines
     const vertexPointData = wireframe.getWireframeFaces().flatMap((face: Vector3[]) => {
       return face
@@ -87,6 +89,7 @@ export class DrawDebug {
   }
 
   private static drawLines(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions>): void {
+    throw new Error(`This is not updated to work with the new pipeline yet`);
     const { gl } = engine;
     const drawOptions = {
       ...DefaultDrawOptions,
@@ -94,7 +97,7 @@ export class DrawDebug {
     };
 
     // Ensure shader is initialised
-    DrawDebug.initShader(gl);
+    DrawDebug.initShader(engine);
 
     // Build vertex array
     const vertices = new Float32Array(linePoints.flatMap((vertex) => [vertex.x, vertex.y, vertex.z]));
@@ -143,54 +146,17 @@ export class DrawDebug {
     gl.enable(gl.DEPTH_TEST);
   }
 
-  private static initShader(gl: WebGL2RenderingContext): void {
-    if (this.shaderProgram) return;
+  private static initShader(engine: IEngine): void {
+    if (DrawDebug.shaderProgram) return;
 
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    const program = gl.createProgram();
+    const shaderProgram = DrawDebug.shaderProgram = new ShaderProgram(engine, 0, {
+      fragmentShaderSource: DebugFragmentShaderSource,
+      vertexShaderSource: DebugVertexShaderSource,
+    });
 
-    if (!vertexShader || !fragmentShader || !program) {
-      throw new Error(`Failed to allocate GL objects`);
-    }
-
-    gl.shaderSource(vertexShader, DebugVertexShaderSource);
-    gl.shaderSource(fragmentShader, DebugFragmentShaderSource);
-
-    gl.compileShader(vertexShader);
-    gl.compileShader(fragmentShader);
-
-    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-      const errorMessage = gl.getShaderInfoLog(vertexShader);
-      throw new Error(`Failed to compile vertex shader: ${errorMessage}`);
-    }
-    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-      const errorMessage = gl.getShaderInfoLog(fragmentShader);
-      throw new Error(`Failed to compile fragment shader: ${errorMessage}`);
-    }
-
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const errorMessage = gl.getProgramInfoLog(program);
-      throw new Error(`Failed to link GL program: ${errorMessage}`);
-    }
-
-    this.shaderProgram = program;
-
-    this.vertexPositionAttribute = getAttribute(gl, program, 'vertexPosition', true);
-    this.worldMatrixUniform = getUniform(gl, program, 'worldMatrix', true);
-    this.colorUniform = getUniform(gl, program, 'color', true);
-
-    const cameraUboBlockIndex = gl.getUniformBlockIndex(program, "Camera");
-    gl.uniformBlockBinding(program, cameraUboBlockIndex, CameraUboIndex);
-
-    this.vertexBuffer = gl.createBuffer();
-    if (!this.vertexBuffer) {
-      throw new Error('Failed to create vertex buffer');
-    }
+    DrawDebug.vertexPositionAttribute = shaderProgram.getAttribute('vertexPosition')!;
+    DrawDebug.worldMatrixUniform = shaderProgram.getUniform('worldMatrix')!;
+    DrawDebug.colorUniform = shaderProgram.getUniform('color')!;
   }
 }
 

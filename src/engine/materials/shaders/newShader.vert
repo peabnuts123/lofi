@@ -61,7 +61,7 @@ void main() {
     vertexWeights.y * jointMatrix[int(vertexJoints.y)] +
     vertexWeights.z * jointMatrix[int(vertexJoints.z)] +
     vertexWeights.w * jointMatrix[int(vertexJoints.w)];
-  vec4 worldPosition = skinMatrix * vec4(vertexPosition, 1.0f);
+  vec4 worldPosition = worldMatrix * skinMatrix * vec4(vertexPosition, 1.0f);
 #else
   vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0f);
 #endif
@@ -82,6 +82,9 @@ void main() {
 #endif
 
   // Lighting
+#ifdef UNLIT
+  fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
+#else
   vec3 worldNormal = normalize(normalMatrix * vertexNormal);
   /* - Light 0 */
   vec3 light0Dir = normalize(pointLight0Position - worldPosition.xyz);
@@ -96,15 +99,5 @@ void main() {
   vec3 light3Dir = normalize(pointLight3Position - worldPosition.xyz);
   float light3Intensity = max(dot(worldNormal, light3Dir), 0.0f);
   fragmentLighting = ambientLightColor + (light0Intensity * pointLight0Color) + (light1Intensity * pointLight1Color) + (light2Intensity * pointLight2Color) + (light3Intensity * pointLight3Color);
-  // fragmentLighting = vec3(1.0f, 1.0f, 1.0f); // @NOTE disable lighting
-
-// @NOTE UNLIT is kind of a debug flag at the moment,
-// so it isn't efficient. If we wrap the lighting calculations
-// in an #ifndef then all the attributes get optimised out
-// and the calling code fails.
-// So for now we just kinda bodge it like this.
-// Basically, UNLIT offers no performance benefit at this stage.
-#ifdef UNLIT
-  fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
 #endif
 }

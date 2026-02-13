@@ -1,31 +1,62 @@
-import { DrawableSceneNode, type IScene, type DrawTask } from "@polyzone/engine/scene";
-import type { IEngine } from "@polyzone/engine/Engine";
+import { DrawableSceneNode, type IScene } from "@polyzone/engine/scene";
+import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
 import type { Model, Triangle } from "@polyzone/engine/models";
-import { Matrix4 } from "@polyzone/engine/util/Matrix4";
 import { AxisAlignedBoundingBox } from "@polyzone/engine/collision";
 import { Vector3 } from "@polyzone/engine/util/vector";
+import { Animation } from "@polyzone/engine/animation";
 
 export class ModelNode extends DrawableSceneNode {
   public model: Model;
-  private _viewModelMatrixTmp: Matrix4 = new Matrix4();
+  private _animationSource: Model;
   private _verticesWorldSpaceTmp: Vector3[];
+
+  private currentAnimationTime: number = 0;
+  private currentAnimation: Animation | undefined;
+  private currentAnimationSpeed: number = 1;
 
   public constructor(scene: IScene, name: string, model: Model) {
     super(scene, name);
-    this.model = model;
+    this.model = model.createInstance(); // @TODO Probably going to need a way to "reset" this instance
+    this._animationSource = model;
     this._verticesWorldSpaceTmp = model.allVertexPositions.map(() => Vector3.zero());
   }
 
-  public getDrawTasks(engine: IEngine): DrawTask[] {
-    const viewMatrix = engine.activeScene?.activeCamera?.viewMatrix;
-    if (viewMatrix === undefined) {
-      // No scene or no camera = no draw tasks
-      return [];
+  public playAnimation(animationName: string, speed: number = 1): void {
+    const animation = this.animationSource.animations.find((animation) => animation.name === animationName);
+    if (!animation) {
+      throw new Error(`Cannot play animation. No animation exists with name '${animationName}'`);
     }
-    this._viewModelMatrixTmp
-      .setValue(viewMatrix)
-      .multiplySelf(this.worldMatrix);
-    return this.model.getDrawTasks(engine, this._viewModelMatrixTmp, this.worldMatrix);
+    this.currentAnimation = animation;
+    this.currentAnimationTime = 0;
+    this.currentAnimationSpeed = speed;
+  }
+
+  public stopAnimation(): void {
+    this.currentAnimation = undefined;
+    this.currentAnimationTime = 0;
+    this.currentAnimationSpeed = 1;
+  }
+
+  public draw(engine: IEngine, drawQueues: DrawQueues): void {
+    const viewMatrix = engine.activeScene?.activeCamera?.viewMatrix;
+
+    // No scene or no camera = no draw tasks
+    if (viewMatrix !== undefined) {
+      this.model.draw(drawQueues, viewMatrix, this.worldMatrix);
+    }
+  }
+
+  public override onUpdate(dt: number): void {
+    if (this.currentAnimation) {
+      for (const channel of this.currentAnimation.channels) {
+        channel.update(this.currentAnimationTime, this.model);
+      }
+      this.currentAnimationTime += dt * this.currentAnimationSpeed;
+      // @TODO looping controls
+      if (this.currentAnimationTime > this.currentAnimation.length) {
+        this.currentAnimationTime %= this.currentAnimation.length;
+      }
+    }
   }
 
   public getAABB(): AxisAlignedBoundingBox {
@@ -71,5 +102,11 @@ export class ModelNode extends DrawableSceneNode {
     });
 
     return this._verticesWorldSpaceTmp;
+  }
+
+  public get animationSource(): Model { return this._animationSource; }
+  public set animationSource(value: Model) {
+    this.stopAnimation();
+    this._animationSource = value;
   }
 }
