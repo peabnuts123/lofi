@@ -1,4 +1,4 @@
-import { BoxColliderNode, CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type Triangle } from '@polyzone/engine/models';
 import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
@@ -7,13 +7,11 @@ import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
 import { Quaternion } from '@polyzone/engine/util/quaternion';
 import { DegreesToRadians } from '@polyzone/engine/util/math';
-// import { Color4 } from '@polyzone/engine/util/Color4';
+import { Color4 } from '@polyzone/engine/util/Color4';
 import { rayAABBIntersection, rayTriangleIntersection } from '@polyzone/engine/collision/ray';
-// import { DrawDebug } from '@polyzone/engine/util/DrawDebug';
 import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
 import type { ModelDefinition } from '@polyzone/engine/loaders/definitions';
 import { Material, ShaderBlendingMode } from '@polyzone/engine/materials';
-import { Color4 } from '@polyzone/engine/util/Color4';
 import { Texture } from '@polyzone/engine/textures';
 
 export interface CartridgeDefinition {
@@ -37,9 +35,14 @@ const GridW = 20;
 const GridH = 20;
 const GridSpacing = 0.5;
 
+const CollidingMaterial = new Material('colliding', {
+  blendingMode: ShaderBlendingMode.Additive(),
+  diffuseColor: Color4.red().withA(0),
+  unlit: true,
+});
+
 export class Runtime {
   private engine: IEngine | undefined;
-  private theDANGSCENE: Scene | undefined;
 
   private scene: SceneState | undefined;
   private debugCanvas: HTMLCanvasElement | undefined;
@@ -49,7 +52,7 @@ export class Runtime {
     this.debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
     const fileSystem = new WebFileSystem();
     const engine = this.engine = new Engine(canvas, fileSystem);
-    const scene = this.theDANGSCENE = new Scene(engine);
+    const scene = new Scene(engine);
     scene.lighting.ambientColor = new Color3(30, 30, 30);
 
     // Load models
@@ -337,51 +340,51 @@ export class Runtime {
     }));
 
     /* Intersecting Colliders */
-    // const colliderModel = await Model.fromDefinition(engine, cartridge.models[0]);
-    // const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
-    // const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
-    //   x: 1, y: 1, z: 1,
-    // });
-    // staticColliderParent.addChild(staticCollider);
-    // staticColliderParent.position.y = 2.5;
-    // const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
-    // const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
-    //   x: 1, y: 1, z: 1,
-    // }));
-    // rotatingColliderParent.position.x = 1.2;
-    // rotatingColliderParent.position.y = 2.5;
+    const colliderModel = await Model.fromDefinition(engine, cartridge.models[0]);
+    const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
+    const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
+      x: 1, y: 1, z: 1,
+    });
+    staticColliderParent.addChild(staticCollider);
+    staticColliderParent.position.y = 2.5;
+    const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
+    const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
+      x: 1, y: 1, z: 1,
+    }));
+    rotatingColliderParent.position.x = 1.2;
+    rotatingColliderParent.position.y = 2.5;
 
 
     /* Moving colliders */
-    // const size = 1;
-    // function box(pos: Vector3, rot?: Vector3, scale?: Vector3): [SceneNode, ColliderNode] {
-    //   const model = new ModelNode(scene, "box", boxModel);
-    //   const collider = model.addChild(new BoxColliderNode(scene, "collider", 0, {
-    //     x: size, y: size, z: size,
-    //   }));
-    //   model.position = pos;
-    //   if (rot) {
-    //     model.rotation.euler.setValue(rot);
-    //   }
-    //   if (scale) {
-    //     model.scale = scale;
-    //   }
-    //   return [model, collider];
-    // }
-    // const speed = 0.35;
-    // const dumpsterModel = await Model.fromDefinition(engine, cartridge.models[3]);
-    // const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
-    // const convexCollider = convexColliderNode.addChild(
-    //   new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
-    // );
-    // convexColliderNode.scale.multiplySelf(2);
-    // const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 1.3, 0));
-    // const stop = setInterval(() => {
-    //   // Cruel test, make two dynamic colliders both move into each other
-    //   convexCollider.move(convexColliderNode, new Vector3(-speed / 60, 0, 0));
-    //   movingBoxCollider.move(movingBoxNode, new Vector3(speed / 60, 0, 0));
-    // }, 16);
-    // setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
+    const size = 1;
+    function box(pos: Vector3, rot?: Vector3, scale?: Vector3): [SceneNode, ColliderNode] {
+      const model = new ModelNode(scene, "box", boxModel);
+      const collider = model.addChild(new BoxColliderNode(scene, "collider", 0, {
+        x: size, y: size, z: size,
+      }));
+      model.position = pos;
+      if (rot) {
+        model.rotation.euler.setValue(rot);
+      }
+      if (scale) {
+        model.scale = scale;
+      }
+      return [model, collider];
+    }
+    const speed = 0.35;
+    const dumpsterModel = await Model.fromDefinition(engine, cartridge.models[3]);
+    const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
+    const convexCollider = convexColliderNode.addChild(
+      new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
+    );
+    convexColliderNode.scale.multiplySelf(2);
+    const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 1.3, 0));
+    const stop = setInterval(() => {
+      // Cruel test, make two dynamic colliders both move into each other
+      convexCollider.move(convexColliderNode, new Vector3(-speed / 60, 0, 0));
+      movingBoxCollider.move(movingBoxNode, new Vector3(speed / 60, 0, 0));
+    }, 16);
+    setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
 
     /* Animation */
     const animatedModel = await Model.fromDefinition(engine, cartridge.models[4]);
@@ -425,9 +428,9 @@ export class Runtime {
       cameraOrigin,
       lightOrigin,
       testObjects,
-      // staticCollider,
-      // rotatingColliderParent,
-      // rotatingCollider,
+      staticCollider,
+      rotatingColliderParent,
+      rotatingCollider,
     };
   }
 
@@ -485,15 +488,7 @@ export class Runtime {
         }
       }
 
-      this.theDANGSCENE!.forEachNodeInHierarchy((node) => {
-        if (node instanceof ModelNode) {
-          // const aabb = node.getAABB();
-          // DrawDebug.drawWireframe(this.engine!, aabb, { color: Color4.green() });
-        }
-      });
-
       /* Burger */
-
       if (scene.burger) {
         cycleBehaviours(() => {
           scene.burger!.position = originalBurgerPosition!;
@@ -518,15 +513,15 @@ export class Runtime {
         scene.rotatingColliderParent.rotation.z = time * 360 / 6;
 
         // @TODO bring this beat back
-        // if (scene.rotatingCollider && scene.staticCollider) {
-        //   // const _collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
-        //   // @TODO proper material stuff
-        //   // if (collisionResult) {
-        //   //   scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.red());
-        //   // } else {
-        //   //   scene.rotatingColliderParent.model.subMeshes.forEach((mesh) => mesh.material.diffuseColor = Color4.white());
-        //   // }
-        // }
+        if (scene.rotatingCollider && scene.staticCollider) {
+          const collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
+          // @TODO proper material stuff
+          if (collisionResult) {
+            scene.rotatingColliderParent.setMaterialOverride('ground', CollidingMaterial);
+          } else {
+            scene.rotatingColliderParent.setMaterialOverride('ground', undefined);
+          }
+        }
       }
 
       time += dt;

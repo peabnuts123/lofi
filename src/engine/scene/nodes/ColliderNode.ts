@@ -1,5 +1,7 @@
 import { AxisAlignedBoundingBox, CollisionSystem } from "@polyzone/engine/collision";
-import { type IScene, SceneNode } from "@polyzone/engine/scene";
+import type { IEngine, DrawQueues } from "@polyzone/engine/Engine";
+import { DrawableSceneNode, type IScene, SceneNode } from "@polyzone/engine/scene";
+import { DrawDebug, isWireframeDrawable } from "@polyzone/engine/util/DrawDebug";
 import { Vector3 } from "@polyzone/engine/util/vector";
 
 export interface CalculateIntersectionResult {
@@ -23,7 +25,7 @@ interface ComputeMoveOptions {
   iteration: number;
 }
 
-export abstract class ColliderNode extends SceneNode /* extends DrawableSceneNode */ {
+export abstract class ColliderNode extends DrawableSceneNode {
   public group: CollisionGroup;
 
   public constructor(scene: IScene, name: string, group: CollisionGroup) {
@@ -137,17 +139,12 @@ export abstract class ColliderNode extends SceneNode /* extends DrawableSceneNod
     }
   }
 
-  // public getDrawTasks(engine: IEngine): DrawTask[] {
-  //   const drawTasks: DrawTask[] = [];
-
-  //   if (isWireframeDrawable(this)) {
-  //     drawTasks.push({
-  //       draw: () => DrawDebug.drawWireframe(engine, this, { overlay: true }),
-  //       layer: 10,
-  //     });
-  //   }
-
-  //   return drawTasks;
-  // }
+  public override draw(engine: IEngine, drawQueues: DrawQueues): void {
+    if (isWireframeDrawable(this)) {
+      drawQueues.opaque.push(
+        DrawDebug.drawWireframe(engine, this, { overlay: true }),
+      );
+    }
+  }
 }
 

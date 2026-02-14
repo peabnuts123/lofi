@@ -45,7 +45,7 @@ const cartridge: CartridgeDefinition = {
       animations: [],
     },
     /* 03 - Dumpster model */
-    await GltfLoader.loadModel('/models/temp/plant/plant.gltf', fileSystem),
+    await GltfLoader.loadModel('/models/dumpster.glb', fileSystem),
     /* 04 - Animated model */
     await GltfLoader.loadModel('/models/temp/rig_mage.glb', fileSystem),
     /* 05 - Non-animated model */

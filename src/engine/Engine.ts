@@ -115,7 +115,7 @@ export class Engine implements IEngine {
         return taskA.renderPass - taskB.renderPass ||
           taskA.shaderVariant.id - taskB.shaderVariant.id ||
           taskA.material.id - taskB.material.id ||
-          taskA.mesh.id - taskB.mesh.id;
+          taskA.draw.id - taskB.draw.id;
       });
       drawQueues.transparent.sort((drawTaskA, drawTaskB) => drawTaskA.depth - drawTaskB.depth);
 
@@ -147,18 +147,18 @@ export class Engine implements IEngine {
 
     let currentShaderVariant: ShaderVariant = undefined!;
     let currentMaterial: Material = undefined!;
-    let currentMesh: DrawTask['mesh'] = undefined!;
+    let currentDraw: DrawTask['draw'] = undefined!;
 
     for (const task of drawQueue) {
 
       /* GL Program */
-      if (currentShaderVariant !== task.shaderVariant) {
+      if (task.shaderVariant.id !== currentShaderVariant?.id) {
         currentShaderVariant = task.shaderVariant;
         gl.useProgram(task.shaderVariant.program);
       }
 
       /* Material */
-      if (currentMaterial !== task.material) {
+      if (task.material.id !== currentMaterial?.id) {
         currentMaterial = task.material;
         const diffuseColorUniform = currentShaderVariant.getUniform('diffuseColor');
         if (task.material.diffuseColor !== undefined && diffuseColorUniform) {
@@ -265,12 +265,12 @@ export class Engine implements IEngine {
       }
 
       /* Mesh */
-      if (task.mesh !== currentMesh) {
-        currentMesh = task.mesh;
-        gl.bindVertexArray(task.mesh.vao);
+      if (task.draw.id !== currentDraw?.id) {
+        currentDraw = task.draw;
+        task.draw.init(this);
       }
 
-      currentMesh.draw();
+      currentDraw.exec(this);
     }
 
     gl.bindVertexArray(null);

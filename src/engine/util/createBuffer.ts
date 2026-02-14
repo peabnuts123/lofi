@@ -14,7 +14,7 @@ export function createBuffer(gl: WebGL2RenderingContext, bufferType: GLenum, dat
   const buffer = gl.createBuffer();
   gl.bindBuffer(bufferType, buffer);
   gl.bufferData(bufferType, dataOrSize as BufferSource, usage); // @NOTE Type laundering
-  gl.bindBuffer(bufferType, null);
+  gl.bindBuffer(bufferType, null); // @TODO Is this necessary? Should we add a callback or something? Most calls are immediately calling `bindBuffer` again
 
   return buffer;
 }

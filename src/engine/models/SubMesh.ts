@@ -65,14 +65,16 @@ export class SubMesh {
       renderPass: 0, // @TODO (?)
       shaderVariant: this.shader,
       material: this.material,
-      mesh: {
-        id: this.id,
-        vao: this.vao,
-        draw: this.drawPrimitive,
-      },
       uniforms: {
         worldMatrix: worldMatrix.clone(), // @NOTE We can't hold reference to a tmp value
         skinWeights: jointMatricesBytes,
+      },
+      draw: {
+        id: this.id,
+        init: ({ gl }) => {
+          gl.bindVertexArray(this.vao);
+        },
+        exec: this.drawPrimitive,
       },
     };
 

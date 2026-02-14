@@ -9,17 +9,15 @@ export interface DrawTask {
   renderPass: number; // @TODO how is this actually used?
   shaderVariant: ShaderVariant
   material: Material;
-  // @TODO maybe refactor `mesh` into a more generic `draw` thing
-  // e.g. to support drawing wireframe - can `draw()` handle setting `vao` and stuff?
-  mesh: {
-    id: number;
-    vao: WebGLVertexArrayObject;
-    draw: () => void,
-  },
   uniforms: {
     worldMatrix: Matrix4;
     skinWeights?: Float32Array;
-  }
+  },
+  draw: {
+    id: number;
+    init: (engine: IEngine) => void;
+    exec: (engine: IEngine) => void;
+  },
 }
 
 export interface TransparentDrawTask extends DrawTask {
