@@ -1,5 +1,5 @@
 
-import { Accessor, WebIO, type GLTF, Node, Document } from '@gltf-transform/core';
+import { Accessor, WebIO, type GLTF, Node, Document, Material } from '@gltf-transform/core';
 import type { IFileSystem } from '@polyzone/engine/filesystem';
 import { Color4 } from '@polyzone/engine/util/Color4';
 import { Matrix4 } from '@polyzone/engine/util/Matrix4';
@@ -132,12 +132,49 @@ export abstract class GltfLoader {
      */
     const tidyUpTasks: (() => void)[] = [];
     const nodeDefinitionLookup = new Map<Node, NodeDefinition>();
+    const materialToDefinitionLookup = new Map<Material, MaterialDefinition>();
+    const materialsToLoad = new Set<Material>();
 
     const root = document.getRoot();
     const defaultScene = root.getDefaultScene();
     let rootNodeDefinitions: NodeDefinition[] = [];
     if (defaultScene) {
       rootNodeDefinitions = defaultScene.listChildren().map((node) => createNodeDefinition(node));
+    }
+
+    // Load all unique materials encountered
+    for (const material of materialsToLoad) {
+      const materialDefinition: MaterialDefinition = {
+        name: material.getName(),
+        alpha: {
+          mode: material.getAlphaMode(),
+          cutoff: material.getAlphaCutoff(),
+        },
+      };
+      const diffuseColor = material.getBaseColorFactor();
+      if (diffuseColor) {
+        materialDefinition.diffuseColor = new Color4(
+          diffuseColor[0] * 0xFF,
+          diffuseColor[1] * 0xFF,
+          diffuseColor[2] * 0xFF,
+          diffuseColor[3] * 0xFF,
+        );
+      }
+
+      const texture = material.getBaseColorTexture()?.getImage();
+      if (texture) {
+        const textureInfo = material.getBaseColorTextureInfo()!;
+        const textureCoord = textureInfo?.getTexCoord();
+        materialDefinition.diffuseTexture = {
+          buffer: texture,
+          texCoord: textureCoord,
+        };
+      }
+
+      // @TODO Should we support it?
+      // const isDoubleSided = material.getDoubleSided();
+
+      materialToDefinitionLookup.set(material, materialDefinition);
     }
 
     function createNodeDefinition(node: Node): NodeDefinition {
@@ -158,6 +195,7 @@ export abstract class GltfLoader {
         const meshDefinition: MeshDefinition = nodeDefinition.mesh = {
           primitives: [],
         };
+
         for (const primitive of mesh.listPrimitives()) {
           const positionAccessor = primitive.getAttribute('POSITION');
           if (!positionAccessor) {
@@ -208,35 +246,13 @@ export abstract class GltfLoader {
 
           const material = primitive.getMaterial();
           if (material) {
-            const materialDefinition: MaterialDefinition = primitiveDefinition.material = {
-              name: material.getName(),
-              alpha: {
-                mode: material.getAlphaMode(),
-                cutoff: material.getAlphaCutoff(),
-              },
-            };
-            const diffuseColor = material.getBaseColorFactor();
-            if (diffuseColor) {
-              materialDefinition.diffuseColor = new Color4(
-                diffuseColor[0] * 0xFF,
-                diffuseColor[1] * 0xFF,
-                diffuseColor[2] * 0xFF,
-                diffuseColor[3] * 0xFF,
-              );
-            }
+            // Add material to set of unique materials to load
+            materialsToLoad.add(material);
 
-            const texture = material.getBaseColorTexture()?.getImage();
-            if (texture) {
-              const textureInfo = material.getBaseColorTextureInfo()!;
-              const textureCoord = textureInfo?.getTexCoord();
-              materialDefinition.diffuseTexture = {
-                buffer: texture,
-                texCoord: textureCoord,
-              };
-            }
-
-            // @TODO Should we support it?
-            // const isDoubleSided = material.getDoubleSided();
+            // Pull from set of loaded materials after processing is finished
+            tidyUpTasks.push(() => {
+              primitiveDefinition.material = materialToDefinitionLookup.get(material);
+            });
           }
 
           meshDefinition.primitives.push(primitiveDefinition);
