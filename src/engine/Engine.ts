@@ -1,7 +1,7 @@
 import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo } from "./scene/nodes/CameraNode";
 import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
-import { Material, ShaderProgram, Ubo } from "./materials";
+import { Material, ShaderVariant, Ubo } from "./materials";
 import type { DrawTask, IScene, TransparentDrawTask } from "./scene";
 import { rateCounter } from "./util/debug";
 import { CollisionSystem } from "./collision";
@@ -113,7 +113,7 @@ export class Engine implements IEngine {
 
       drawQueues.opaque.sort((taskA, taskB) => {
         return taskA.renderPass - taskB.renderPass ||
-          taskA.glProgram.id - taskB.glProgram.id ||
+          taskA.shaderVariant.id - taskB.shaderVariant.id ||
           taskA.material.id - taskB.material.id ||
           taskA.mesh.id - taskB.mesh.id;
       });
@@ -145,22 +145,22 @@ export class Engine implements IEngine {
   private drawQueue(drawQueue: DrawTask[]): void {
     const { gl } = this;
 
-    let currentGlProgram: ShaderProgram = undefined!;
+    let currentShaderVariant: ShaderVariant = undefined!;
     let currentMaterial: Material = undefined!;
     let currentMesh: DrawTask['mesh'] = undefined!;
 
     for (const task of drawQueue) {
 
       /* GL Program */
-      if (currentGlProgram !== task.glProgram) {
-        currentGlProgram = task.glProgram;
-        gl.useProgram(task.glProgram.program);
+      if (currentShaderVariant !== task.shaderVariant) {
+        currentShaderVariant = task.shaderVariant;
+        gl.useProgram(task.shaderVariant.program);
       }
 
       /* Material */
       if (currentMaterial !== task.material) {
         currentMaterial = task.material;
-        const diffuseColorUniform = currentGlProgram.getUniform('diffuseColor');
+        const diffuseColorUniform = currentShaderVariant.getUniform('diffuseColor');
         if (task.material.diffuseColor !== undefined && diffuseColorUniform) {
           gl.uniform4fv(diffuseColorUniform, new Float32Array([
             task.material.diffuseColor.r / 255,
@@ -216,7 +216,7 @@ export class Engine implements IEngine {
             //  No blending.
             //  Transparent pixel (alpha < cutoff):  0 * src + 1 * dest (discarded)
             //  Opaque pixel (alpha >= cutoff):      1 * src + 0 * dest
-            const alphaCutoffUniform = currentGlProgram.getUniform('alphaCutoff');
+            const alphaCutoffUniform = currentShaderVariant.getUniform('alphaCutoff');
             if (alphaCutoffUniform) {
               gl.uniform1f(alphaCutoffUniform, task.material.blendingMode.cutoff);
             }
@@ -227,7 +227,7 @@ export class Engine implements IEngine {
         }
 
         // Texture
-        const textureSamplerUniform = currentGlProgram.getUniform('sampler');
+        const textureSamplerUniform = currentShaderVariant.getUniform('sampler');
         if (textureSamplerUniform && task.material.diffuseTexture) {
           const textureIndex = 0; // @TODO ?
           gl.activeTexture(gl.TEXTURE0 + textureIndex);
@@ -240,13 +240,13 @@ export class Engine implements IEngine {
 
       /* Uniforms */
       // World matrix uniform
-      const worldMatrixUniform = currentGlProgram.getUniform('worldMatrix');
+      const worldMatrixUniform = currentShaderVariant.getUniform('worldMatrix');
       if (worldMatrixUniform) {
         gl.uniformMatrix4fv(worldMatrixUniform, false, task.uniforms.worldMatrix.toArray());
       }
 
       // Lighting uniform
-      const normalMatrixUniform = currentGlProgram.getUniform('normalMatrix');
+      const normalMatrixUniform = currentShaderVariant.getUniform('normalMatrix');
       if (normalMatrixUniform) {
         try {
           this._normalTmp.normalSelf(task.uniforms.worldMatrix);
@@ -259,7 +259,7 @@ export class Engine implements IEngine {
       }
 
       // Joint matrices uniform
-      const jointMatrixUniform = currentGlProgram.getUniform('jointMatrix');
+      const jointMatrixUniform = currentShaderVariant.getUniform('jointMatrix');
       if (task.uniforms.skinWeights && jointMatrixUniform) {
         gl.uniformMatrix4fv(jointMatrixUniform, false, task.uniforms.skinWeights);
       }

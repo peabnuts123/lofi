@@ -4,7 +4,7 @@ import type { IEngine } from '@polyzone/engine/Engine';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
 
-export interface ShaderProgramOptions {
+export interface ShaderVariantOptions {
   hasDiffuseColor: boolean;
   hasVertexColors: boolean;
   hasDiffuseTexture: boolean;
@@ -12,7 +12,7 @@ export interface ShaderProgramOptions {
   unlit: boolean;
   hasSkin: boolean;
 }
-export const DefaultShaderProgramOptions: ShaderProgramOptions = {
+export const DefaultShaderVariantOptions: ShaderVariantOptions = {
   hasDiffuseColor: false,
   hasVertexColors: false,
   hasDiffuseTexture: false,
@@ -21,11 +21,7 @@ export const DefaultShaderProgramOptions: ShaderProgramOptions = {
   hasSkin: false,
 };
 
-export interface ShaderProgramArgs {
-  vertexShaderSource: string;
-  fragmentShaderSource: string;
-}
-export class ShaderProgram {
+export class ShaderVariant {
   public static MaxBones = 64;
 
   public readonly id: number;
@@ -33,12 +29,11 @@ export class ShaderProgram {
   private readonly gl: WebGL2RenderingContext;
   public readonly program: WebGLProgram;
 
-  public constructor(engine: IEngine, id: number, args: ShaderProgramArgs, options?: Partial<ShaderProgramOptions>) {
+  public constructor(engine: IEngine, id: number, shader: IShader, options?: Partial<ShaderVariantOptions>) {
     const { gl } = engine;
 
     this.gl = gl;
     this.id = id;
-
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
     const program = this.program = gl.createProgram();
@@ -50,16 +45,16 @@ export class ShaderProgram {
     function inject(name: string, injected: string, src: string): string {
       return src.replace(new RegExp(`#pragma\\s+inject\\s*\\(\\s*${name}\\s*\\)\\s*$`, "m"), injected);
     }
-    const definesBlock = `#define _ShaderId ${id}\n` + ShaderProgram.getDefinesFromShaderOptions({
-      ...DefaultShaderProgramOptions,
+    const definesBlock = `#define _ShaderId ${id}\n` + shader.getDefines({
+      ...DefaultShaderVariantOptions,
       ...options,
     })
       .map((define) => `#define ${define}`).join('\n') + '\n';
-    const vertexShaderSource = inject('defines', definesBlock, args.vertexShaderSource);
+    const vertexShaderSource = inject('defines', definesBlock, shader.vertexShaderSource);
     gl.shaderSource(vertexShader, vertexShaderSource);
-    const fragmentShaderSource = inject('defines', definesBlock, args.fragmentShaderSource);
+    const fragmentShaderSource = inject('defines', definesBlock, shader.fragmentShaderSource);
     gl.shaderSource(fragmentShader, fragmentShaderSource);
-    // console.log(`Shader '${name}'\n<VERTEX_SHADER>\n${vertexShaderSource}\n</VERTEX_SHADER>\n<FRAGMENT_SHADER>\n${fragmentShaderSource}\n</FRAGMENT_SHADER>`);
+    // console.log(`Shader '${id}'\n<VERTEX_SHADER>\n${vertexShaderSource}\n</VERTEX_SHADER>\n<FRAGMENT_SHADER>\n${fragmentShaderSource}\n</FRAGMENT_SHADER>`);
 
     gl.compileShader(vertexShader);
     gl.compileShader(fragmentShader);
@@ -109,8 +104,28 @@ export class ShaderProgram {
 
     return uniform;
   }
+}
 
-  private static getDefinesFromShaderOptions(options: ShaderProgramOptions): string[] {
+
+export interface IShader {
+  get vertexShaderSource(): string;
+  get fragmentShaderSource(): string;
+  getDefines(options: ShaderVariantOptions): string[];
+}
+
+export class DefaultShader implements IShader {
+  public readonly vertexShaderSource: string;
+  public readonly fragmentShaderSource: string;
+
+  public constructor(
+    vertexShaderSource: string,
+    fragmentShaderSource: string,
+  ) {
+    this.vertexShaderSource = vertexShaderSource;
+    this.fragmentShaderSource = fragmentShaderSource;
+  }
+
+  getDefines(options: ShaderVariantOptions): string[] {
     const defines: string[] = [];
 
     if (options.hasDiffuseColor) {
@@ -122,7 +137,7 @@ export class ShaderProgram {
     }
 
     if (options.hasSkin) {
-      defines.push('SKIN', 'MAX_BONES ' + ShaderProgram.MaxBones);
+      defines.push('SKIN', 'MAX_BONES ' + ShaderVariant.MaxBones);
     }
 
     if (options.hasDiffuseTexture) {

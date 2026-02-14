@@ -5,7 +5,11 @@ import type { IEngine } from '@polyzone/engine/Engine';
 import { IdPool } from '@polyzone/engine/util/IdPool';
 import type { MaterialDefinition } from '@polyzone/engine/loaders/definitions';
 
+import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
+import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
+
 import { ShaderBlendingMode } from './ShaderBlendingMode';
+import { DefaultShader, type IShader } from './ShaderProgram';
 
 export interface MaterialConstructorOptions {
   diffuseColor?: Color4;
@@ -18,22 +22,32 @@ export interface MaterialConstructorOptions {
 export class Material {
   private static readonly IdPool: IdPool = new IdPool();
 
+  public static readonly DefaultMaterial = new Material('default');
+
   public readonly id: number;
   public readonly name: string;
+
+  public shader: IShader;
   public diffuseColor: Color4 | undefined;
   public diffuseTexture: Texture | undefined;
   public emissionColor: Color3 | undefined; // @TODO ... LOL
   public unlit: boolean;
   public blendingMode: ShaderBlendingMode;
 
-  public constructor(name: string, initialValues?: MaterialConstructorOptions) {
+  public constructor(name: string, options?: MaterialConstructorOptions) {
     this.id = Material.IdPool.createNew();
     this.name = name;
-    this.diffuseColor = initialValues?.diffuseColor;
-    this.diffuseTexture = initialValues?.diffuseTexture;
-    this.emissionColor = initialValues?.emissionColor;
-    this.unlit = initialValues?.unlit ?? false;
-    this.blendingMode = initialValues?.blendingMode ?? ShaderBlendingMode.None();
+
+    this.shader = new DefaultShader(
+      VertexShaderSource,
+      FragmentShaderSource,
+    );
+
+    this.diffuseColor = options?.diffuseColor;
+    this.diffuseTexture = options?.diffuseTexture;
+    this.emissionColor = options?.emissionColor;
+    this.unlit = options?.unlit ?? false;
+    this.blendingMode = options?.blendingMode ?? ShaderBlendingMode.None();
   }
 
   public static async fromDefinition(engine: IEngine, definition: MaterialDefinition): Promise<Material> {

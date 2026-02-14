@@ -1,13 +1,13 @@
 import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
 import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
-import type { Material, ShaderProgram } from "@polyzone/engine/materials";
+import type { Material, ShaderVariant } from "@polyzone/engine/materials";
 
 import { SceneNode } from "./SceneNode";
 import type { IScene } from "./Scene";
 
 export interface DrawTask {
   renderPass: number; // @TODO how is this actually used?
-  glProgram: ShaderProgram;
+  shaderVariant: ShaderVariant
   material: Material;
   // @TODO maybe refactor `mesh` into a more generic `draw` thing
   // e.g. to support drawing wireframe - can `draw()` handle setting `vao` and stuff?

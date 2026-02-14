@@ -1,4 +1,4 @@
-import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { BoxColliderNode, CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type Triangle } from '@polyzone/engine/models';
 import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
@@ -12,6 +12,9 @@ import { rayAABBIntersection, rayTriangleIntersection } from '@polyzone/engine/c
 // import { DrawDebug } from '@polyzone/engine/util/DrawDebug';
 import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
 import type { ModelDefinition } from '@polyzone/engine/loaders/definitions';
+import { Material, ShaderBlendingMode } from '@polyzone/engine/materials';
+import { Color4 } from '@polyzone/engine/util/Color4';
+import { Texture } from '@polyzone/engine/textures';
 
 export interface CartridgeDefinition {
   models: ModelDefinition[];
@@ -292,32 +295,46 @@ export class Runtime {
         }
       }
     }
-
     /* Blending test stuff */
-    const blendingModel_average = await Model.fromDefinition(engine, cartridge.models[2]);
-    // @TODO assign material
-    const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel_average);
+    const blendingTexture = await Texture.load(engine, '/textures/stones.png');
+    const blendingModel = await Model.fromDefinition(engine, cartridge.models[2]);
+    const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
     blendingAverage.position.x = 1.5;
     blendingAverage.position.y = 0.5;
     blendingAverage.position.z = 1.5;
-    const blendingModel_additive = await Model.fromDefinition(engine, cartridge.models[2]);
-    // @TODO assign material
-    const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel_additive);
+    blendingAverage.setMaterialOverride('blending', new Material('blending-average', {
+      blendingMode: ShaderBlendingMode.Average(),
+      diffuseColor: Color4.white().withA(0),
+      diffuseTexture: blendingTexture,
+    }));
+    const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel);
     blendingAdditive.position.x = -1.5;
     blendingAdditive.position.y = 0.5;
     blendingAdditive.position.z = 1.5;
-    const blendingModel_subtractive = await Model.fromDefinition(engine, cartridge.models[2]);
-    // @TODO assign material
-    const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel_subtractive);
+    blendingAdditive.setMaterialOverride('blending', new Material('blending-additive', {
+      blendingMode: ShaderBlendingMode.Additive(),
+      diffuseColor: Color4.green().withA(0),
+      diffuseTexture: blendingTexture,
+      unlit: true,
+    }));
+    const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel);
     blendingSubtractive.position.x = 1.5;
     blendingSubtractive.position.y = 0.5;
     blendingSubtractive.position.z = -1.5;
-    const blendingModel_sourceAlpha = await Model.fromDefinition(engine, cartridge.models[2]);
-    // @TODO assign material
-    const blendingSourceAlpha = new ModelNode(scene, 'blending_sourceAlpha', blendingModel_sourceAlpha);
-    blendingSourceAlpha.position.x = -1.5;
-    blendingSourceAlpha.position.y = 0.5;
-    blendingSourceAlpha.position.z = -1.5;
+    blendingSubtractive.setMaterialOverride('blending', new Material('blending-subtractive', {
+      blendingMode: ShaderBlendingMode.Subtractive(),
+      diffuseColor: Color4.white().withA(0),
+      diffuseTexture: blendingTexture,
+      unlit: true,
+    }));
+    const blendingAlphaBlend = new ModelNode(scene, 'blending_alphaBlend', blendingModel);
+    blendingAlphaBlend.position.x = -1.5;
+    blendingAlphaBlend.position.y = 0.5;
+    blendingAlphaBlend.position.z = -1.5;
+    blendingAlphaBlend.setMaterialOverride('blending', new Material('blending-alphaBlend', {
+      blendingMode: ShaderBlendingMode.AlphaClip(),
+      diffuseTexture: await Texture.load(engine, '/textures/bars.png'),
+    }));
 
     /* Intersecting Colliders */
     // const colliderModel = await Model.fromDefinition(engine, cartridge.models[0]);

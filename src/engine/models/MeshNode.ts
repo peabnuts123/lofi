@@ -1,18 +1,74 @@
-import type { NodeDefinition } from "@polyzone/engine/loaders/definitions/model";
+import type { MeshPrimitiveDefinition, NodeDefinition } from "@polyzone/engine/loaders/definitions/model";
 import { Transform } from "@polyzone/engine/util/Transform";
 import { Matrix4 } from "@polyzone/engine/util/Matrix4";
 import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
 import type { Vector3 } from "@polyzone/engine/util/vector";
 import type { Rotation } from "@polyzone/engine/util/Rotation";
+import { Material } from "@polyzone/engine/materials";
 
 import { SubMesh } from "./SubMesh";
 import type { MeshSkin } from "./MeshSkin";
 import { MeshGeometry, type Edge, type EdgeIndices, type Triangle, type TriangleIndices } from "./MeshGeometry";
+import type { ModelMaterialOverrides } from "./Model";
 
 export interface MeshNodeArgs {
   name: string;
-  meshPrimitives?: SubMesh[];
+  materialOverrides: ModelMaterialOverrides;
+  meshPrimitiveCache: MeshPrimitiveCache;
+  meshPrimitiveDefinitions?: MeshPrimitiveDefinition[];
   meshGeometry?: MeshGeometry;
+}
+
+export class MeshPrimitiveCache {
+  private engine: IEngine;
+  private cache: Map<MeshPrimitiveDefinition, Map<Material | undefined, SubMesh>>;
+
+  public constructor(engine: IEngine) {
+    this.engine = engine;
+    this.cache = new Map();
+  }
+
+  public async init(engine: IEngine, primitive: MeshPrimitiveDefinition): Promise<void> {
+    let material: Material = Material.DefaultMaterial;
+    if (primitive.material) {
+      material = await Material.fromDefinition(engine, primitive.material);
+    }
+
+    let materialCache = this.cache.get(primitive);
+    if (materialCache === undefined) {
+      materialCache = new Map();
+      this.cache.set(primitive, materialCache);
+    }
+
+    const primitiveInstance = SubMesh.fromDefinition(engine, primitive, material);
+
+    // @NOTE Bind default material to `undefined`
+    materialCache.set(undefined, primitiveInstance);
+  }
+
+  public getOrCreate(primitive: MeshPrimitiveDefinition, material: Material | undefined): SubMesh {
+    let materialCache = this.cache.get(primitive);
+    if (materialCache) {
+      const instance = materialCache.get(material);
+      if (instance) {
+        return instance;
+      }
+    } else {
+      materialCache = new Map();
+      this.cache.set(primitive, materialCache);
+    }
+
+    // If `material` is passed as undefined, we should never reach here, as ever mesh primitive
+    // is initialised with the a default entry through `init()`
+    if (material === undefined) {
+      throw new Error(`Unknown error. Mesh primitive has no instance with default material. Has 'init()' been called?`);
+    }
+
+    const newInstance = SubMesh.fromDefinition(this.engine, primitive, material);
+    materialCache.set(material, newInstance);
+
+    return newInstance;
+  }
 }
 
 /*
@@ -24,24 +80,30 @@ export class MeshNode {
   public readonly name: string;
   private readonly _transform: Transform<MeshNode>;
   private _skin?: MeshSkin;
-  private readonly meshPrimitives?: SubMesh[];
+  private readonly materialOverrides: ModelMaterialOverrides;
+  private readonly meshPrimitiveDefinitions?: MeshPrimitiveDefinition[];
   private readonly meshGeometry?: MeshGeometry;
+  private readonly meshPrimitiveCache: MeshPrimitiveCache;
 
   private readonly _worldMatrixTmp: Matrix4 = new Matrix4();
   private _jointMatricesTmp: Matrix4[] | undefined;
   private _modelViewMatrixTmp: Matrix4 = new Matrix4();
 
-  private constructor({ name, meshPrimitives, meshGeometry }: MeshNodeArgs) {
+  private constructor({ name, meshPrimitiveCache, meshPrimitiveDefinitions, meshGeometry, materialOverrides }: MeshNodeArgs) {
     this.name = name;
-    this.meshPrimitives = meshPrimitives;
+    this.meshPrimitiveCache = meshPrimitiveCache;
+    this.materialOverrides = materialOverrides;
+    this.meshPrimitiveDefinitions = meshPrimitiveDefinitions;
     this.meshGeometry = meshGeometry;
     this._transform = new Transform<MeshNode>(this);
   }
 
-  public createInstance(): MeshNode {
+  public createInstance(materialOverrides: ModelMaterialOverrides): MeshNode {
     const instance = new MeshNode({
       name: this.name,
-      meshPrimitives: this.meshPrimitives,
+      meshPrimitiveDefinitions: this.meshPrimitiveDefinitions,
+      materialOverrides: materialOverrides,
+      meshPrimitiveCache: this.meshPrimitiveCache,
       meshGeometry: this.meshGeometry,
     });
 
@@ -53,7 +115,7 @@ export class MeshNode {
     viewMatrix: Matrix4,
     worldMatrix: Matrix4,
   ): void {
-    if (!this.meshPrimitives?.length) return; // @NOTE Don't bother doing math unless we need it
+    if (!this.meshPrimitiveDefinitions?.length) return; // @NOTE Don't bother doing math unless we need it
 
     this._worldMatrixTmp.setValue(worldMatrix).multiplySelf(this.worldMatrix);
 
@@ -67,8 +129,13 @@ export class MeshNode {
       .setValue(viewMatrix)
       .multiplySelf(this._worldMatrixTmp);
 
-    for (const subMesh of this.meshPrimitives) {
-      subMesh.draw(drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp);
+    for (const primitive of this.meshPrimitiveDefinitions) {
+      let material: Material | undefined = undefined;
+      if (primitive.material) {
+        material = this.materialOverrides.getOverride(primitive.material.name);
+      }
+      const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
+      primitiveInstance.draw(drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp);
     }
   }
 
@@ -76,18 +143,12 @@ export class MeshNode {
     this.transform.addChild(child.transform);
   }
 
-  public static async fromDefinition(engine: IEngine, definition: NodeDefinition): Promise<MeshNode> {
-    const meshPrimitives: SubMesh[] = [];
+  public static async fromDefinition(engine: IEngine, definition: NodeDefinition, materialOverrides: ModelMaterialOverrides): Promise<MeshNode> {
+    const meshPrimitiveCache = new MeshPrimitiveCache(engine);
     let meshGeometry: MeshGeometry | undefined = undefined;
     if (definition.mesh) {
       for (const meshPrimitiveDefinition of definition.mesh.primitives) {
-        // @TODO (?) Instances of MeshNode are distinct but share SubMeshes/Primitives
-        const subMesh = await SubMesh.fromDefinition(
-          engine,
-          meshPrimitiveDefinition,
-        );
-
-        meshPrimitives.push(subMesh);
+        await meshPrimitiveCache.init(engine, meshPrimitiveDefinition);
       }
 
       meshGeometry = new MeshGeometry(definition.mesh);
@@ -95,7 +156,9 @@ export class MeshNode {
 
     return new MeshNode({
       name: definition.name,
-      meshPrimitives: meshPrimitives,
+      materialOverrides,
+      meshPrimitiveCache,
+      meshPrimitiveDefinitions: definition.mesh?.primitives,
       meshGeometry,
     });
   }

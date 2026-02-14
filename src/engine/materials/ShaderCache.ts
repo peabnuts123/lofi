@@ -2,19 +2,17 @@ import type { IEngine } from '@polyzone/engine/Engine';
 import { IdPool } from '@polyzone/engine/util/IdPool';
 import type { MeshPrimitiveDefinition } from '@polyzone/engine/loaders/definitions';
 
-import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
-import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
 
-import { ShaderProgram, type ShaderProgramArgs, type ShaderProgramOptions } from './ShaderProgram';
+import { ShaderVariant, type ShaderVariantOptions } from './ShaderProgram';
 import type { Material } from './Material';
 
 export class ShaderCache {
   private static readonly IdPool: IdPool = new IdPool();
-  private static readonly cache: Record<string, ShaderProgram> = {};
+  private static readonly cache: Record<string, ShaderVariant> = {};
   /**
    * List of properties we know we are referencing in the generation of a cache key.
    */
-  private static readonly KnownCacheProperties: (keyof ShaderProgramOptions)[] = [
+  private static readonly KnownCacheProperties: (keyof ShaderVariantOptions)[] = [
     'blendingMode',
     'hasDiffuseColor',
     'hasDiffuseTexture',
@@ -23,7 +21,7 @@ export class ShaderCache {
     'unlit',
   ];
 
-  private static createCacheKey(options: ShaderProgramOptions): string {
+  private static createCacheKey(options: ShaderVariantOptions): string {
     /*
      * @NOTE
      * Simple fail-safe to make sure we never cache a shader without referencing a property.
@@ -32,8 +30,8 @@ export class ShaderCache {
      * If somebody adds a new key to `ShaderProgramOptions` without updating this logic,
      * this will produce a warning.
      */
-    const missingKeys: (keyof ShaderProgramOptions)[] = [];
-    for (const optionsKey of Object.keys(options) as (keyof ShaderProgramOptions)[]) {
+    const missingKeys: (keyof ShaderVariantOptions)[] = [];
+    for (const optionsKey of Object.keys(options) as (keyof ShaderVariantOptions)[]) {
       if (!ShaderCache.KnownCacheProperties.includes(optionsKey)) {
         missingKeys.push(optionsKey);
       }
@@ -52,12 +50,8 @@ export class ShaderCache {
     ].join('|');
   }
 
-  public static create(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: Material): ShaderProgram {
-    const args: ShaderProgramArgs = {
-      vertexShaderSource: VertexShaderSource,
-      fragmentShaderSource: FragmentShaderSource,
-    };
-    const options: ShaderProgramOptions = {
+  public static getOrCreate(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: Material): ShaderVariant {
+    const options: ShaderVariantOptions = {
       blendingMode: material.blendingMode,
       hasDiffuseColor: material?.diffuseColor !== undefined,
       hasDiffuseTexture: material?.diffuseTexture !== undefined,
@@ -76,7 +70,7 @@ export class ShaderCache {
     } else {
       // Create new shader and add to cache
       const newShaderId = ShaderCache.IdPool.createNew();
-      const newShader = new ShaderProgram(engine, newShaderId, args, options);
+      const newShader = new ShaderVariant(engine, newShaderId, material.shader, options);
       ShaderCache.cache[cacheKey] = newShader;
       return newShader;
     }

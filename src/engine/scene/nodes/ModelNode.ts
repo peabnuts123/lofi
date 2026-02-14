@@ -4,6 +4,7 @@ import type { Model, Triangle } from "@polyzone/engine/models";
 import { AxisAlignedBoundingBox } from "@polyzone/engine/collision";
 import { Vector3 } from "@polyzone/engine/util/vector";
 import { Animation } from "@polyzone/engine/animation";
+import type { Material } from "@polyzone/engine/materials";
 
 export class ModelNode extends DrawableSceneNode {
   public model: Model;
@@ -19,6 +20,10 @@ export class ModelNode extends DrawableSceneNode {
     this.model = model.createInstance(); // @TODO Probably going to need a way to "reset" this instance
     this._animationSource = model;
     this._verticesWorldSpaceTmp = model.allVertexPositions.map(() => Vector3.zero());
+  }
+
+  public setMaterialOverride(materialName: string, material: Material| undefined): void {
+    this.model.setMaterialOverride(materialName, material);
   }
 
   public playAnimation(animationName: string, speed: number = 1): void {

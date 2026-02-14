@@ -3,9 +3,8 @@ import type { IEngine } from "@polyzone/engine/Engine";
 
 import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
 import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
+import { DefaultShader, ShaderVariant } from "./ShaderProgram";
 
-import { ShaderProgram } from "./ShaderProgram";
-import { ShaderBlendingMode } from "./ShaderBlendingMode";
 
 interface UboBufferProperty {
   index: number;
@@ -24,10 +23,10 @@ export class Ubo<TPropertyName extends string> {
     // all shaders and present in the default shader.
     // This is a somewhat brittle assumption, but will work for now. In the future,
     // we may have to develop a more sophisticated, robust system for UBOs.
-    const referenceShader = new ShaderProgram(engine, -1, {
-      fragmentShaderSource: FragmentShaderSource,
-      vertexShaderSource: VertexShaderSource,
-     });
+    const referenceShader = new ShaderVariant(engine, -1, new DefaultShader(
+      VertexShaderSource,
+      FragmentShaderSource,
+    ));
 
     // Look up UBO size in bytes
     const blockIndex = gl.getUniformBlockIndex(referenceShader.program, uboName);

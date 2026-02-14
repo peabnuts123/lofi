@@ -2,7 +2,7 @@ import { Material } from "@polyzone/engine/materials/Material";
 import { Vector3 } from "@polyzone/engine/util/vector";
 import { createBuffer } from "@polyzone/engine/util/createBuffer";
 import type { DrawQueues, IEngine } from "@polyzone/engine/Engine";
-import { ShaderCache, ShaderProgram } from "@polyzone/engine/materials";
+import { ShaderCache, ShaderVariant } from "@polyzone/engine/materials";
 import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
 import { IdPool } from "@polyzone/engine/util/IdPool";
 import type { DrawTask } from "@polyzone/engine/scene/DrawableSceneNode";
@@ -18,9 +18,9 @@ export class SubMesh {
   private static readonly IdPool: IdPool = new IdPool();
 
   private readonly id: number;
-  private readonly vao: WebGLVertexArrayObject;
+  private vao: WebGLVertexArrayObject;
   private readonly material: Material;
-  private readonly shader: ShaderProgram;
+  private shader: ShaderVariant;
   private readonly extents: SubMeshExtents;
   private readonly drawPrimitive: () => void;
 
@@ -29,7 +29,7 @@ export class SubMesh {
   private constructor(
     vao: WebGLVertexArrayObject,
     material: Material,
-    shader: ShaderProgram,
+    shader: ShaderVariant,
     extents: SubMeshExtents,
     drawPrimitive: () => void,
   ) {
@@ -50,12 +50,12 @@ export class SubMesh {
     // Joint matrices
     let jointMatricesBytes: Float32Array | undefined = undefined;
     if (jointMatrices) {
-      jointMatricesBytes = new Float32Array(ShaderProgram.MaxBones * 16); // @TODO Don't allocate every frame
-      if (jointMatrices.length > ShaderProgram.MaxBones) {
-        console.warn(`Model skin has more than the max number of bones (${ShaderProgram.MaxBones})! Skin will not work correctly`);
+      jointMatricesBytes = new Float32Array(ShaderVariant.MaxBones * 16); // @TODO Don't allocate every frame
+      if (jointMatrices.length > ShaderVariant.MaxBones) {
+        console.warn(`Model skin has more than the max number of bones (${ShaderVariant.MaxBones})! Skin will not work correctly`);
       }
       jointMatrices.forEach((jointMatrix, index) => {
-        if (index < ShaderProgram.MaxBones) {
+        if (index < ShaderVariant.MaxBones) {
           jointMatricesBytes!.set(jointMatrix.toArray(), index * 16);
         }
       });
@@ -63,7 +63,7 @@ export class SubMesh {
 
     const drawTask: DrawTask = {
       renderPass: 0, // @TODO (?)
-      glProgram: this.shader,
+      shaderVariant: this.shader,
       material: this.material,
       mesh: {
         id: this.id,
@@ -98,16 +98,14 @@ export class SubMesh {
     }
   }
 
-  public static async fromDefinition(
+  public static fromDefinition(
     engine: IEngine,
     primitive: MeshPrimitiveDefinition,
-  ): Promise<SubMesh> {
+    material: Material,
+  ): SubMesh {
     const { gl } = engine;
 
-    const material = primitive.material ?
-      await Material.fromDefinition(engine, primitive.material) :
-      new Material('default');
-    const shader = ShaderCache.create(engine, primitive, material);
+    const shader = ShaderCache.getOrCreate(engine, primitive, material);
 
     const vao = gl.createVertexArray();
     if (!vao) {
@@ -136,20 +134,11 @@ export class SubMesh {
       );
     }
 
-    const meshExtents: SubMeshExtents = {
-      min: primitive.extents.min,
-      max: primitive.extents.max,
-      center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
-    };
-
     /* Vertex normals */
     // @TODO generate normals somewhere
     const vertexNormalAttribute = shader.getAttribute('vertexNormal');
     if (vertexNormalAttribute) {
       if (primitive.normalData) {
-        if (vertexNormalAttribute === undefined) {
-          throw new Error(`Could not find vertex attribute 'vertexNormal' in shader. Cannot render mesh primitive with no vertex normal data.`);
-        }
         gl.enableVertexAttribArray(vertexNormalAttribute);
         const normalBuffer = createBuffer(gl, gl.ARRAY_BUFFER, primitive.normalData.buffer);
         gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
@@ -240,6 +229,14 @@ export class SubMesh {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
     }
 
+    gl.bindVertexArray(null);
+
+    const meshExtents: SubMeshExtents = {
+      min: primitive.extents.min,
+      max: primitive.extents.max,
+      center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
+    };
+
     let drawPrimitive: () => void;
     if (primitive.indices) {
       // Indexed geometry
@@ -256,8 +253,6 @@ export class SubMesh {
         gl.drawArrays(primitive.mode, 0, count);
       };
     }
-
-    gl.bindVertexArray(null);
 
     return new SubMesh(
       vao,

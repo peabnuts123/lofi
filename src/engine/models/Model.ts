@@ -3,20 +3,26 @@ import { Vector3 } from "@polyzone/engine/util/vector";
 import type { Matrix4 } from "@polyzone/engine/util/Matrix4";
 import type { ModelDefinition, NodeDefinition } from "@polyzone/engine/loaders/definitions";
 import { Animation } from "@polyzone/engine/animation";
+import type { Material } from "@polyzone/engine/materials";
 
 import type { Edge, EdgeIndices, Triangle, TriangleIndices } from "./MeshGeometry";
 import { MeshNode } from "./MeshNode";
 import { MeshSkin } from "./MeshSkin";
 
 export class Model {
+  private isInstance: boolean;
   private readonly rootNodes: MeshNode[];
   public readonly allNodes: MeshNode[];
   public readonly animations: Animation[];
 
-  private constructor(rootNodes: MeshNode[], allNodes: MeshNode[], animations: Animation[]) {
+  private readonly materialOverrides: ModelMaterialOverrides;
+
+  private constructor(rootNodes: MeshNode[], allNodes: MeshNode[], animations: Animation[], materialOverrides: ModelMaterialOverrides) {
+    this.isInstance = false;
     this.rootNodes = rootNodes;
     this.allNodes = allNodes;
     this.animations = animations;
+    this.materialOverrides = materialOverrides;
   }
 
   public createInstance(): Model {
@@ -26,8 +32,10 @@ export class Model {
     const tidyUpTasks: (() => void)[] = [];
     const oldToNewLookup = new Map<MeshNode, MeshNode>();
 
+    const materialOverrides = this.materialOverrides.createInstance();
+
     function createModelPartInstance(modelPart: MeshNode): MeshNode {
-      const instance = modelPart.createInstance();
+      const instance = modelPart.createInstance(materialOverrides);
 
       newNodes.push(instance);
       oldToNewLookup.set(modelPart, instance);
@@ -72,11 +80,22 @@ export class Model {
 
     tidyUpTasks.forEach((task) => task());
 
-    return new Model(
+    const instance = new Model(
       newRootNodes,
       newNodes,
       this.animations,
+      materialOverrides,
     );
+    instance.isInstance = true;
+    return instance;
+  }
+
+  public setMaterialOverride(materialName: string, material: Material | undefined): void {
+    if (material !== undefined) {
+      this.materialOverrides.setOverride(materialName, material, this.isInstance);
+    } else {
+      this.materialOverrides.removeOverride(materialName, this.isInstance);
+    }
   }
 
   public draw(drawQueues: DrawQueues, viewMatrix: Matrix4, worldMatrix: Matrix4): void {
@@ -94,6 +113,7 @@ export class Model {
     const modelPartLookup = new Map<NodeDefinition, MeshNode>();
     const rootNodes: MeshNode[] = [];
     const allNodes: MeshNode[] = [];
+    const materialOverrides = new ModelMaterialOverrides();
 
     for (const rootNode of definition.rootNodes) {
       const modelPart = await createModelPart(rootNode);
@@ -104,7 +124,7 @@ export class Model {
     }
 
     async function createModelPart(nodeDefinition: NodeDefinition): Promise<MeshNode> {
-      const modelPart = await MeshNode.fromDefinition(engine, nodeDefinition);
+      const modelPart = await MeshNode.fromDefinition(engine, nodeDefinition, materialOverrides);
 
       modelPartLookup.set(nodeDefinition, modelPart);
       allNodes.push(modelPart);
@@ -141,7 +161,7 @@ export class Model {
 
     tidyUpTasks.forEach((task) => task());
 
-    return new Model(rootNodes, allNodes, animations);
+    return new Model(rootNodes, allNodes, animations, materialOverrides);
   }
 
   // @TODO cache these somehow
@@ -152,4 +172,42 @@ export class Model {
   public get allTriangleNormals(): Vector3[] { return this.allNodes.flatMap((node) => node.allTriangleNormals ?? []); }
   public get allEdges(): Edge[] { return this.allNodes.flatMap((node) => node.allEdges ?? []); }
   public get allEdgeIndices(): EdgeIndices[] { return this.allNodes.flatMap((node) => node.allEdgeIndices ?? []); }
+}
+
+export class ModelMaterialOverrides {
+  private sharedOverrides: Map<string, Material>;
+  private instanceOverrides: Map<string, Material>;
+
+  public constructor() {
+    this.sharedOverrides = new Map();
+    this.instanceOverrides = new Map();
+  }
+
+  public createInstance(): ModelMaterialOverrides {
+    const instance = new ModelMaterialOverrides();
+    instance.sharedOverrides = this.sharedOverrides;
+    return instance;
+  }
+
+  public getOverride(materialName: string): Material | undefined {
+    const instanceOverride = this.instanceOverrides.get(materialName);
+    const sharedOverride = this.sharedOverrides.get(materialName);
+    return instanceOverride ?? sharedOverride;
+  }
+
+  public setOverride(materialName: string, material: Material, isInstance: boolean): void {
+    if (isInstance) {
+      this.instanceOverrides.set(materialName, material);
+    } else {
+      this.sharedOverrides.set(materialName, material);
+    }
+  }
+
+  public removeOverride(materialName: string, isInstance: boolean): void {
+    if (isInstance) {
+      this.instanceOverrides.delete(materialName);
+    } else {
+      this.sharedOverrides.delete(materialName);
+    }
+  }
 }

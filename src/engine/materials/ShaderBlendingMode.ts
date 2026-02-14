@@ -35,5 +35,5 @@ export const ShaderBlendingMode = {
   Additive: () => ({ type: 'Additive' }),
   Subtractive: () => ({ type: 'Subtractive' }),
   AlphaBlend: () => ({ type: 'AlphaBlend' }),
-  AlphaClip: (cutoff: number) => ({ type: 'AlphaClip', cutoff }),
+  AlphaClip: (cutoff: number = 0.5) => ({ type: 'AlphaClip', cutoff }),
 } satisfies { [type in BlendingModeType]: (...args: any[]) => Extract<ShaderBlendingMode, { type: type }> };
