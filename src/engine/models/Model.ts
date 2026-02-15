@@ -168,10 +168,35 @@ export class Model {
   public get allVertexPositions(): Vector3[] { return this.allNodes.flatMap((node) => node.allVertexPositions ?? []); }
   public get allVertexNormals(): Vector3[] { return this.allNodes.flatMap((node) => node.allVertexNormals ?? []); }
   public get allTriangles(): Triangle[] { return this.allNodes.flatMap((node) => node.allTriangles ?? []); }
-  public get allTriangleIndices(): TriangleIndices[] { return this.allNodes.flatMap((node) => node.allTriangleIndices ?? []); }
+  public get allTriangleIndices(): TriangleIndices[] {
+    let totalVertices = 0;
+    return this.allNodes.flatMap((node) => {
+      const result = node.allTriangleIndices?.map((triangleIndices) => [
+        triangleIndices[0] + totalVertices,
+        triangleIndices[1] + totalVertices,
+        triangleIndices[2] + totalVertices,
+      ] satisfies TriangleIndices);
+
+      totalVertices += node.allVertexPositions?.length ?? 0;
+
+      return result ?? [];
+    });
+  };
   public get allTriangleNormals(): Vector3[] { return this.allNodes.flatMap((node) => node.allTriangleNormals ?? []); }
   public get allEdges(): Edge[] { return this.allNodes.flatMap((node) => node.allEdges ?? []); }
-  public get allEdgeIndices(): EdgeIndices[] { return this.allNodes.flatMap((node) => node.allEdgeIndices ?? []); }
+  public get allEdgeIndices(): EdgeIndices[] {
+    let totalVertices = 0;
+    return this.allNodes.flatMap((node) => {
+      const result = node.allEdgeIndices?.map((edgeIndices) => [
+        edgeIndices[0] + totalVertices,
+        edgeIndices[1] + totalVertices,
+      ] satisfies EdgeIndices);
+
+      totalVertices += node.allVertexPositions?.length ?? 0;
+
+      return result ?? [];
+    });
+  };
 }
 
 export class ModelMaterialOverrides {

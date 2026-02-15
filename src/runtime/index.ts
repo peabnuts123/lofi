@@ -65,93 +65,13 @@ export class Runtime {
     camera.pointAt(new Vector3(0, 0, 0));
     cameraOrigin.addChild(camera);
 
-    // @NOTE Click logic - extract to reusable function
-    const performRayCast = (normalizedX: number, normalizedY: number): ModelNode | undefined => {
-      const rayTarget = new Vector3(
-        normalizedX * 2 - 1,
-        1 - normalizedY * 2, // @NOTE Invert y
-        1, // @NOTE Near plane in NDC
-      ).multiplySelf(
-        camera.viewProjectionMatrix.invert(),
-      );
-
-      const rayDirection = rayTarget
-        .subtractSelf(camera.absolutePosition)
-        .normalizeSelf();
-
-      /*
-        ========
-        PHASE 1: AABB
-        ========
-       */
-      const possibleModels: ModelNode[] = [];
-      scene.forEachNodeInHierarchy((node) => {
-        if (node instanceof ModelNode) {
-          const aabb = node.getAABB();
-          const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabb);
-          if (result !== undefined) {
-            possibleModels.push(node);
-          }
-        }
-      });
-
-      /*
-        ========
-        PHASE 2: Triangle AABB
-        ========
-       */
-      const aabbTmp = AxisAlignedBoundingBox.unit();
-      const possibleTriangles: { triangle: Triangle, node: ModelNode }[] = [];
-      for (const possibleModel of possibleModels) {
-        const modelVertices = possibleModel.getVerticesWorldSpace();
-        for (const triangleIndices of possibleModel.model.allTriangleIndices) {
-          const triangle: Triangle = [
-            modelVertices[triangleIndices[0]],
-            modelVertices[triangleIndices[1]],
-            modelVertices[triangleIndices[2]],
-          ];
-          // Construct AABB for triangle
-          aabbTmp.xMin = Math.min(triangle[0].x, triangle[1].x, triangle[2].x);
-          aabbTmp.xMax = Math.max(triangle[0].x, triangle[1].x, triangle[2].x);
-          aabbTmp.yMin = Math.min(triangle[0].y, triangle[1].y, triangle[2].y);
-          aabbTmp.yMax = Math.max(triangle[0].y, triangle[1].y, triangle[2].y);
-          aabbTmp.zMin = Math.min(triangle[0].z, triangle[1].z, triangle[2].z);
-          aabbTmp.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
-
-          const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabbTmp);
-          if (result !== undefined) {
-            possibleTriangles.push({
-              triangle,
-              node: possibleModel,
-            });
-          }
-        }
-      }
-
-      /*
-        ========
-        PHASE 3: Triangle
-        ========
-       */
-      let shortestRayDistance: number = Number.MAX_SAFE_INTEGER;
-      let shortestRayResult: ModelNode | undefined = undefined;
-      for (const { triangle, node } of possibleTriangles) {
-        const result = rayTriangleIntersection(camera.absolutePosition, rayDirection, triangle);
-        if (result && result < shortestRayDistance) {
-          shortestRayDistance = result;
-          shortestRayResult = node;
-        }
-      }
-
-      return shortestRayResult; // Triangle
-    };
     canvas.addEventListener('click', (e) => {
       const clickNormalised = new Vector2(
         e.offsetX / canvas.clientWidth,
         e.offsetY / canvas.clientHeight,
       );
 
-      const result = performRayCast(clickNormalised.x, clickNormalised.y);
+      const result = performRayCast(camera, scene, clickNormalised.x, clickNormalised.y);
 
       if (result !== undefined) {
         console.log(`Picked: `, result.name);
@@ -198,7 +118,7 @@ export class Runtime {
             const normalizedX = x / debugWidth;
             const normalizedY = y / debugHeight;
 
-            const hitNode = performRayCast(normalizedX, normalizedY);
+            const hitNode = performRayCast(camera, scene, normalizedX, normalizedY);
 
             const pixelIndex = (y * debugWidth + x) * 4;
 
@@ -353,7 +273,6 @@ export class Runtime {
     }));
     rotatingColliderParent.position.x = 1.2;
     rotatingColliderParent.position.y = 2.5;
-
 
     /* Moving colliders */
     const size = 1;
@@ -533,3 +452,107 @@ export class Runtime {
   }
 }
 
+function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, normalizedY: number): ModelNode | undefined {
+  const rayTarget = new Vector3(
+    normalizedX * 2 - 1,
+    1 - normalizedY * 2, // @NOTE Invert y
+    1, // @NOTE Near plane in NDC
+  ).multiplySelf(
+    camera.viewProjectionMatrix.invert(),
+  );
+
+  const rayDirection = rayTarget
+    .subtractSelf(camera.absolutePosition)
+    .normalizeSelf();
+
+  let shortestRayDistance: number = Number.MAX_SAFE_INTEGER;
+  let shortestRayResult: ModelNode | undefined = undefined;
+
+  const debug_phaseMaster = 3 as (1 | 2 | 3);
+
+  /*
+    ========
+    PHASE 1: AABB
+    ========
+   */
+  const possibleModels: ModelNode[] = [];
+  scene.forEachNodeInHierarchy((node) => {
+    if (node instanceof ModelNode) {
+      const aabb = node.getAABB();
+      const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabb);
+      if (result !== undefined) {
+        possibleModels.push(node);
+      }
+
+      if (debug_phaseMaster === 1) {
+        if (result && result < shortestRayDistance) {
+          shortestRayDistance = result;
+          shortestRayResult = node;
+        }
+      }
+    }
+  });
+
+  if (debug_phaseMaster === 1) {
+    return shortestRayResult;
+  }
+
+  /*
+    ========
+    PHASE 2: Triangle AABB
+    ========
+   */
+  const aabbTmp = AxisAlignedBoundingBox.unit();
+  const possibleTriangles: { triangle: Triangle, node: ModelNode }[] = [];
+  for (const possibleModel of possibleModels) {
+    const modelVertices = possibleModel.getVerticesWorldSpace();
+    for (const triangleIndices of possibleModel.model.allTriangleIndices) {
+      const triangle: Triangle = [
+        modelVertices[triangleIndices[0]],
+        modelVertices[triangleIndices[1]],
+        modelVertices[triangleIndices[2]],
+      ];
+      // Construct AABB for triangle
+      aabbTmp.xMin = Math.min(triangle[0].x, triangle[1].x, triangle[2].x);
+      aabbTmp.xMax = Math.max(triangle[0].x, triangle[1].x, triangle[2].x);
+      aabbTmp.yMin = Math.min(triangle[0].y, triangle[1].y, triangle[2].y);
+      aabbTmp.yMax = Math.max(triangle[0].y, triangle[1].y, triangle[2].y);
+      aabbTmp.zMin = Math.min(triangle[0].z, triangle[1].z, triangle[2].z);
+      aabbTmp.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
+
+      const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabbTmp);
+      if (result !== undefined) {
+        possibleTriangles.push({
+          triangle,
+          node: possibleModel,
+        });
+      }
+
+      if (debug_phaseMaster === 2) {
+        if (result && result < shortestRayDistance) {
+          shortestRayDistance = result;
+          shortestRayResult = possibleModel;
+        }
+      }
+    }
+  }
+
+  if (debug_phaseMaster === 2) {
+    return shortestRayResult;
+  }
+
+  /*
+    ========
+    PHASE 3: Triangle
+    ========
+   */
+  for (const { triangle, node } of possibleTriangles) {
+    const result = rayTriangleIntersection(camera.absolutePosition, rayDirection, triangle);
+    if (result && result < shortestRayDistance) {
+      shortestRayDistance = result;
+      shortestRayResult = node;
+    }
+  }
+
+  return shortestRayResult; // Triangle
+}
