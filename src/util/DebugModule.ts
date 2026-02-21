@@ -1,3 +1,4 @@
+import type { Engine } from '@polyzone/engine/Engine';
 import { zipSync } from 'fflate';
 
 /**
@@ -30,6 +31,8 @@ type SaveOverrideFunction = (data: Blob, filename: string) => void | Promise<voi
  * Contains various debug utilities for working in PolyZone.
  */
 export class DebugModule {
+  private static engineInstances: Map<HTMLCanvasElement, Engine> = new Map();
+
   /**
    * Optional override for saving files (e.g. for Tauri integration).
    * If set, this will be called with (data: Blob, filename: string) instead of using <a> tag download.
@@ -54,6 +57,10 @@ export class DebugModule {
       (window as any).Debug = new DebugModule(saveOverride);
     }
     /* eslint-enable @typescript-eslint/no-unsafe-member-access */
+  }
+
+  public static registerEngineInstance(engine: Engine, canvas: HTMLCanvasElement): void {
+    DebugModule.engineInstances.set(canvas, engine);
   }
 
   /**

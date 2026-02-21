@@ -1,4 +1,4 @@
-import { BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type Triangle } from '@polyzone/engine/models';
 import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
 import { Engine, type IEngine } from '@polyzone/engine/Engine';
@@ -13,6 +13,7 @@ import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
 import type { ModelDefinition } from '@polyzone/engine/loaders/definitions';
 import { Material, ShaderBlendingMode } from '@polyzone/engine/materials';
 import { Texture } from '@polyzone/engine/textures';
+import { AudioClip } from '@polyzone/engine/audio';
 
 export interface CartridgeDefinition {
   models: ModelDefinition[];
@@ -62,87 +63,111 @@ export class Runtime {
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
     const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
     camera.position = new Vector3(-3.5, 2, 3.5);
-    camera.pointAt(new Vector3(0, 0, 0));
+    camera.pointAt(Vector3.zero());
     cameraOrigin.addChild(camera);
 
-    canvas.addEventListener('click', (e) => {
-      const clickNormalised = new Vector2(
-        e.offsetX / canvas.clientWidth,
-        e.offsetY / canvas.clientHeight,
-      );
+    /* Audio */
+    const testAudio = await AudioClip.load(engine, 'audio/Titlescreen_1.mp3', { loop: true });
+    const audioBox = new ModelNode(scene, 'test', boxModel);
+    audioBox.setMaterialOverride('ground', new Material('red', {
+      diffuseColor: Color4.red(),
+    }));
+    audioBox.scale.multiplySelf(0.2);
+    const audioSource = new AudioSourceNode(scene, 'test');
+    audioBox.addChild(audioSource);
 
-      const result = performRayCast(camera, scene, clickNormalised.x, clickNormalised.y);
+    audioBox.absolutePosition = camera.absolutePosition;
+    audioSource.playClip(testAudio);
+    {
+      const debug_audioLoop = setInterval(() => {
+        audioBox.position.z -= 1 / 30;
+      }, 30);
+      setTimeout(() => clearInterval(debug_audioLoop), MaxRuntimeSeconds * 1000);
+    }
 
-      if (result !== undefined) {
-        console.log(`Picked: `, result.name);
-      } else {
-        console.log(`NO RESULT`);
-      }
-    });
-    // @NOTE Debug ray trace visualization - press spacebar
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && this.debugCanvas) {
-        e.preventDefault();
-        console.log('Ray tracing scene to debug canvas...');
 
-        const debugCtx = this.debugCanvas.getContext('2d');
-        if (!debugCtx) return;
+    /* @DEBUG Mesh picking */
+    {
+      canvas.addEventListener('click', (e) => {
+        const clickNormalised = new Vector2(
+          e.offsetX / canvas.clientWidth,
+          e.offsetY / canvas.clientHeight,
+        );
 
-        const debugWidth = this.debugCanvas.width;
-        const debugHeight = this.debugCanvas.height;
+        const result = performRayCast(camera, scene, clickNormalised.x, clickNormalised.y);
 
-        // Clear debug canvas
-        debugCtx.fillStyle = 'black';
-        debugCtx.fillRect(0, 0, debugWidth, debugHeight);
+        if (result !== undefined) {
+          console.log(`Picked: `, result.name);
+        } else {
+          console.log(`NO RESULT`);
+        }
+      });
+      // @NOTE Debug ray trace visualization - press spacebar
+      document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && this.debugCanvas) {
+          e.preventDefault();
+          console.log('Ray tracing scene to debug canvas...');
 
-        // Create image data for faster pixel manipulation
-        const imageData = debugCtx.createImageData(debugWidth, debugHeight);
+          const debugCtx = this.debugCanvas.getContext('2d');
+          if (!debugCtx) return;
 
-        // Simple hash function to convert string to color
-        const hashColor = (str: string): [number, number, number] => {
-          let hash = 0;
-          for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) - hash) + str.charCodeAt(i);
-            hash = hash & hash; // Convert to 32bit integer
-          }
-          const r = (hash & 0xFF0000) >> 16;
-          const g = (hash & 0x00FF00) >> 8;
-          const b = hash & 0x0000FF;
-          return [r, g, b];
-        };
+          const debugWidth = this.debugCanvas.width;
+          const debugHeight = this.debugCanvas.height;
 
-        // Ray trace each pixel
-        const renderStart = performance.now();
-        for (let y = 0; y < debugHeight; y++) {
-          for (let x = 0; x < debugWidth; x++) {
-            const normalizedX = x / debugWidth;
-            const normalizedY = y / debugHeight;
+          // Clear debug canvas
+          debugCtx.fillStyle = 'black';
+          debugCtx.fillRect(0, 0, debugWidth, debugHeight);
 
-            const hitNode = performRayCast(camera, scene, normalizedX, normalizedY);
+          // Create image data for faster pixel manipulation
+          const imageData = debugCtx.createImageData(debugWidth, debugHeight);
 
-            const pixelIndex = (y * debugWidth + x) * 4;
+          // Simple hash function to convert string to color
+          const hashColor = (str: string): [number, number, number] => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              hash = ((hash << 5) - hash) + str.charCodeAt(i);
+              hash = hash & hash; // Convert to 32bit integer
+            }
+            const r = (hash & 0xFF0000) >> 16;
+            const g = (hash & 0x00FF00) >> 8;
+            const b = hash & 0x0000FF;
+            return [r, g, b];
+          };
 
-            if (hitNode) {
-              const [r, g, b] = hashColor(hitNode.name);
-              imageData.data[pixelIndex] = r;
-              imageData.data[pixelIndex + 1] = g;
-              imageData.data[pixelIndex + 2] = b;
-              imageData.data[pixelIndex + 3] = 255; // Alpha
-            } else {
-              // No hit - leave black (already cleared)
-              imageData.data[pixelIndex + 3] = 255; // Alpha
+          // Ray trace each pixel
+          const renderStart = performance.now();
+          for (let y = 0; y < debugHeight; y++) {
+            for (let x = 0; x < debugWidth; x++) {
+              const normalizedX = x / debugWidth;
+              const normalizedY = y / debugHeight;
+
+              const hitNode = performRayCast(camera, scene, normalizedX, normalizedY);
+
+              const pixelIndex = (y * debugWidth + x) * 4;
+
+              if (hitNode) {
+                const [r, g, b] = hashColor(hitNode.name);
+                imageData.data[pixelIndex] = r;
+                imageData.data[pixelIndex + 1] = g;
+                imageData.data[pixelIndex + 2] = b;
+                imageData.data[pixelIndex + 3] = 255; // Alpha
+              } else {
+                // No hit - leave black (already cleared)
+                imageData.data[pixelIndex + 3] = 255; // Alpha
+              }
             }
           }
+
+          const renderStop = performance.now();
+          console.log(`Ray trace render: ${renderStop - renderStart}ms (${(renderStop - renderStart) / (debugHeight * debugWidth)}ms per pixel)`);
+
+          debugCtx.putImageData(imageData, 0, 0);
+          console.log('Ray trace complete!');
         }
+      });
+    }
 
-        const renderStop = performance.now();
-        console.log(`Ray trace render: ${renderStop - renderStart}ms (${(renderStop - renderStart) / (debugHeight * debugWidth)}ms per pixel)`);
-
-        debugCtx.putImageData(imageData, 0, 0);
-        console.log('Ray trace complete!');
-      }
-    });
-
+    /* Lighting */
     const LightDistance = 5;
     const lightOrigin = new ObjectNode(scene, 'light_origin');
     const light0 = new PointLightNode(scene, 'light0', Color3.red());

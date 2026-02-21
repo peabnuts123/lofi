@@ -1,3 +1,4 @@
+export * from './AudioSourceNode';
 export * from './BoxColliderNode';
 export * from './CameraNode';
 export * from './ColliderNode';

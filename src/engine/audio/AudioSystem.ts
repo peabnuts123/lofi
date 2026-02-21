@@ -1,0 +1,166 @@
+import type { AudioSourceNode } from "@polyzone/engine/scene/nodes";
+import type { IEngine } from "@polyzone/engine/Engine";
+import { Vector3 } from "@polyzone/engine/util/vector";
+
+export interface AudioSystemOptions {
+  channels: number;
+}
+
+export interface PlayingAudioTask {
+  audioSource: AudioSourceNode;
+  priority: number;
+  startTime: number;
+}
+
+export type AudioChannel = PlayingAudioTask | undefined;
+
+export class AudioSystem {
+  /**
+   * Web Audio API AudioContext associated with the audio system.
+   */
+  public readonly context: AudioContext;
+
+  /**
+   * Master output node that all audio should route through.
+   */
+  private readonly master: GainNode;
+  /**
+   * Array of virtual audio channels that limit the number of sounds
+   * that can be playing simultaneously.
+   */
+  private channels: Array<AudioChannel>;
+  private _upTmp = Vector3.zero();
+  private _forwardTmp = Vector3.zero();
+
+  public constructor(options: AudioSystemOptions) {
+    this.context = new AudioContext();
+
+    this.channels = new Array<AudioChannel>(options.channels);
+
+    // Create simple limiter between master node and output to prevent clipping audio
+    const limiter = new DynamicsCompressorNode(this.context, {
+      threshold: -3,
+      knee: 0,
+      ratio: 20,
+      attack: 0.003,
+      release: 0.05,
+    });
+    limiter.connect(this.context.destination);
+
+    // Create master output node
+    this.master = new GainNode(this.context);
+    this.master.connect(limiter);
+
+    // @TODO Ensure the audio system is ready to play / retry, etc.
+    // this.context.state
+  }
+
+  public playAudio(audioSource: AudioSourceNode, priority: number, audioNode: AudioNode): [success: true, onAudioStop: () => void] | [success: false] {
+    // Find an empty channel
+    let targetChannelIndex: number | undefined = undefined;
+    for (let i = 0; i < this.channels.length; i++) {
+      if (this.channels[i] === undefined) {
+        targetChannelIndex = i;
+        break;
+      }
+    }
+
+    if (targetChannelIndex === undefined) {
+      // All audio channels are in use
+
+      // Find a suitable channel to override using the following criteria:
+      // - Lowest priority
+      // - Priority must be less than or equal to than `priority`
+      // - Of equal-priority audio sources, the channel playing the oldest audio
+      const viableChannels = (this.channels as PlayingAudioTask[]) // @NOTE No channels are empty, cast for type assist
+        .filter((channel) => channel.priority <= priority)
+        .sort((channelA, channelB) => {
+          if (channelA.priority !== channelB.priority) {
+            // Lowest priority first
+            return channelA.priority - channelB.priority;
+          } else {
+            // Where priorities are equal, oldest start time first
+            return channelA.startTime - channelB.startTime;
+          }
+        });
+
+      if (viableChannels.length > 0) {
+        // Found a lower-priority or older audio source to replace
+        const channelToReplace = viableChannels[0];
+        targetChannelIndex = this.channels.indexOf(channelToReplace);
+
+        // Stop the existing audio
+        channelToReplace.audioSource.stopPlaying(); // @NOTE Will deallocate channel through callback
+      } else {
+        // No viable channels for audio to override. This audio will not play
+        console.warn(`[DEBUG] Audio could not play - all channels full. No viable channels to replace`); // @TODO @DEBUG REMOVE
+        return [false];
+      }
+    }
+
+    // Connect audioNode to audio system
+    audioNode.connect(this.master);
+
+    const debug_countChannels = (): void => {
+      let freeChannels = 0;
+      let populatedChannels = 0;
+      for (const channel of this.channels) {
+        if (channel === undefined) {
+          freeChannels++;
+        } else {
+          populatedChannels++;
+        }
+      }
+
+      console.log(`[DEBUG] (AudioSystem) ${this.channels.length} total channels: (free='${freeChannels}') (in-use='${populatedChannels}')`);
+    };
+
+    /**
+     * Cleanup function fired whenever audio finishes or is stopped
+     */
+    const onAudioStopFn = (): void => {
+      this.channels[targetChannelIndex] = undefined;
+      debug_countChannels();
+    };
+
+    // Populate channel
+    this.channels[targetChannelIndex] = {
+      audioSource,
+      priority,
+      startTime: performance.now() / 1000,
+    };
+
+    debug_countChannels();
+
+    return [true, onAudioStopFn];
+  }
+
+  public destroy(): void {
+    for (const channel of this.channels) {
+      if (channel !== undefined) {
+        channel.audioSource.stopPlaying(); // Will de-allocate channel
+      }
+    }
+  }
+
+  public onUpdate(engine: IEngine): void {
+    // Bind audio system listener to active camera
+    const listener = engine.activeScene?.activeCamera;
+    if (listener) {
+      /* Position */
+      this.context.listener.positionX.value = listener.absolutePosition.x;
+      this.context.listener.positionY.value = listener.absolutePosition.y;
+      this.context.listener.positionZ.value = listener.absolutePosition.z;
+
+      /* Orientation */
+      const up = this._upTmp.setValue(Vector3.up()).multiplySelf(listener.absoluteRotation.q);
+      const forward = this._forwardTmp.setValue(Vector3.forward()).multiplySelf(listener.absoluteRotation.q);
+      this.context.listener.upX.value = up.x;
+      this.context.listener.upY.value = up.y;
+      this.context.listener.upZ.value = up.z;
+      this.context.listener.forwardX.value = forward.x;
+      this.context.listener.forwardY.value = forward.y;
+      this.context.listener.forwardZ.value = forward.z;
+    }
+  }
+}

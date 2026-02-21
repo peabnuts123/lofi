@@ -6,11 +6,38 @@ import type { DrawTask, IScene, TransparentDrawTask } from "./scene";
 import { rateCounter } from "./util/debug";
 import { CollisionSystem } from "./collision";
 import { CannotInvertMatrixError, Matrix3 } from "./util/Matrix3";
+import { AudioSystem } from "./audio/AudioSystem";
+import type { DeepPartial } from "./util/types";
+
+import { DebugModule } from "src/util/DebugModule"; // @TODO move into the engine
 
 export interface DrawQueues {
   opaque: DrawTask[];
   transparent: TransparentDrawTask[];
 }
+
+export interface EngineConfig {
+  readonly audio: {
+    readonly numChannels: number;
+  },
+  readonly lighting: {
+    readonly maxLights: number;
+  },
+  readonly models: {
+    readonly maxBones: number;
+  },
+}
+export const DefaultEngineConfig = {
+  audio: {
+    numChannels: 24,
+  },
+  lighting: {
+    maxLights: 4, // @TODO implement
+  },
+  models: {
+    maxBones: 64, // @TODO port from `ShaderVariant`
+  },
+} satisfies EngineConfig;
 
 export interface IEngine {
   loadScene(scene: IScene): void;
@@ -18,7 +45,8 @@ export interface IEngine {
 
   get gl(): WebGL2RenderingContext;
   get fileSystem(): IFileSystem;
-  get collision(): CollisionSystem;
+  get collisionSystem(): CollisionSystem;
+  get audioSystem(): AudioSystem;
   get activeScene(): IScene | undefined;
 }
 
@@ -26,7 +54,9 @@ export class Engine implements IEngine {
   private readonly canvas: HTMLCanvasElement;
   public readonly gl: WebGL2RenderingContext;
   public readonly fileSystem: IFileSystem;
-  public readonly collision: CollisionSystem;
+  public readonly collisionSystem: CollisionSystem;
+  public readonly audioSystem: AudioSystem;
+  public readonly config: EngineConfig;
 
   private _normalTmp: Matrix3 = new Matrix3();
 
@@ -34,7 +64,7 @@ export class Engine implements IEngine {
   private cameraUbo: CameraUbo;
   private lightingUbo: LightingUbo;
 
-  public constructor(canvas: HTMLCanvasElement, fileSystem: IFileSystem) {
+  public constructor(canvas: HTMLCanvasElement, fileSystem: IFileSystem, options?: DeepPartial<EngineConfig>) {
     this.canvas = canvas;
     this.fileSystem = fileSystem;
     const gl = this.canvas.getContext('webgl2', {
@@ -46,12 +76,29 @@ export class Engine implements IEngine {
       throw new Error(`WebGL2 not supported`);
     }
 
+    this.config = {
+      audio: {
+        numChannels: options?.audio?.numChannels ?? DefaultEngineConfig.audio.numChannels,
+      },
+      lighting: {
+        maxLights: options?.lighting?.maxLights ?? DefaultEngineConfig.lighting.maxLights,
+      },
+      models: {
+        maxBones: options?.models?.maxBones ?? DefaultEngineConfig.models.maxBones,
+      },
+    };
+
     this.gl = gl;
-    this.collision = new CollisionSystem();
+    this.collisionSystem = new CollisionSystem();
+    this.audioSystem = new AudioSystem({ channels: this.config.audio.numChannels });
+
 
     // Global UBOs
     this.cameraUbo = new Ubo(this, CameraUboName, CameraUboIndex, CameraUboPropertyNames);
     this.lightingUbo = new Ubo(this, LightingUboName, LightingUboIndex, LightingUboPropertyNames);
+
+    // Register self in debug module
+    DebugModule.registerEngineInstance(this, canvas);
   }
 
   public loadScene(scene: IScene): void {
@@ -103,6 +150,9 @@ export class Engine implements IEngine {
         this.activeScene.lighting.bindToUbo(this.gl, this.lightingUbo);
       }
 
+      /* Audio system */
+      this.audioSystem.onUpdate(this);
+
       /* Draw scene */
       // @TODO Is there a way we can efficiently clear this memory?
       const drawQueues: DrawQueues = {
@@ -129,6 +179,7 @@ export class Engine implements IEngine {
       if (!isStopped) {
         requestAnimationFrame(tick);
       } else {
+        this.audioSystem.destroy();
         const debug_runStop = performance.now();
         const averageFrameTime = debug_frameTimes.reduce((sum, frameTime) => {
           sum += frameTime;

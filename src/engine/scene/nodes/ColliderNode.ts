@@ -52,7 +52,7 @@ export abstract class ColliderNode extends DrawableSceneNode {
     this.scene.forEachNodeInHierarchy((node) => {
       if (node === this) return;
       if (node instanceof ColliderNode) {
-        if (this.scene.engine.collision.canInteract(this.group, node.group)) {
+        if (this.scene.engine.collisionSystem.canInteract(this.group, node.group)) {
           allColliders.push({
             node,
             aabb: node.getAABB(),
