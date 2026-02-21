@@ -42,6 +42,7 @@ export class DebugModule {
   private _currentMediaRecorder: MediaRecorder | undefined = undefined;
   private _currentRecordingBlobs: Blob[] | undefined = undefined;
   private _currentRecordingAutoStopTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+  private _currentRecordingAudioDestination: MediaStreamAudioDestinationNode | undefined = undefined;
 
   private constructor(saveOverride: SaveOverrideFunction | undefined) {
     this.saveOverride = saveOverride;
@@ -132,15 +133,38 @@ export class DebugModule {
       canvas = canvasElements[0] as HTMLCanvasElement;
     }
 
+    // Look up associated Engine instance (if any)
+    const engine = DebugModule.engineInstances.get(canvas);
+
     // Initialise objects used for recording
     this._currentRecordingBlobs = [];
     try {
-      const stream = canvas.captureStream(30);
+      const videoStream = canvas.captureStream(30);
+      let combinedStream: MediaStream;
+
+      // Capture audio if we have an engine with an AudioSystem
+      if (engine?.audioSystem.context) {
+        console.log('Capturing audio from AudioSystem');
+        const audioDestination = this._currentRecordingAudioDestination = engine.audioSystem.context.createMediaStreamDestination();
+
+        engine.audioSystem.master.connect(audioDestination);
+
+        // Combine video and audio tracks
+        const audioStream = audioDestination.stream;
+        combinedStream = new MediaStream([
+          ...videoStream.getVideoTracks(),
+          ...audioStream.getAudioTracks(),
+        ]);
+      } else {
+        console.log('Recording video only (no audio)');
+        combinedStream = videoStream;
+      }
+
       this._currentMediaRecorder = new MediaRecorder(
-        stream,
+        combinedStream,
         {
-          mimeType: 'video/webm;codecs=vp9',
-          videoBitsPerSecond: 3_000_000,
+          mimeType: 'video/webm;codecs=vp8,opus',
+          videoBitsPerSecond: 10_000_000,
         },
       );
     } catch (e) {
@@ -185,13 +209,18 @@ export class DebugModule {
 
     console.log(`Stopping recording...`);
 
-    this._currentMediaRecorder.stop();
-
     // Wait for last data before saving video
     this._currentMediaRecorder.onstop = (_e) => {
       const blob = new Blob(this._currentRecordingBlobs, { type: 'video/webm' });
       void this.saveFile(blob, 'recording.webm');
+
+      // Disconnect audio tap if it exists
+      if (this._currentRecordingAudioDestination !== undefined) {
+        this._currentRecordingAudioDestination.disconnect();
+        this._currentRecordingAudioDestination = undefined;
+      }
     };
+    this._currentMediaRecorder.stop();
     this._currentMediaRecorder = undefined;
   }
 
@@ -314,22 +343,65 @@ export class DebugModule {
       console.log(`Capturing canvas: `, canvas);
     }
 
+    // Look up associated Engine instance (if any)
+    const engine = DebugModule.engineInstances.get(canvas);
+
     // Frame capture logic
     const frames: Uint8Array[] = [];
-    let capturing = true;
+    // let capturing = true;
     let frameCount = 0;
     const fps = 30;
     const maxFrames = Math.floor(options.length * fps);
 
     console.log(`Recording '${maxFrames}' frames`);
 
-    const captureFrame = (): void => {
-      if (!capturing || frameCount >= maxFrames) {
-        capturing = false;
-        this._downloadFramesAsZip(frames);
-        return;
-      }
+    // Setup audio recording if available
+    let audioRecorder: MediaRecorder | undefined;
+    let audioDestination: MediaStreamAudioDestinationNode | undefined;
+    const audioBlobs: Blob[] = [];
 
+    if (engine) {
+      console.log('Capturing audio from AudioSystem');
+      audioDestination = engine.audioSystem.context.createMediaStreamDestination();
+      engine.audioSystem.master.connect(audioDestination);
+
+      try {
+        audioRecorder = new MediaRecorder(audioDestination.stream, {
+          mimeType: 'audio/webm;codecs=opus',
+          audioBitsPerSecond: 320_000,
+        });
+
+        audioRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioBlobs.push(event.data);
+          }
+        };
+
+        audioRecorder.start(1000 / fps);
+      } catch (e) {
+        console.error('Error starting audio recording:', e);
+        audioRecorder = undefined;
+      }
+    }
+
+    const finaliseRecording = (): void => {
+      // Stop audio recording if it exists
+      let audioBlob: Blob | undefined = undefined;
+      if (audioRecorder) {
+          // Wait for last data before saving video
+        audioRecorder.onstop = () => {
+          audioBlob = new Blob(audioBlobs, { type: 'audio/webm' });
+          void this._downloadFramesAsZip(frames, audioBlob);
+          audioDestination?.disconnect();
+        };
+        audioRecorder.stop();
+      } else {
+        void this._downloadFramesAsZip(frames, audioBlob);
+
+      }
+    };
+
+    const stopRecording = setInterval(() => {
       const myFrameNumber = frameCount++;
       canvas.toBlob((blob) => {
         if (blob === null) throw new Error(`Could not capture canvas contents`);
@@ -341,23 +413,31 @@ export class DebugModule {
       }, 'image/png');
 
       // @TODO Can we hook into the canvas API instead of this jank?
-      setTimeout(captureFrame, 1000 / fps);
-    };
+    }, 1000 / fps);
 
-    captureFrame();
+    setTimeout(() => {
+      clearInterval(stopRecording);
+      finaliseRecording();
+    }, options.length * 1000);
   }
 
   /**
    * Helper to download frames as a ZIP file using fflate.
    */
-  private _downloadFramesAsZip(frames: Uint8Array[]): void {
+  private async _downloadFramesAsZip(frames: Uint8Array[], audioBlob?: Blob): Promise<void> {
     const files: Record<string, Uint8Array> = {};
     frames.forEach((data, i) => {
       files[`frame_${String(i).padStart(4, '0')}.png`] = data;
     });
+
+    if (audioBlob) {
+      const audioData = new Uint8Array(await audioBlob.arrayBuffer());
+      files['audio.webm'] = audioData;
+    }
+
     const zipped = zipSync(files);
     const blob = new Blob([zipped as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
-    void this.saveFile(blob, 'frames.zip');
+    await this.saveFile(blob, 'frames.zip');
   }
 
   /**

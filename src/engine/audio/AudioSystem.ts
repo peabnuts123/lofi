@@ -23,14 +23,14 @@ export class AudioSystem {
   /**
    * Master output node that all audio should route through.
    */
-  private readonly master: GainNode;
+  public readonly master: GainNode;
   /**
    * Array of virtual audio channels that limit the number of sounds
    * that can be playing simultaneously.
    */
-  private channels: Array<AudioChannel>;
-  private _upTmp = Vector3.zero();
-  private _forwardTmp = Vector3.zero();
+  private readonly channels: Array<AudioChannel>;
+  private readonly _upTmp = Vector3.zero();
+  private readonly _forwardTmp = Vector3.zero();
 
   public constructor(options: AudioSystemOptions) {
     this.context = new AudioContext();
