@@ -548,8 +548,8 @@ export class Vector3 {
   public static down(): Vector3 { return new Vector3(0, -1, 0); }
   public static right(): Vector3 { return new Vector3(1, 0, 0); }
   public static left(): Vector3 { return new Vector3(-1, 0, 0); }
-  public static forward(): Vector3 { return new Vector3(0, 0, 1); }
-  public static back(): Vector3 { return new Vector3(0, 0, -1); }
+  public static forward(): Vector3 { return new Vector3(0, 0, -1); }
+  public static back(): Vector3 { return new Vector3(0, 0, 1); }
 }
 
 /**
