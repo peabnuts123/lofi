@@ -55,12 +55,6 @@ const cartridge: CartridgeDefinition = {
 
 const canvas = document.getElementById('webgl-canvas') as HTMLCanvasElement;
 // @TODO delete runtime, inline here
-
-const startButton = document.getElementById('start-button') as HTMLButtonElement;
-// eslint-disable-next-line @typescript-eslint/no-misused-promises
-startButton.addEventListener('click', async () => {
-  const runtime = new Runtime();
-  await runtime.loadCartridge(canvas, cartridge);
-  startButton.remove();
-  runtime.run();
-});
+const runtime = new Runtime();
+await runtime.loadCartridge(canvas, cartridge);
+runtime.run();
