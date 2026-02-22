@@ -12,8 +12,8 @@ export interface GlobalAudioSourceNodeOptions {
 
 export interface PlayClipOptions {
   priority?: number;
-  /* @TODO speed */
-  /* @TODO pitch range */
+  speed?: number;
+  speedRange?: number;
 }
 
 export interface CurrentAudio {
@@ -131,6 +131,8 @@ export class AudioSourceNode extends SceneNode {
   public playClip(audioClip: AudioClip, options?: PlayClipOptions): void {
     /* Parameter defaults */
     const priority = options?.priority ?? 0;
+    const speed = options?.speed ?? 1;
+    const speedRange = options?.speedRange ?? 0;
 
     // Drop one-shot sounds if audio context has not yet started
     if (!this.audioSystem.isInitialised && !audioClip.loop) {
@@ -146,6 +148,7 @@ export class AudioSourceNode extends SceneNode {
     // Create Web Audio API audio source node from AudioClip
     const audioSourceNode = new AudioBufferSourceNode(this.audioSystem.context, { buffer: audioClip.buffer });
     audioSourceNode.loop = audioClip.loop;
+    audioSourceNode.playbackRate.value = speed - speedRange + (Math.random() * speedRange * 2);
     audioSourceNode.start();
 
     if (this.global) {
