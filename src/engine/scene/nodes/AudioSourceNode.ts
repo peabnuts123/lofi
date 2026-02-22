@@ -1,6 +1,7 @@
 import type { AudioClip } from "@polyzone/engine/audio/AudioClip";
 import type { AudioSystem } from "@polyzone/engine/audio/AudioSystem";
 import { SceneNode, type IScene } from "@polyzone/engine/scene";
+import { clamp01 } from "@polyzone/engine/util/math";
 import { Vector3 } from "@polyzone/engine/util/vector";
 
 export interface SpatialAudioSourceNodeOptions {
@@ -46,6 +47,10 @@ export class AudioSourceNode extends SceneNode {
 
 
   /**
+   * Gain node to control the overall volume of this audio source node.
+   */
+  private volumeNode: GainNode;
+  /**
    * (Spatial audio only) Spatial panner node to pan audio balance.
    */
   private pannerNode: PannerNode;
@@ -69,13 +74,22 @@ export class AudioSourceNode extends SceneNode {
     // Default values
     this.global = false;
     this.minRange = 1;
-    this.maxRange = 50;
+    this.maxRange = 40;
 
+    /*
+      Spatial audio pipeline:
+      (input) -> spatialVolume => panner => volume -> (output)
+
+      Global audio pipeline
+      (input) -> volume -> (output)
+     */
+    this.volumeNode = new GainNode(this.audioSystem.context);
     this.pannerNode = new PannerNode(scene.engine.audioSystem.context, {
       // @NOTE Disable attenuation (we're handling it manually)
       distanceModel: 'linear',
       rolloffFactor: 0,
     });
+    this.pannerNode.connect(this.volumeNode);
     this.spatialVolumeNode = new GainNode(this.audioSystem.context);
     this.spatialVolumeNode.connect(this.pannerNode);
   }
@@ -134,14 +148,12 @@ export class AudioSourceNode extends SceneNode {
     audioSourceNode.loop = audioClip.loop;
     audioSourceNode.start();
 
-    let outputNode: AudioNode;
     if (this.global) {
       // Global audio: Audio source is connected straight to the output
-      outputNode = audioSourceNode;
+      audioSourceNode.connect(this.volumeNode);
     } else {
       // Spatial audio: Audio source is routed through spatial audio nodes
       audioSourceNode.connect(this.spatialVolumeNode);
-      outputNode = this.pannerNode;
     }
 
     /**
@@ -156,7 +168,7 @@ export class AudioSourceNode extends SceneNode {
 
     // Attempt to play the audio through the audio system
     // Request can fail if channels are full and this audio is not high-enough priority
-    const [success, cleanupAudioChannel] = this.audioSystem.playAudio(this, priority, outputNode);
+    const [success, cleanupAudioChannel] = this.audioSystem.playAudio(this, priority, this.volumeNode);
 
     if (success) {
       // Only register 'ended' callback if audio actually played
@@ -177,7 +189,7 @@ export class AudioSourceNode extends SceneNode {
     if (this.currentAudio !== undefined) {
       this.currentAudio.audioNode.disconnect();
       this.currentAudio.audioNode.stop();
-      this.pannerNode.disconnect();
+      this.volumeNode.disconnect();
       this.currentAudio.onStop();
       this.currentAudio = undefined;
     }
@@ -189,5 +201,10 @@ export class AudioSourceNode extends SceneNode {
 
   public get isPlaying(): boolean {
     return this.currentAudio !== undefined;
+  }
+
+  public get volume(): number { return this.volumeNode.gain.value; }
+  public set volume(value: number) {
+    this.volumeNode.gain.value = clamp01(value);
   }
 }

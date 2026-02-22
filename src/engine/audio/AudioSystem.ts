@@ -51,8 +51,6 @@ export class AudioSystem {
     this.master = new GainNode(this.context);
     this.master.connect(limiter);
 
-    // @TODO Ensure the audio system is ready to play / retry, etc.
-    // this.context.state
     this.init();
   }
 
