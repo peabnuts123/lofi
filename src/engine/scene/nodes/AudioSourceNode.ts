@@ -118,6 +118,12 @@ export class AudioSourceNode extends SceneNode {
     /* Parameter defaults */
     const priority = options?.priority ?? 0;
 
+    // Drop one-shot sounds if audio context has not yet started
+    if (!this.audioSystem.isInitialised && !audioClip.loop) {
+      console.warn(`Non-looping sound was dropped since AudioContext is not yet initialised`);
+      return;
+    }
+
     // Clear out existing state before playing new audio
     if (this.isPlaying) {
       this.stopPlaying();

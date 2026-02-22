@@ -53,6 +53,33 @@ export class AudioSystem {
 
     // @TODO Ensure the audio system is ready to play / retry, etc.
     // this.context.state
+    this.init();
+  }
+
+  /**
+   * Initialise the audio system, specifically dealing with browser autoplay
+   * policies. Audio system will be initialised on first interaction with the page.
+   */
+  private init(): void {
+    if (this.context.state == 'running') {
+      // Audio context initialised. No work to do
+      return;
+    }
+
+    const onInteract = (): void => {
+      void this.context.resume()
+        .then(() => {
+          // Successfully resumed, remove init handlers
+          document.removeEventListener('pointerdown', onInteract);
+          document.removeEventListener('keydown', onInteract);
+        })
+        .catch((e) => {
+          console.error(`Failed to resume AudioContext`, e);
+        });
+    };
+
+    document.addEventListener('pointerdown', onInteract);
+    document.addEventListener('keydown', onInteract);
   }
 
   public playAudio(audioSource: AudioSourceNode, priority: number, audioNode: AudioNode): [success: true, onAudioStop: () => void] | [success: false] {
@@ -162,5 +189,9 @@ export class AudioSystem {
       this.context.listener.forwardY.value = forward.y;
       this.context.listener.forwardZ.value = forward.z;
     }
+  }
+
+  public get isInitialised(): boolean {
+    return this.context.state === 'running';
   }
 }
