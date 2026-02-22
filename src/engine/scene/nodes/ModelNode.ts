@@ -49,7 +49,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
 
     // No scene or no camera = no draw tasks
     if (viewMatrix !== undefined) {
-      this.model.draw(drawQueues, viewMatrix, this.worldMatrix);
+      this.model.draw(engine, drawQueues, viewMatrix, this.worldMatrix);
     }
 
     // @TODO @DEBUG

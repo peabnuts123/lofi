@@ -1,5 +1,5 @@
 import { CollisionSystem } from "@polyzone/engine/collision";
-import type { IEngine } from "@polyzone/engine/Engine";
+import type { EngineConfig, IEngine } from "@polyzone/engine/Engine";
 import type { IFileSystem } from "@polyzone/engine/filesystem";
 import type { IScene } from "@polyzone/engine/scene";
 import { AudioSystem } from "@polyzone/engine/audio/AudioSystem";
@@ -14,11 +14,23 @@ export class MockEngine implements IEngine {
   collisionSystem: CollisionSystem;
   audioSystem: AudioSystem;
   activeScene: IScene | undefined;
+  config: EngineConfig;
 
   public constructor({ fileSystem }: MockEngineConstructorArgs = {}) {
     this.fileSystem = fileSystem ?? new MockFileSystem();
     this.collisionSystem = new CollisionSystem();
-    this.audioSystem = new AudioSystem({ channels: 4 });
+    this.config = {
+      audio: {
+        numChannels: 2,
+      },
+      lighting: {
+        maxLights: 2,
+      },
+      models: {
+        maxBones: 64,
+      },
+    };
+    this.audioSystem = new AudioSystem({ channels: this.config.audio.numChannels });
   }
 
   public loadScene(scene: IScene): void {

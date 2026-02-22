@@ -9,7 +9,7 @@ import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.ver
 import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
-import { DefaultShader, type IShader } from './ShaderProgram';
+import { DefaultShader, type IShader } from './ShaderVariant';
 
 export interface MaterialConstructorOptions {
   diffuseColor?: Color4;

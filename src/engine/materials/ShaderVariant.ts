@@ -22,8 +22,6 @@ export const DefaultShaderVariantOptions: ShaderVariantOptions = {
 };
 
 export class ShaderVariant {
-  public static MaxBones = 64;
-
   public readonly id: number;
 
   private readonly gl: WebGL2RenderingContext;
@@ -45,7 +43,7 @@ export class ShaderVariant {
     function inject(name: string, injected: string, src: string): string {
       return src.replace(new RegExp(`#pragma\\s+inject\\s*\\(\\s*${name}\\s*\\)\\s*$`, "m"), injected);
     }
-    const definesBlock = `#define _ShaderId ${id}\n` + shader.getDefines({
+    const definesBlock = `#define _ShaderId ${id}\n` + shader.getDefines(engine, {
       ...DefaultShaderVariantOptions,
       ...options,
     })
@@ -106,11 +104,10 @@ export class ShaderVariant {
   }
 }
 
-
 export interface IShader {
   get vertexShaderSource(): string;
   get fragmentShaderSource(): string;
-  getDefines(options: ShaderVariantOptions): string[];
+  getDefines(engine: IEngine, options: ShaderVariantOptions): string[];
 }
 
 export class DefaultShader implements IShader {
@@ -125,7 +122,7 @@ export class DefaultShader implements IShader {
     this.fragmentShaderSource = fragmentShaderSource;
   }
 
-  getDefines(options: ShaderVariantOptions): string[] {
+  getDefines(engine: IEngine, options: ShaderVariantOptions): string[] {
     const defines: string[] = [];
 
     if (options.hasDiffuseColor) {
@@ -137,7 +134,7 @@ export class DefaultShader implements IShader {
     }
 
     if (options.hasSkin) {
-      defines.push('SKIN', 'MAX_BONES ' + ShaderVariant.MaxBones);
+      defines.push('SKIN', 'MAX_BONES ' + engine.config.models.maxBones);
     }
 
     if (options.hasDiffuseTexture) {

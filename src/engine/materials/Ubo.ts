@@ -3,7 +3,7 @@ import type { IEngine } from "@polyzone/engine/Engine";
 
 import VertexShaderSource from '@polyzone/engine/materials/shaders/newShader.vert?raw';
 import FragmentShaderSource from '@polyzone/engine/materials/shaders/newShader.frag?raw';
-import { DefaultShader, ShaderVariant } from "./ShaderProgram";
+import { DefaultShader, ShaderVariant } from "./ShaderVariant";
 
 
 interface UboBufferProperty {

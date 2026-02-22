@@ -98,9 +98,10 @@ export class Model {
     }
   }
 
-  public draw(drawQueues: DrawQueues, viewMatrix: Matrix4, worldMatrix: Matrix4): void {
+  public draw(engine: IEngine, drawQueues: DrawQueues, viewMatrix: Matrix4, worldMatrix: Matrix4): void {
     for (const modelPart of this.allNodes) {
       modelPart.draw(
+        engine,
         drawQueues,
         viewMatrix,
         worldMatrix,

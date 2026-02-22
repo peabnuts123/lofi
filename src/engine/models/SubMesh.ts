@@ -42,6 +42,7 @@ export class SubMesh {
   }
 
   public draw(
+    engine: IEngine,
     drawQueues: DrawQueues,
     modelViewMatrix: Matrix4,
     worldMatrix: Matrix4,
@@ -50,12 +51,12 @@ export class SubMesh {
     // Joint matrices
     let jointMatricesBytes: Float32Array | undefined = undefined;
     if (jointMatrices) {
-      jointMatricesBytes = new Float32Array(ShaderVariant.MaxBones * 16); // @TODO Don't allocate every frame
-      if (jointMatrices.length > ShaderVariant.MaxBones) {
-        console.warn(`Model skin has more than the max number of bones (${ShaderVariant.MaxBones})! Skin will not work correctly`);
+      jointMatricesBytes = new Float32Array(engine.config.models.maxBones * 16); // @TODO Don't allocate every frame
+      if (jointMatrices.length > engine.config.models.maxBones) {
+        console.warn(`Model skin has more than the max number of bones (${engine.config.models.maxBones})! Skin will not work correctly`);
       }
       jointMatrices.forEach((jointMatrix, index) => {
-        if (index < ShaderVariant.MaxBones) {
+        if (index < engine.config.models.maxBones) {
           jointMatricesBytes!.set(jointMatrix.toArray(), index * 16);
         }
       });

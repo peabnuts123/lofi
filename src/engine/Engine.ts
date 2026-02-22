@@ -35,7 +35,7 @@ export const DefaultEngineConfig = {
     maxLights: 4, // @TODO implement
   },
   models: {
-    maxBones: 64, // @TODO port from `ShaderVariant`
+    maxBones: 64,
   },
 } satisfies EngineConfig;
 
@@ -43,6 +43,7 @@ export interface IEngine {
   loadScene(scene: IScene): void;
   run(onUpdate: (dt: number, stop: () => void) => void): void;
 
+  get config(): EngineConfig;
   get gl(): WebGL2RenderingContext;
   get fileSystem(): IFileSystem;
   get collisionSystem(): CollisionSystem;

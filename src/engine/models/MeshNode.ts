@@ -111,6 +111,7 @@ export class MeshNode {
   }
 
   public draw(
+    engine: IEngine,
     drawQueues: DrawQueues,
     viewMatrix: Matrix4,
     worldMatrix: Matrix4,
@@ -135,7 +136,7 @@ export class MeshNode {
         material = this.materialOverrides.getOverride(primitive.material.name);
       }
       const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
-      primitiveInstance.draw(drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp);
+      primitiveInstance.draw(engine, drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp);
     }
   }
 

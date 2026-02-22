@@ -3,7 +3,7 @@ import { IdPool } from '@polyzone/engine/util/IdPool';
 import type { MeshPrimitiveDefinition } from '@polyzone/engine/loaders/definitions';
 
 
-import { ShaderVariant, type ShaderVariantOptions } from './ShaderProgram';
+import { ShaderVariant, type ShaderVariantOptions } from './ShaderVariant';
 import type { Material } from './Material';
 
 export class ShaderCache {
@@ -27,7 +27,7 @@ export class ShaderCache {
      * Simple fail-safe to make sure we never cache a shader without referencing a property.
      * We just maintain a list of properties that we "know" we are using in the generation
      * of the cache key, and validate that against all keys on the options object.
-     * If somebody adds a new key to `ShaderProgramOptions` without updating this logic,
+     * If somebody adds a new key to `ShaderVariantOptions` without updating this logic,
      * this will produce a warning.
      */
     const missingKeys: (keyof ShaderVariantOptions)[] = [];
