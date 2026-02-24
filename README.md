@@ -16,18 +16,20 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Collision handling~~
   - [x] ~~Core maths: Vector, Quaternion~~
     - [x] ~~Replace as much gl-matrix logic with this as possible, ideally all of it~~
-  - [~] Picking / ray casting
-  - [~] 3D Animation including bones
+  - [x] ~~Picking / ray casting~~
+    - [ ] Move ray casting into Scene or something
+  - [x] ~~3D Animation including bones~~
     - [ ] Ability to reset / stop animation
     - [ ] Config e.g. animation looping
+    - [ ] Rename a bunch of model stuff
   - [x] ~~Turning on Test objects now produces a performance problem! (at least with wireframe enabled / ray casting)~~
+  - [x] ~~DrawDebug - what's the future here?~~
   - [ ] ? POSSIBLE BUG?: `addChild` recomputes transforms. What happens to transitive children e.g. `c.addChild(b); a.addChild(b);` - Does C update correctly?
-  - [ ] Sound and audio (PoC)
+  - [x] ~~Sound and audio (PoC)~~
   - [ ] Basic Input system
-  - [~] Materials can be reused
-  - [ ] Redo / remove wireframe API and wireframe drawing (use worldMatrix?) (draw a `Model`?)
+  - [x] ~~Materials can be reused~~
   - [ ] POC for gizmos
-    - [ ] Some way to render on a different "layer"
+    - [ ] Some way to render on a different "layer" (not to mention, UI?)
     - [ ] Calculate bounding box of node/hierarchy
   - [ ] Remaining material properties needed by PolyZone
     - [ ] Emission
@@ -53,7 +55,16 @@ These items are roughly in priority order.
   - [ ] Animated textures
 
 ### Not yet prioritised
-  - N/A
+  - Test all Model properties e.g. VertexColors
+  - Lighting UBO can probably use an array lol
+  - redundantly calling `gl.bindBuffer` immediately after `createBuffer()`
+  - `DrawDebug.drawWireframe()` should probably be replaced with a shader / material option. For example, joint weights are ignored.
+  - ObjLoader
+  - Materials should be able to be overrides instead of replacements
+  - Configurable number of max lights
+  - Storing `transform.position` gets a reference instead of a copy. Is that chill?
+  - Some kind of generic "muted" button that people can include automatically
+  - Camera should infer its aspect ratio, it shouldn't be a param
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.

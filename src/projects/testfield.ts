@@ -1,7 +1,7 @@
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
 import { Model, type Triangle } from '@polyzone/engine/models';
 import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
-import { Engine, type IEngine } from '@polyzone/engine/Engine';
+import { Engine } from '@polyzone/engine/Engine';
 import { Scene, SceneNode } from '@polyzone/engine/scene';
 import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
 import { Color3 } from '@polyzone/engine/util/Color3';
@@ -10,25 +10,11 @@ import { DegreesToRadians } from '@polyzone/engine/util/math';
 import { Color4 } from '@polyzone/engine/util/Color4';
 import { rayAABBIntersection, rayTriangleIntersection } from '@polyzone/engine/collision/ray';
 import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
-import type { ModelDefinition } from '@polyzone/engine/loaders/definitions';
 import { Material, ShaderBlendingMode } from '@polyzone/engine/materials';
 import { Texture } from '@polyzone/engine/textures';
 import { AudioClip } from '@polyzone/engine/audio';
-
-export interface CartridgeDefinition {
-  models: ModelDefinition[];
-}
-interface SceneState {
-  cameraOrigin?: SceneNode;
-  camera?: CameraNode;
-  lightOrigin?: SceneNode;
-  burger?: ModelNode;
-  testObjects?: ModelNode[][];
-
-  staticCollider?: BoxColliderNode;
-  rotatingColliderParent?: ModelNode;
-  rotatingCollider?: BoxColliderNode;
-}
+import { DebugGeometry } from 'src/util/DebugGeometry';
+import { GltfLoader } from '@polyzone/engine/loaders/GltfLoader';
 
 const MaxRuntimeSeconds = 20;
 const TestObjectsEnabled = false;
@@ -42,23 +28,57 @@ const CollidingMaterial = new Material('colliding', {
   unlit: true,
 });
 
-export class Runtime {
-  private engine: IEngine | undefined;
-
-  private scene: SceneState | undefined;
-  private debugCanvas: HTMLCanvasElement | undefined;
-
-  public async loadCartridge(canvas: HTMLCanvasElement, cartridge: CartridgeDefinition): Promise<void> {
-    // Get debug canvas
-    this.debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
+export abstract class Testfield {
+  public static async run(canvas: HTMLCanvasElement): Promise<void> {
     const fileSystem = new WebFileSystem();
-    const engine = this.engine = new Engine(canvas, fileSystem);
+
+    const debugGeometry = new DebugGeometry(fileSystem);
+
+    const models = [
+      /* 00 - Ground */
+      {
+        rootNodes: [debugGeometry.simpleNode({
+          name: 'ground',
+          primitive: debugGeometry.cubePrimitive(),
+          material: await debugGeometry.material({
+            name: 'ground',
+            diffuseTexturePath: '/textures/stones.png',
+          }),
+        })],
+        animations: [],
+      },
+      /* 01 - Real model */
+      await GltfLoader.loadModel('/models/burger.glb', fileSystem),
+      /* 02 - Blending sample */
+      {
+        rootNodes: [debugGeometry.simpleNode({
+          name: 'blending',
+          primitive: debugGeometry.cubePrimitive(),
+          material: await debugGeometry.material({
+            name: 'blending',
+            diffuseTexturePath: '/textures/stones.png',
+            diffuseColor: Color4.white().withA(0),
+          }),
+        })],
+        animations: [],
+      },
+      /* 03 - Dumpster model */
+      await GltfLoader.loadModel('/models/dumpster.glb', fileSystem),
+      /* 04 - Animated model */
+      await GltfLoader.loadModel('/models/temp/rig_mage.glb', fileSystem),
+      /* 05 - Non-animated model */
+      await GltfLoader.loadModel('/models/temp/Knight.glb', fileSystem),
+    ];
+
+    // Get debug canvas
+    const debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
+    const engine = new Engine(canvas, fileSystem);
     const scene = new Scene(engine);
     scene.lighting.ambientColor = new Color3(30, 30, 30);
 
     // Load models
-    const boxModel = await Model.fromDefinition(engine, cartridge.models[0]);
-    const burgerModel = await Model.fromDefinition(engine, cartridge.models[1]);
+    const boxModel = await Model.fromDefinition(engine, models[0]);
+    const burgerModel = await Model.fromDefinition(engine, models[1]);
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
     const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
@@ -104,15 +124,15 @@ export class Runtime {
       });
       // @NOTE Debug ray trace visualization - press spacebar
       document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && this.debugCanvas) {
+        if (e.code === 'Space' && debugCanvas) {
           e.preventDefault();
           console.log('Ray tracing scene to debug canvas...');
 
-          const debugCtx = this.debugCanvas.getContext('2d');
+          const debugCtx = debugCanvas.getContext('2d');
           if (!debugCtx) return;
 
-          const debugWidth = this.debugCanvas.width;
-          const debugHeight = this.debugCanvas.height;
+          const debugWidth = debugCanvas.width;
+          const debugHeight = debugCanvas.height;
 
           // Clear debug canvas
           debugCtx.fillStyle = 'black';
@@ -245,7 +265,7 @@ export class Runtime {
     }
     /* Blending test stuff */
     const blendingTexture = await Texture.load(engine, '/textures/stones.png');
-    const blendingModel = await Model.fromDefinition(engine, cartridge.models[2]);
+    const blendingModel = await Model.fromDefinition(engine, models[2]);
     const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
     blendingAverage.position.x = 1.5;
     blendingAverage.position.y = 0.5;
@@ -285,7 +305,7 @@ export class Runtime {
     }));
 
     /* Intersecting Colliders */
-    const colliderModel = await Model.fromDefinition(engine, cartridge.models[0]);
+    const colliderModel = await Model.fromDefinition(engine, models[0]);
     const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
     const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
       x: 1, y: 1, z: 1,
@@ -316,7 +336,7 @@ export class Runtime {
       return [model, collider];
     }
     const speed = 0.35;
-    const dumpsterModel = await Model.fromDefinition(engine, cartridge.models[3]);
+    const dumpsterModel = await Model.fromDefinition(engine, models[3]);
     const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
     const convexCollider = convexColliderNode.addChild(
       new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
@@ -331,8 +351,8 @@ export class Runtime {
     setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
 
     /* Animation */
-    const animatedModel = await Model.fromDefinition(engine, cartridge.models[4]);
-    const nonAnimatedModel = await Model.fromDefinition(engine, cartridge.models[5]);
+    const animatedModel = await Model.fromDefinition(engine, models[4]);
+    const nonAnimatedModel = await Model.fromDefinition(engine, models[5]);
     const figure1 = new ModelNode(scene, 'figure-1', nonAnimatedModel);
     figure1.animationSource = animatedModel;
     figure1.position.x = -1;
@@ -366,20 +386,11 @@ export class Runtime {
     }
 
 
-    this.scene = {
-      burger,
-      camera,
-      cameraOrigin,
-      lightOrigin,
-      testObjects,
-      staticCollider,
-      rotatingColliderParent,
-      rotatingCollider,
-    };
-  }
 
-  public run(): void {
-    if (!this.engine) throw new Error(`Haven't initialised yet`);
+
+
+
+
 
     /* @TODO Mostly a bunch of @DEBUG nonsense */
     const CameraRotationSpeedDegreesPerSecond = 15;
@@ -395,36 +406,33 @@ export class Runtime {
       }
     }
 
-    const originalBurgerPosition = this.scene!.burger?.position.clone();
-    const originalBurgerRotation = this.scene!.burger?.rotation.q.clone();
-    const originalBurgerScale = this.scene!.burger?.scale.clone();
+    const originalBurgerPosition = burger.position.clone();
+    const originalBurgerRotation = burger.rotation.q.clone();
+    const originalBurgerScale = burger.scale.clone();
 
-    this.engine.run((dt, stop): void => {
-      const scene = this.scene;
-      if (scene === undefined) throw new Error(`State is undefined`);
-
+    engine.run((dt, stop): void => {
       /* Camera */
-      if (scene.cameraOrigin) {
-        scene.cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
+      if (cameraOrigin) {
+        cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
       }
-      if (scene.camera) {
-        scene.camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
-        scene.camera.pointAt(new Vector3(0, 0, 0));
+      if (camera) {
+        camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
+        camera.pointAt(new Vector3(0, 0, 0));
       }
 
       /* Collection of test objects */
-      if (scene.testObjects !== undefined) {
+      if (testObjects !== undefined) {
         let n = 0;
-        for (let i = 0; i < scene.testObjects.length; i++) {
-          for (let j = 0; j < scene.testObjects[i].length; j++) {
-            const testObject = scene.testObjects[i][j];
+        for (let i = 0; i < testObjects.length; i++) {
+          for (let j = 0; j < testObjects[i].length; j++) {
+            const testObject = testObjects[i][j];
             const uniqueParam = (time + (n / 10));
             // testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
             testObject.rotation.set(Quaternion.fromAxisAngle(Vector3.up(), (uniqueParam * 360 / 8) % 360));
             testObject.position = new Vector3(
-              (i - scene.testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
+              (i - testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
               0,
-              (j - scene.testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
+              (j - testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
             );
             testObject.scale = Vector3.one().multiplySelf(Math.sin(uniqueParam) / 3 + 1);
             n++;
@@ -433,37 +441,37 @@ export class Runtime {
       }
 
       /* Burger */
-      if (scene.burger) {
+      if (burger) {
         cycleBehaviours(() => {
-          scene.burger!.position = originalBurgerPosition!;
-          scene.burger!.rotation.set(originalBurgerRotation!);
-          scene.burger!.scale = originalBurgerScale!;
+          burger.position = originalBurgerPosition;
+          burger.rotation.set(originalBurgerRotation);
+          burger.scale = originalBurgerScale;
         }, [
-          () => scene.burger!.rotation.y = time * 360 / 8,
-          () => scene.burger!.position = originalBurgerPosition!.add(new Vector3(Math.sin(time) * 2, scene.burger!.position.y, Math.cos(time) * 2)),
-          () => scene.burger!.scale = originalBurgerScale!.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5),
+          () => burger.rotation.y = time * 360 / 8,
+          () => burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2)),
+          () => burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5),
         ]);
       }
 
       /* Spin lights */
-      if (scene.lightOrigin) {
-        scene.lightOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * LightRotationSpeedDegreesPerSecond));
+      if (lightOrigin) {
+        lightOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * LightRotationSpeedDegreesPerSecond));
       }
 
       /* Colliders */
-      if (scene.rotatingColliderParent) {
-        scene.rotatingColliderParent.rotation.x = time * 360 / 7;
-        scene.rotatingColliderParent.rotation.y = time * 360 / 8;
-        scene.rotatingColliderParent.rotation.z = time * 360 / 6;
+      if (rotatingColliderParent) {
+        rotatingColliderParent.rotation.x = time * 360 / 7;
+        rotatingColliderParent.rotation.y = time * 360 / 8;
+        rotatingColliderParent.rotation.z = time * 360 / 6;
 
         // @TODO bring this beat back
-        if (scene.rotatingCollider && scene.staticCollider) {
-          const collisionResult = scene.rotatingCollider.intersects(scene.staticCollider);
+        if (rotatingCollider && staticCollider) {
+          const collisionResult = rotatingCollider.intersects(staticCollider);
           // @TODO proper material stuff
           if (collisionResult) {
-            scene.rotatingColliderParent.setMaterialOverride('ground', CollidingMaterial);
+            rotatingColliderParent.setMaterialOverride('ground', CollidingMaterial);
           } else {
-            scene.rotatingColliderParent.setMaterialOverride('ground', undefined);
+            rotatingColliderParent.setMaterialOverride('ground', undefined);
           }
         }
       }
@@ -476,6 +484,7 @@ export class Runtime {
     });
   }
 }
+
 
 function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, normalizedY: number): ModelNode | undefined {
   const rayTarget = new Vector3(
