@@ -5,8 +5,7 @@ import { AxisAlignedBoundingBox } from "@polyzone/engine/collision";
 import { Vector3 } from "@polyzone/engine/util/vector";
 import { Animation } from "@polyzone/engine/animation";
 import type { Material } from "@polyzone/engine/materials";
-import { DrawDebug, type IWireframeDrawable } from "@polyzone/engine/util/DrawDebug";
-import { Color4 } from "@polyzone/engine/util/Color4";
+import { type IWireframeDrawable } from "@polyzone/engine/util/DrawDebug";
 
 export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   public model: Model;
@@ -50,14 +49,6 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
     // No scene or no camera = no draw tasks
     if (viewMatrix !== undefined) {
       this.model.draw(engine, drawQueues, viewMatrix, this.worldMatrix);
-    }
-
-    // @TODO @DEBUG
-    {
-      const aabb = this.getAABB();
-      drawQueues.opaque.push(
-        DrawDebug.drawWireframe(engine, aabb, { color: Color4.green() }),
-      );
     }
   }
 
