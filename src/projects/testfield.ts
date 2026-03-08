@@ -16,11 +16,34 @@ import { AudioClip } from '@polyzone/engine/audio';
 import { DebugGeometry } from 'src/util/DebugGeometry';
 import { GltfLoader } from '@polyzone/engine/loaders/GltfLoader';
 
-const MaxRuntimeSeconds = 20;
-const TestObjectsEnabled = false;
+const MaxRuntimeSeconds = 30;
 const GridW = 20;
 const GridH = 20;
 const GridSpacing = 0.5;
+
+const Flags = {
+  /* @NOTE This is duplicated so I can just comment lines out to disable them */
+  ...{
+    AudioDemoEnabled: false,
+    LightingEnabled: false,
+    GroundEnabled: false,
+    BurgerEnabled: false,
+    TestObjectsEnabled: false,
+    BlendingTestsEnabled: false,
+    IntersectingCollidersEnabled: false,
+    MovingCollidersEnabled: false,
+    AnimationTestEnabled: false,
+  },
+  // AudioDemoEnabled: true,
+  LightingEnabled: true,
+  GroundEnabled: true,
+  BurgerEnabled: true,
+  // TestObjectsEnabled: true,
+  BlendingTestsEnabled: true,
+  // IntersectingCollidersEnabled: true,
+  // MovingCollidersEnabled: true,
+  AnimationTestEnabled: true,
+};
 
 const CollidingMaterial = new Material('colliding', {
   blendingMode: ShaderBlendingMode.Additive(),
@@ -28,7 +51,7 @@ const CollidingMaterial = new Material('colliding', {
   unlit: true,
 });
 
-export abstract class Testfield {
+export abstract class Game {
   public static async run(canvas: HTMLCanvasElement): Promise<void> {
     const fileSystem = new WebFileSystem();
 
@@ -70,6 +93,8 @@ export abstract class Testfield {
       await GltfLoader.loadModel('/models/temp/Knight.glb', fileSystem),
     ];
 
+    const runLoopHooks: Array<(dt: number) => void> = [];
+
     // Get debug canvas
     const debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
     const engine = new Engine(canvas, fileSystem);
@@ -85,24 +110,32 @@ export abstract class Testfield {
     camera.position = new Vector3(-3.5, 2, 3.5);
     camera.pointAt(Vector3.zero());
     cameraOrigin.addChild(camera);
+    runLoopHooks.push((dt) => {
+      const CameraRotationSpeedDegreesPerSecond = 15;
+      cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
+      camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
+      camera.pointAt(new Vector3(0, 0, 0));
+    });
 
     /* Audio */
-    const testAudio = await AudioClip.load(engine, 'audio/Titlescreen_1.mp3', { loop: true });
-    const audioBox = new ModelNode(scene, 'test', boxModel);
-    audioBox.setMaterialOverride('ground', new Material('red', {
-      diffuseColor: Color4.red(),
-    }));
-    audioBox.scale.multiplySelf(0.2);
-    const audioSource = new AudioSourceNode(scene, 'test');
-    audioBox.addChild(audioSource);
+    if (Flags.AudioDemoEnabled) {
+      const testAudio = await AudioClip.load(engine, 'audio/Titlescreen_1.mp3', { loop: true });
+      const audioBox = new ModelNode(scene, 'test', boxModel);
+      audioBox.setMaterialOverride('ground', new Material('red', {
+        diffuseColor: Color4.red(),
+      }));
+      audioBox.scale.multiplySelf(0.2);
+      const audioSource = new AudioSourceNode(scene, 'test');
+      audioBox.addChild(audioSource);
 
-    audioBox.absolutePosition = camera.absolutePosition;
-    audioSource.playClip(testAudio);
-    {
-      const debug_audioLoop = setInterval(() => {
-        audioBox.position.z -= 1 / 30;
-      }, 30);
-      setTimeout(() => clearInterval(debug_audioLoop), MaxRuntimeSeconds * 1000);
+      audioBox.absolutePosition = camera.absolutePosition;
+      audioSource.playClip(testAudio);
+      {
+        const debug_audioLoop = setInterval(() => {
+          audioBox.position.z -= 1 / 30;
+        }, 30);
+        setTimeout(() => clearInterval(debug_audioLoop), MaxRuntimeSeconds * 1000);
+      }
     }
 
 
@@ -188,65 +221,79 @@ export abstract class Testfield {
     }
 
     /* Lighting */
-    const LightDistance = 5;
-    const lightOrigin = new ObjectNode(scene, 'light_origin');
-    const light0 = new PointLightNode(scene, 'light0', Color3.red());
-    light0.position = new Vector3(
-      LightDistance * Math.sin(2 * Math.PI * 0.2 / 3),
-      LightDistance,
-      LightDistance * Math.cos(2 * Math.PI * 1 / 3),
-    );
-    lightOrigin.addChild(light0);
-    const light1 = new PointLightNode(scene, 'light1', Color3.green());
-    light1.position = new Vector3(
-      LightDistance * Math.sin(2 * Math.PI * 2 / 3),
-      LightDistance,
-      LightDistance * Math.cos(2 * Math.PI * 2 / 3),
-    );
-    lightOrigin.addChild(light1);
-    const light2 = new PointLightNode(scene, 'light2', Color3.blue());
-    light2.position = new Vector3(
-      LightDistance * Math.sin(2 * Math.PI * 3 / 3),
-      LightDistance,
-      LightDistance * Math.cos(2 * Math.PI * 3 / 3),
-    );
-    lightOrigin.addChild(light2);
+    if (Flags.LightingEnabled) {
+      const LightDistance = 5;
+      const lightOrigin = new ObjectNode(scene, 'light_origin');
+      const light0 = new PointLightNode(scene, 'light0', Color3.red());
+      light0.position = new Vector3(
+        LightDistance * Math.sin(2 * Math.PI * 0.2 / 3),
+        LightDistance,
+        LightDistance * Math.cos(2 * Math.PI * 1 / 3),
+      );
+      lightOrigin.addChild(light0);
+      const light1 = new PointLightNode(scene, 'light1', Color3.green());
+      light1.position = new Vector3(
+        LightDistance * Math.sin(2 * Math.PI * 2 / 3),
+        LightDistance,
+        LightDistance * Math.cos(2 * Math.PI * 2 / 3),
+      );
+      lightOrigin.addChild(light1);
+      const light2 = new PointLightNode(scene, 'light2', Color3.blue());
+      light2.position = new Vector3(
+        LightDistance * Math.sin(2 * Math.PI * 3 / 3),
+        LightDistance,
+        LightDistance * Math.cos(2 * Math.PI * 3 / 3),
+      );
+      lightOrigin.addChild(light2);
 
-    const ground = new ModelNode(scene, 'ground', boxModel);
-    ground.position.y = -0.5;
-    ground.scale.x = 4;
-    ground.scale.z = 4;
+      runLoopHooks.push((dt) => {
+        const LightRotationSpeedDegreesPerSecond = 25;
+        lightOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * LightRotationSpeedDegreesPerSecond));
+      });
+    }
 
-    /* Four Cardinal Boxes */
-    const eastBox = new ModelNode(scene, 'east', boxModel);
-    eastBox.position.x = -1.5;
-    eastBox.scale.y = 0.1;
-    eastBox.position.y = eastBox.scale.y / 2;
-    const westBox = new ModelNode(scene, 'west', boxModel);
-    westBox.position.x = 1.5;
-    westBox.scale.y = 0.2;
-    westBox.position.y = westBox.scale.y / 2;
-    const southBox = new ModelNode(scene, 'south', boxModel);
-    southBox.position.z = -1.5;
-    southBox.scale.y = 0.3;
-    southBox.position.y = southBox.scale.y / 2;
-    const northBox = new ModelNode(scene, 'north', boxModel);
-    northBox.position.z = 1.5;
-    northBox.scale.y = 0.4;
-    northBox.position.y = northBox.scale.y / 2;
-
+    /* Ground */
+    if (Flags.GroundEnabled) {
+      const ground = new ModelNode(scene, 'ground', boxModel);
+      ground.position.y = -0.5;
+      ground.scale.x = 4;
+      ground.scale.z = 4;
+    }
 
     /* Burger */
-    const burger = new ModelNode(scene, 'burger', burgerModel);
-    burger.scale.multiplySelf(2);
-    const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-    miniBurger.position = new Vector3(0, 0, 0.75);
-    burger.addChild(miniBurger);
+    if (Flags.BurgerEnabled) {
+      const burger = new ModelNode(scene, 'burger', burgerModel);
+      burger.scale.multiplySelf(2);
+      const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+      miniBurger.position = new Vector3(0, 0, 0.35);
+      miniBurger.scale.multiplySelf(0.5);
+      burger.addChild(miniBurger);
+
+      const originalBurgerRotation = burger.rotation.q.clone();
+      const originalBurgerScale = burger.scale.clone();
+      const originalBurgerPosition = burger.position.clone();
+
+      runLoopHooks.push(() => {
+        cycleBehaviours(() => {
+          burger.position = originalBurgerPosition;
+          burger.rotation.set(originalBurgerRotation);
+          burger.scale = originalBurgerScale;
+        }, [
+          () => burger.rotation.y = time * 360 / 8,
+          () => burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2)),
+          () => burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5),
+          () => {
+            burger.rotation.y = time * 360 / 8;
+            burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2));
+            burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5);
+          },
+        ]);
+      });
+    }
 
     /* Test Objects */
-    let testObjects: ModelNode[][] | undefined = undefined;
-    if (TestObjectsEnabled) {
-      testObjects = [];
+    if (Flags.TestObjectsEnabled) {
+      const testObjects: ModelNode[][] = [];
       for (let i = 0; i < GridW; i++) {
         testObjects[i] = [];
         for (let j = 0; j < GridH; j++) {
@@ -262,166 +309,7 @@ export abstract class Testfield {
           miniBurger.scale.multiplySelf(0.5);
         }
       }
-    }
-    /* Blending test stuff */
-    const blendingTexture = await Texture.load(engine, '/textures/stones.png');
-    const blendingModel = await Model.fromDefinition(engine, models[2]);
-    const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
-    blendingAverage.position.x = 1.5;
-    blendingAverage.position.y = 0.5;
-    blendingAverage.position.z = 1.5;
-    blendingAverage.setMaterialOverride('blending', new Material('blending-average', {
-      blendingMode: ShaderBlendingMode.Average(),
-      diffuseColor: Color4.white().withA(0),
-      diffuseTexture: blendingTexture,
-    }));
-    const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel);
-    blendingAdditive.position.x = -1.5;
-    blendingAdditive.position.y = 0.5;
-    blendingAdditive.position.z = 1.5;
-    blendingAdditive.setMaterialOverride('blending', new Material('blending-additive', {
-      blendingMode: ShaderBlendingMode.Additive(),
-      diffuseColor: Color4.green().withA(0),
-      diffuseTexture: blendingTexture,
-      unlit: true,
-    }));
-    const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel);
-    blendingSubtractive.position.x = 1.5;
-    blendingSubtractive.position.y = 0.5;
-    blendingSubtractive.position.z = -1.5;
-    blendingSubtractive.setMaterialOverride('blending', new Material('blending-subtractive', {
-      blendingMode: ShaderBlendingMode.Subtractive(),
-      diffuseColor: Color4.white().withA(0),
-      diffuseTexture: blendingTexture,
-      unlit: true,
-    }));
-    const blendingAlphaBlend = new ModelNode(scene, 'blending_alphaBlend', blendingModel);
-    blendingAlphaBlend.position.x = -1.5;
-    blendingAlphaBlend.position.y = 0.5;
-    blendingAlphaBlend.position.z = -1.5;
-    blendingAlphaBlend.setMaterialOverride('blending', new Material('blending-alphaBlend', {
-      blendingMode: ShaderBlendingMode.AlphaClip(),
-      diffuseTexture: await Texture.load(engine, '/textures/bars.png'),
-    }));
-
-    /* Intersecting Colliders */
-    const colliderModel = await Model.fromDefinition(engine, models[0]);
-    const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
-    const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
-      x: 1, y: 1, z: 1,
-    });
-    staticColliderParent.addChild(staticCollider);
-    staticColliderParent.position.y = 2.5;
-    const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
-    const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
-      x: 1, y: 1, z: 1,
-    }));
-    rotatingColliderParent.position.x = 1.2;
-    rotatingColliderParent.position.y = 2.5;
-
-    /* Moving colliders */
-    const size = 1;
-    function box(pos: Vector3, rot?: Vector3, scale?: Vector3): [SceneNode, ColliderNode] {
-      const model = new ModelNode(scene, "box", boxModel);
-      const collider = model.addChild(new BoxColliderNode(scene, "collider", 0, {
-        x: size, y: size, z: size,
-      }));
-      model.position = pos;
-      if (rot) {
-        model.rotation.euler.setValue(rot);
-      }
-      if (scale) {
-        model.scale = scale;
-      }
-      return [model, collider];
-    }
-    const speed = 0.35;
-    const dumpsterModel = await Model.fromDefinition(engine, models[3]);
-    const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
-    const convexCollider = convexColliderNode.addChild(
-      new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
-    );
-    convexColliderNode.scale.multiplySelf(2);
-    const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 1.3, 0));
-    const stop = setInterval(() => {
-      // Cruel test, make two dynamic colliders both move into each other
-      convexCollider.move(convexColliderNode, new Vector3(-speed / 60, 0, 0));
-      movingBoxCollider.move(movingBoxNode, new Vector3(speed / 60, 0, 0));
-    }, 16);
-    setTimeout(() => clearInterval(stop), MaxRuntimeSeconds * 1000);
-
-    /* Animation */
-    const animatedModel = await Model.fromDefinition(engine, models[4]);
-    const nonAnimatedModel = await Model.fromDefinition(engine, models[5]);
-    const figure1 = new ModelNode(scene, 'figure-1', nonAnimatedModel);
-    figure1.animationSource = animatedModel;
-    figure1.position.x = -1;
-    const figure2 = new ModelNode(scene, 'figure-2', animatedModel);
-    figure2.position.x = 1;
-    const AnimationList: string[] = [
-      'Death_A',
-      'Death_B',
-      'Hit_A',
-      'Hit_B',
-      'Idle_A',
-      'Idle_B',
-      'Interact',
-      'PickUp',
-      'Spawn_Air',
-      'Spawn_Ground',
-      'T-Pose',
-      'Throw',
-      'Use_Item',
-    ];
-    if (AnimationList.length > 0) {
-      figure1.playAnimation(AnimationList[AnimationList.length - 1]);
-      let animationIndex = 0;
-      const stahp = setInterval(() => {
-        const animationName = AnimationList[animationIndex];
-        console.log(`Playing: '${animationName}'`);
-        figure1.playAnimation(animationName);
-        animationIndex = (animationIndex + 1) % AnimationList.length;
-      }, 1500);
-      setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
-    }
-
-
-
-
-
-
-
-
-    /* @TODO Mostly a bunch of @DEBUG nonsense */
-    const CameraRotationSpeedDegreesPerSecond = 15;
-    const LightRotationSpeedDegreesPerSecond = 25;
-
-    let time = 0;
-    const CyclePeriod = 4;
-    function cycleBehaviours(reset: () => void, behaviours: Array<() => void>): void {
-      reset();
-      const behaviourIndex = ~~(time / CyclePeriod) % (behaviours.length + 1);
-      if (behaviourIndex < behaviours.length) {
-        behaviours[behaviourIndex]();
-      }
-    }
-
-    const originalBurgerPosition = burger.position.clone();
-    const originalBurgerRotation = burger.rotation.q.clone();
-    const originalBurgerScale = burger.scale.clone();
-
-    engine.run((dt, stop): void => {
-      /* Camera */
-      if (cameraOrigin) {
-        cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
-      }
-      if (camera) {
-        camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
-        camera.pointAt(new Vector3(0, 0, 0));
-      }
-
-      /* Collection of test objects */
-      if (testObjects !== undefined) {
+      runLoopHooks.push(() => {
         let n = 0;
         for (let i = 0; i < testObjects.length; i++) {
           for (let j = 0; j < testObjects[i].length; j++) {
@@ -438,46 +326,172 @@ export abstract class Testfield {
             n++;
           }
         }
-      }
+      });
+    }
+    /* Blending test stuff */
+    if (Flags.BlendingTestsEnabled) {
+      const blendingTexture = await Texture.load(engine, '/textures/stones.png');
+      const blendingModel = await Model.fromDefinition(engine, models[2]);
+      const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
+      blendingAverage.position.x = 1.5;
+      blendingAverage.position.y = 0.5;
+      blendingAverage.position.z = 1.5;
+      blendingAverage.setMaterialOverride('blending', new Material('blending-average', {
+        blendingMode: ShaderBlendingMode.Average(),
+        diffuseColor: Color4.white().withA(0),
+        diffuseTexture: blendingTexture,
+      }));
+      const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel);
+      blendingAdditive.position.x = -1.5;
+      blendingAdditive.position.y = 0.5;
+      blendingAdditive.position.z = 1.5;
+      blendingAdditive.setMaterialOverride('blending', new Material('blending-additive', {
+        blendingMode: ShaderBlendingMode.Additive(),
+        diffuseColor: Color4.green().withA(0),
+        diffuseTexture: blendingTexture,
+        unlit: true,
+      }));
+      const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel);
+      blendingSubtractive.position.x = 1.5;
+      blendingSubtractive.position.y = 0.5;
+      blendingSubtractive.position.z = -1.5;
+      blendingSubtractive.setMaterialOverride('blending', new Material('blending-subtractive', {
+        blendingMode: ShaderBlendingMode.Subtractive(),
+        diffuseColor: Color4.white().withA(0),
+        diffuseTexture: blendingTexture,
+        unlit: true,
+      }));
+      const blendingAlphaBlend = new ModelNode(scene, 'blending_alphaBlend', blendingModel);
+      blendingAlphaBlend.position.x = -1.5;
+      blendingAlphaBlend.position.y = 0.5;
+      blendingAlphaBlend.position.z = -1.5;
+      blendingAlphaBlend.setMaterialOverride('blending', new Material('blending-alphaBlend', {
+        blendingMode: ShaderBlendingMode.AlphaClip(),
+        diffuseTexture: await Texture.load(engine, '/textures/bars.png'),
+      }));
+    }
 
-      /* Burger */
-      if (burger) {
-        cycleBehaviours(() => {
-          burger.position = originalBurgerPosition;
-          burger.rotation.set(originalBurgerRotation);
-          burger.scale = originalBurgerScale;
-        }, [
-          () => burger.rotation.y = time * 360 / 8,
-          () => burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2)),
-          () => burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5),
-        ]);
-      }
+    /* Intersecting Colliders */
+    if (Flags.IntersectingCollidersEnabled) {
+      const colliderModel = await Model.fromDefinition(engine, models[0]);
+      const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
+      const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
+        x: 1, y: 1, z: 1,
+      });
+      staticColliderParent.addChild(staticCollider);
+      staticColliderParent.position.y = 2.5;
+      const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
+      const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
+        x: 1, y: 1, z: 1,
+      }));
+      rotatingColliderParent.position.x = 1.2;
+      rotatingColliderParent.position.y = 2.5;
 
-      /* Spin lights */
-      if (lightOrigin) {
-        lightOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * LightRotationSpeedDegreesPerSecond));
-      }
+      runLoopHooks.push(() => {
+        if (rotatingColliderParent) {
+          rotatingColliderParent.rotation.x = time * 360 / 7;
+          rotatingColliderParent.rotation.y = time * 360 / 8;
+          rotatingColliderParent.rotation.z = time * 360 / 6;
 
-      /* Colliders */
-      if (rotatingColliderParent) {
-        rotatingColliderParent.rotation.x = time * 360 / 7;
-        rotatingColliderParent.rotation.y = time * 360 / 8;
-        rotatingColliderParent.rotation.z = time * 360 / 6;
-
-        // @TODO bring this beat back
-        if (rotatingCollider && staticCollider) {
-          const collisionResult = rotatingCollider.intersects(staticCollider);
-          // @TODO proper material stuff
-          if (collisionResult) {
-            rotatingColliderParent.setMaterialOverride('ground', CollidingMaterial);
-          } else {
-            rotatingColliderParent.setMaterialOverride('ground', undefined);
+          if (rotatingCollider && staticCollider) {
+            const collisionResult = rotatingCollider.intersects(staticCollider);
+            if (collisionResult) {
+              rotatingColliderParent.setMaterialOverride('ground', CollidingMaterial);
+            } else {
+              rotatingColliderParent.setMaterialOverride('ground', undefined);
+            }
           }
         }
+      });
+    }
+
+    /* Moving colliders */
+    if (Flags.MovingCollidersEnabled) {
+      const size = 1;
+      function box(pos: Vector3, rot?: Vector3, scale?: Vector3): [SceneNode, ColliderNode] {
+        const model = new ModelNode(scene, "box", boxModel);
+        const collider = model.addChild(new BoxColliderNode(scene, "collider", 0, {
+          x: size, y: size, z: size,
+        }));
+        model.position = pos;
+        if (rot) {
+          model.rotation.euler.setValue(rot);
+        }
+        if (scale) {
+          model.scale = scale;
+        }
+        return [model, collider];
       }
+      const speed = 0.35;
+      const dumpsterModel = await Model.fromDefinition(engine, models[3]);
+      const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
+      const convexCollider = convexColliderNode.addChild(
+        new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
+      );
+      convexColliderNode.scale.multiplySelf(2);
+      const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 1.3, 0));
+
+      runLoopHooks.push(() => {
+        // Cruel test, make two dynamic colliders both move into each other
+        convexCollider.move(convexColliderNode, new Vector3(-speed / 60, 0, 0));
+        movingBoxCollider.move(movingBoxNode, new Vector3(speed / 60, 0, 0));
+      });
+    }
+
+    /* Animation */
+    if (Flags.AnimationTestEnabled) {
+      const animatedModel = await Model.fromDefinition(engine, models[4]);
+      const nonAnimatedModel = await Model.fromDefinition(engine, models[5]);
+      const figure1 = new ModelNode(scene, 'figure-1', nonAnimatedModel);
+      figure1.animationSource = animatedModel;
+      figure1.position.x = -1;
+      const figure2 = new ModelNode(scene, 'figure-2', animatedModel);
+      figure2.position.x = 1;
+      const AnimationList: string[] = [
+        'Death_A',
+        'Death_B',
+        'Hit_A',
+        'Hit_B',
+        'Idle_A',
+        'Idle_B',
+        'Interact',
+        'PickUp',
+        'Spawn_Air',
+        'Spawn_Ground',
+        'T-Pose',
+        'Throw',
+        'Use_Item',
+      ];
+      if (AnimationList.length > 0) {
+        figure1.playAnimation(AnimationList[AnimationList.length - 1]);
+        let animationIndex = 0;
+        const stahp = setInterval(() => {
+          const animationName = AnimationList[animationIndex];
+          console.log(`Playing: '${animationName}'`);
+          figure1.playAnimation(animationName);
+          animationIndex = (animationIndex + 1) % AnimationList.length;
+        }, 1500);
+        setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
+      }
+    }
+
+    /* Helpers */
+    let time = 0;
+    const CyclePeriod = 4;
+    function cycleBehaviours(reset: () => void, behaviours: Array<() => void>): void {
+      reset();
+      const behaviourIndex = ~~(time / CyclePeriod) % (behaviours.length + 1);
+      if (behaviourIndex < behaviours.length) {
+        behaviours[behaviourIndex]();
+      }
+    }
+
+    /* Run loop */
+    engine.run((dt, stop): void => {
+      // Invoke hooks
+      runLoopHooks.forEach((hook) => hook(dt));
 
       time += dt;
-
       if (time > MaxRuntimeSeconds) {
         stop();
       }
