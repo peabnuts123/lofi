@@ -1,3 +1,4 @@
+import { type MediaStreamAudioDestinationNode, type IAudioContext } from 'standardized-audio-context';
 import type { Engine } from '@polyzone/engine/Engine';
 import { zipSync } from 'fflate';
 
@@ -42,7 +43,7 @@ export class DebugModule {
   private _currentMediaRecorder: MediaRecorder | undefined = undefined;
   private _currentRecordingBlobs: Blob[] | undefined = undefined;
   private _currentRecordingAutoStopTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-  private _currentRecordingAudioDestination: MediaStreamAudioDestinationNode | undefined = undefined;
+  private _currentRecordingAudioDestination: MediaStreamAudioDestinationNode<IAudioContext> | undefined = undefined;
 
   private constructor(saveOverride: SaveOverrideFunction | undefined) {
     this.saveOverride = saveOverride;
@@ -357,7 +358,7 @@ export class DebugModule {
 
     // Setup audio recording if available
     let audioRecorder: MediaRecorder | undefined;
-    let audioDestination: MediaStreamAudioDestinationNode | undefined;
+    let audioDestination: MediaStreamAudioDestinationNode<IAudioContext> | undefined;
     const audioBlobs: Blob[] = [];
 
     if (engine) {
@@ -388,7 +389,7 @@ export class DebugModule {
       // Stop audio recording if it exists
       let audioBlob: Blob | undefined = undefined;
       if (audioRecorder) {
-          // Wait for last data before saving video
+        // Wait for last data before saving video
         audioRecorder.onstop = () => {
           audioBlob = new Blob(audioBlobs, { type: 'audio/webm' });
           void this._downloadFramesAsZip(frames, audioBlob);

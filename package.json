@@ -20,6 +20,7 @@
     "eslint": "^9.39.2",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
+    "standardized-audio-context-mock": "^9.7.27",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.50.0",
@@ -31,6 +32,7 @@
     "@gltf-transform/core": "^4.3.0",
     "@gltf-transform/extensions": "^4.3.0",
     "fflate": "^0.8.2",
-    "online-3d-viewer": "^0.18.0"
+    "online-3d-viewer": "^0.18.0",
+    "standardized-audio-context": "^25.3.77"
   }
 }

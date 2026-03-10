@@ -6,7 +6,7 @@ import type { DrawTask, IScene, TransparentDrawTask } from "./scene";
 import { rateCounter } from "./util/debug";
 import { CollisionSystem } from "./collision";
 import { CannotInvertMatrixError, Matrix3 } from "./util/Matrix3";
-import { AudioSystem } from "./audio/AudioSystem";
+import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
 import type { DeepPartial } from "./util/types";
 
 import { DebugModule } from "src/util/DebugModule"; // @TODO move into the engine
@@ -46,8 +46,8 @@ export interface IEngine {
   get config(): EngineConfig;
   get gl(): WebGL2RenderingContext;
   get fileSystem(): IFileSystem;
-  get collisionSystem(): CollisionSystem;
-  get audioSystem(): AudioSystem;
+  get collisionSystem(): CollisionSystem; // @TODO These should probably be behind interfaces
+  get audioSystem(): IAudioSystem;
   get activeScene(): IScene | undefined;
 }
 
@@ -56,7 +56,7 @@ export class Engine implements IEngine {
   public readonly gl: WebGL2RenderingContext;
   public readonly fileSystem: IFileSystem;
   public readonly collisionSystem: CollisionSystem;
-  public readonly audioSystem: AudioSystem;
+  public readonly audioSystem: IAudioSystem;
   public readonly config: EngineConfig;
 
   private _normalTmp: Matrix3 = new Matrix3();

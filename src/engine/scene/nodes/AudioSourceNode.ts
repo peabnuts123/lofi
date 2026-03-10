@@ -1,5 +1,7 @@
+import { type IAudioContext, GainNode, PannerNode, AudioBufferSourceNode } from 'standardized-audio-context';
+
 import type { AudioClip } from "@polyzone/engine/audio/AudioClip";
-import type { AudioSystem } from "@polyzone/engine/audio/AudioSystem";
+import type { IAudioSystem } from "@polyzone/engine/audio/AudioSystem";
 import { SceneNode, type IScene } from "@polyzone/engine/scene";
 import { clamp01 } from "@polyzone/engine/util/math";
 import { Vector3 } from "@polyzone/engine/util/vector";
@@ -18,7 +20,7 @@ export interface PlayClipOptions {
 
 export interface CurrentAudio {
   audioClip: AudioClip;
-  audioNode: AudioBufferSourceNode;
+  audioNode: AudioBufferSourceNode<IAudioContext>;
   onStop: () => void;
 }
 
@@ -49,15 +51,15 @@ export class AudioSourceNode extends SceneNode {
   /**
    * Gain node to control the overall volume of this audio source node.
    */
-  private volumeNode: GainNode;
+  private volumeNode: GainNode<IAudioContext>;
   /**
    * (Spatial audio only) Spatial panner node to pan audio balance.
    */
-  private pannerNode: PannerNode;
+  private pannerNode: PannerNode<IAudioContext>;
   /**
    * (Spatial audio only) Gain node to attenuate audio based on distance.
    */
-  private spatialVolumeNode: GainNode;
+  private spatialVolumeNode: GainNode<IAudioContext>;
   /**
    * The position of this node in listener space.
    * Calculated every frame, so pre-allocate and reuse.
@@ -198,7 +200,7 @@ export class AudioSourceNode extends SceneNode {
     }
   }
 
-  private get audioSystem(): AudioSystem {
+  private get audioSystem(): IAudioSystem {
     return this.scene.engine.audioSystem;
   }
 

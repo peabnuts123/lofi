@@ -1,3 +1,5 @@
+import { type IAudioContext, AudioContext, DynamicsCompressorNode, GainNode, type IAudioNode } from 'standardized-audio-context';
+
 import type { AudioSourceNode } from "@polyzone/engine/scene/nodes";
 import type { IEngine } from "@polyzone/engine/Engine";
 import { Vector3 } from "@polyzone/engine/util/vector";
@@ -14,16 +16,29 @@ export interface PlayingAudioTask {
 
 export type AudioChannel = PlayingAudioTask | undefined;
 
-export class AudioSystem {
+export type PlayAudioSuccessResult = [success: true, onAudioStop: () => void];
+export type PlayAudioFailureResult = [success: false];
+export type PlayAudioResult = PlayAudioSuccessResult | PlayAudioFailureResult;
+
+export interface IAudioSystem {
+  playAudio(audioSource: AudioSourceNode, priority: number, audioNode: IAudioNode<IAudioContext>): PlayAudioResult;
+  destroy(): void;
+  onUpdate(engine: IEngine): void;
+  get context(): IAudioContext;
+  get master(): GainNode<IAudioContext>;
+  get isInitialised(): boolean;
+}
+
+export class AudioSystem implements IAudioSystem {
   /**
    * Web Audio API AudioContext associated with the audio system.
    */
-  public readonly context: AudioContext;
+  public readonly context: IAudioContext;
 
   /**
    * Master output node that all audio should route through.
    */
-  public readonly master: GainNode;
+  public readonly master: GainNode<IAudioContext>;
   /**
    * Array of virtual audio channels that limit the number of sounds
    * that can be playing simultaneously.
@@ -80,7 +95,7 @@ export class AudioSystem {
     document.addEventListener('keydown', onInteract);
   }
 
-  public playAudio(audioSource: AudioSourceNode, priority: number, audioNode: AudioNode): [success: true, onAudioStop: () => void] | [success: false] {
+  public playAudio(audioSource: AudioSourceNode, priority: number, audioNode: IAudioNode<IAudioContext>): [success: true, onAudioStop: () => void] | [success: false] {
     // Find an empty channel
     let targetChannelIndex: number | undefined = undefined;
     for (let i = 0; i < this.channels.length; i++) {
