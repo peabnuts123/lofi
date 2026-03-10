@@ -116,16 +116,14 @@ export class Matrix4 {
     return this.__multiplySelf(this, b);
   }
   public multiply(matrix: Matrix4): Matrix4 {
-    const result = this.clone();
-    return result.multiplySelf(matrix);
+    return this.clone().multiplySelf(matrix);
   }
 
   public reverseMultiplySelf(b: Matrix4): this {
     return this.__multiplySelf(b, this);
   }
   public reverseMultiply(b: Matrix4): Matrix4 {
-    const result = this.clone();
-    return result.reverseMultiplySelf(b);
+    return this.clone().reverseMultiplySelf(b);
   }
 
   private __multiplySelf(a: Matrix4, b: Matrix4): this {
@@ -200,8 +198,7 @@ export class Matrix4 {
     return this;
   }
   public invert(): Matrix4 {
-    const result = this.clone();
-    return result.invertSelf();
+    return this.clone().invertSelf();
   }
 
   public perspectiveSelf(fovy: number, aspect: number, near: number, far: number): this {
@@ -231,8 +228,7 @@ export class Matrix4 {
     return this;
   }
   public static perspective(fovy: number, aspect: number, near: number, far: number): Matrix4 {
-    const result = new Matrix4();
-    return result.perspectiveSelf(fovy, aspect, near, far);
+    return new Matrix4().perspectiveSelf(fovy, aspect, near, far);
   }
 
   public fromRotationTranslationScaleSelf(q: Quaternion, v: Vector3, s: Vector3): this {
@@ -267,8 +263,7 @@ export class Matrix4 {
     return this;
   }
   public static fromRotationTranslationScale(q: Quaternion, v: Vector3, s: Vector3): Matrix4 {
-    const result = new Matrix4();
-    return result.fromRotationTranslationScaleSelf(q, v, s);
+    return new Matrix4().fromRotationTranslationScaleSelf(q, v, s);
   }
 
   public toArray(): Float32Array {

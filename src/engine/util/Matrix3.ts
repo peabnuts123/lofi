@@ -109,8 +109,7 @@ export class Matrix3 {
     return this;
   }
   public static normal(matrix: Matrix4): Matrix3 {
-    const result = new Matrix3();
-    return result.normalSelf(matrix);
+    return new Matrix3().normalSelf(matrix);
   }
 
   public toArray(): Float32Array {

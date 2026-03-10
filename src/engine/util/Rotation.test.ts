@@ -1,19 +1,20 @@
 import { describe, test, expect } from 'vitest';
-import { Rotation, type RotationOnChangeCallback } from './Rotation';
-import { Quaternion } from './quaternion';
-import { Vector3, type DirtyVector3, type Vector3Definition } from './vector';
+import { Rotation } from './Rotation';
+import { Quaternion, ReadOnlyQuaternion } from './quaternion';
+import { EulerVector3, Vector3, type Vector3Definition } from './vector';
+import type { Computed, WritableComputed } from './observable';
 
 describe("Rotation", () => {
   test("New instance is created with identity", () => {
     // Setup
-    const identity = Quaternion.identity();
+    const Identity = Quaternion.identity();
 
     // Test
     const rotation = new MockRotation();
 
     // Assert
-    expectQuaternionsToBeEqual(rotation.q, identity);
-    expectQuaternionsToBeEqual(rotation.qConjugate, identity.conjugate());
+    expectQuaternionsToBeEqual(rotation.q, Identity);
+    expectQuaternionsToBeEqual(rotation.qInverse, Identity.invert());
     expectVectorsToBeEqual(rotation.euler, Vector3.zero());
   });
 
@@ -22,7 +23,7 @@ describe("Rotation", () => {
     const rotation = new MockRotation();
     const operand = Quaternion.fromAxisAngle(Vector3.up(), 180);
     const expectedQuaternion = new Quaternion(0, 1, 0, 0);
-    const expectedConjugate = expectedQuaternion.conjugate();
+    const expectedInverse = expectedQuaternion.invert();
     const expectedEuler = new Vector3(0, 180, 0);
 
     // Test
@@ -30,7 +31,7 @@ describe("Rotation", () => {
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
-    expectQuaternionsToBeEqual(rotation.qConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
 
@@ -39,7 +40,7 @@ describe("Rotation", () => {
     const rotation = new MockRotation();
     const target = Quaternion.fromAxisAngle(Vector3.up(), 180);
     const expectedQuaternion = Quaternion.fromAxisAngle(Vector3.up(), 90);
-    const expectedConjugate = expectedQuaternion.conjugate();
+    const expectedInverse = expectedQuaternion.invert();
     const expectedEuler = new Vector3(0, 90, 0);
 
     // Test
@@ -47,7 +48,7 @@ describe("Rotation", () => {
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
-    expectQuaternionsToBeEqual(rotation.qConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
 
@@ -55,7 +56,7 @@ describe("Rotation", () => {
     // Setup
     const rotation = new MockRotation();
     const quaternion = Quaternion.fromAxisAngle(Vector3.up(), 90);
-    const expectedConjugate = quaternion.conjugate();
+    const expectedInverse = quaternion.invert();
     const expectedEuler = new Vector3(0, 90, 0);
 
     // Test
@@ -64,7 +65,7 @@ describe("Rotation", () => {
     // Assert
     expect(rotation.q).not.toBe(quaternion); // Should not be the same exact instance
     expectQuaternionsToBeEqual(rotation.q, quaternion);
-    expectQuaternionsToBeEqual(rotation.qConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
 
@@ -73,14 +74,14 @@ describe("Rotation", () => {
     const rotation = new MockRotation();
     const euler = new Vector3(10, 20, 30);
     const expectedQuaternion = Quaternion.fromEuler(euler);
-    const expectedConjugate = expectedQuaternion.conjugate();
+    const expectedInverse = expectedQuaternion.invert();
 
     // Test
     rotation.set(euler.x, euler.y, euler.z);
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
-    expectQuaternionsToBeEqual(rotation.qConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, euler);
   });
 
@@ -88,110 +89,109 @@ describe("Rotation", () => {
     // Setup
     const initialValue = { x: 10, y: 20, z: 30 };
     const rotation = new MockRotation({ initialValue });
-    // const euler = new Vector3(10, 20, 30);
     const update = { x: 90, z: 15 };
     const expectedEuler = new Vector3(update.x, initialValue.y, update.z);
     const expectedQuaternion = Quaternion.fromEuler(expectedEuler);
-    const expectedConjugate = expectedQuaternion.conjugate();
+    const expectedInverse = expectedQuaternion.invert();
 
     // Test
     rotation.set(update);
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
-    expectQuaternionsToBeEqual(rotation.qConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
 
-  test("Modifying q marks euler and conjugate as dirty, does not recompute them", () => {
+  test("Modifying q marks euler and inverse as dirty, does not recompute them", () => {
     // Setup
     const rotation = new MockRotation();
     const quaternion = Quaternion.fromAxisAngle(Vector3.up(), 90);
     const initialEulerIsDirty = rotation.getEulerIsDirty();
-    const initialConjugateIsDirty = rotation.getQConjugateIsDirty();
+    const initialInverseIsDirty = rotation.getQInverseIsDirty();
     const initialEuler = rotation.getEuler();
-    const initialConjugate = rotation.getQConjugate();
+    const initialInverse = rotation.getQInverse();
     const expectedEuler = Vector3.zero();
-    const expectedConjugate = Quaternion.identity().conjugate();
+    const expectedInverse = Quaternion.identity().invert();
 
     // Test
     rotation.set(quaternion);
     const updatedEulerIsDirty = rotation.getEulerIsDirty();
-    const updatedConjugateIsDirty = rotation.getQConjugateIsDirty();
+    const updatedInverseIsDirty = rotation.getQInverseIsDirty();
     const updatedEuler = rotation.getEuler();
-    const updatedConjugate = rotation.getQConjugate();
+    const updatedInverse = rotation.getQInverse();
 
     // Assert
     expect(initialEulerIsDirty).toBe(false);
-    expect(initialConjugateIsDirty).toBe(false);
+    expect(initialInverseIsDirty).toBe(false);
     expectVectorsToBeEqual(initialEuler, expectedEuler);
-    expectQuaternionsToBeEqual(initialConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(initialInverse, expectedInverse);
 
     expect(updatedEulerIsDirty).toBe(true);
-    expect(updatedConjugateIsDirty).toBe(true);
+    expect(updatedInverseIsDirty).toBe(true);
     expectVectorsToBeEqual(updatedEuler, expectedEuler);
-    expectQuaternionsToBeEqual(updatedConjugate, expectedConjugate);
+    expectQuaternionsToBeEqual(updatedInverse, expectedInverse);
   });
 
-  test("Modifying euler immediately recomputes quaternion and marks conjugate as dirty, but does not recompute it", () => {
+  test("Modifying euler immediately recomputes quaternion and marks inverse as dirty, but does not recompute it", () => {
     // Setup
     const rotation = new MockRotation();
     const euler = new Vector3(10, 20, 30);
     const expectedQuaternion = Quaternion.fromEuler(euler);
-    const expectedConjugate = Quaternion.identity().conjugate();
+    const expectedInverse = Quaternion.identity().invert();
     const initialQuaternion = rotation.q.clone();
-    const initialConjugate = rotation.getQConjugate().clone();
-    const initialConjugateIsDirty = rotation.getQConjugateIsDirty();
+    const initialInverse = rotation.getQInverse().clone();
+    const initialInverseIsDirty = rotation.getQInverseIsDirty();
 
     // Test
     rotation.set(euler);
     const updatedQuaternion = rotation.q.clone();
-    const updatedConjugate = rotation.getQConjugate().clone();
-    const updatedConjugateIsDirty = rotation.getQConjugateIsDirty();
+    const updatedInverse = rotation.getQInverse().clone();
+    const updatedInverseIsDirty = rotation.getQInverseIsDirty();
 
     // Assert
     expectQuaternionsToBeEqual(initialQuaternion, Quaternion.identity());
-    expectQuaternionsToBeEqual(initialConjugate, expectedConjugate);
-    expect(initialConjugateIsDirty).toBe(false);
+    expectQuaternionsToBeEqual(initialInverse, expectedInverse);
+    expect(initialInverseIsDirty).toBe(false);
 
     expectQuaternionsToBeEqual(updatedQuaternion, expectedQuaternion);
-    expectQuaternionsToBeEqual(updatedConjugate, expectedConjugate);
-    expect(updatedConjugateIsDirty).toBe(true);
+    expectQuaternionsToBeEqual(updatedInverse, expectedInverse);
+    expect(updatedInverseIsDirty).toBe(true);
   });
 
-  test("Modifying the conjugate has no effect", () => {
+  test("Modifying the inverse has no effect", () => {
     // Setup
     const rotation = new MockRotation({
       initialValue: { x: 10, y: 20, z: 30 },
     });
     const initialQuaternion = rotation.q.clone();
-    const initialConjugate = rotation.getQConjugate().clone();
+    const initialInverse = rotation.getQInverse().clone();
     const initialEuler = rotation.getEuler().clone();
     const initialEulerIsDirty = rotation.getEulerIsDirty();
-    const initialConjugateIsDirty = rotation.getQConjugateIsDirty();
+    const initialInverseIsDirty = rotation.getQInverseIsDirty();
 
 
     // Test
-    /* Modify conjugate in various ways */
-    rotation.qConjugate.setValue(1, 2, 3, 4);
-    rotation.qConjugate.x = 10;
-    rotation.qConjugate.y = 11;
-    rotation.qConjugate.z = 12;
-    rotation.qConjugate.w = 13;
+    /* Modify inverse in various ways */
+    rotation.qInverse.setValue(1, 2, 3, 4);
+    rotation.qInverse.x = 10;
+    rotation.qInverse.y = 11;
+    rotation.qInverse.z = 12;
+    rotation.qInverse.w = 13;
     const updatedQuaternion = rotation.q.clone();
-    const updatedConjugate = rotation.getQConjugate().clone();
+    const updatedInverse = rotation.getQInverse().clone();
     const updatedEuler = rotation.getEuler().clone();
     const updatedEulerIsDirty = rotation.getEulerIsDirty();
-    const updatedConjugateIsDirty = rotation.getQConjugateIsDirty();
+    const updatedInverseIsDirty = rotation.getQInverseIsDirty();
 
     // Assert
     expectQuaternionsToBeEqual(initialQuaternion, updatedQuaternion);
-    expectQuaternionsToBeEqual(initialConjugate, updatedConjugate);
+    expectQuaternionsToBeEqual(initialInverse, updatedInverse);
     expectVectorsToBeEqual(initialEuler, updatedEuler);
     expect(initialEulerIsDirty).toBe(false);
-    expect(initialConjugateIsDirty).toBe(false);
+    expect(initialInverseIsDirty).toBe(false);
     expect(updatedEulerIsDirty).toBe(false);
-    expect(updatedConjugateIsDirty).toBe(false);
+    expect(updatedInverseIsDirty).toBe(false);
   });
 
   describe("onChange callbacks", () => {
@@ -467,53 +467,60 @@ describe("Rotation", () => {
   });
 
   function expectQuaternionsToBeEqual(q1: Quaternion, q2: Quaternion): void {
-    /* @NOTE Read private fields as to not trigger setters */
-    expect(q1['_x']).toBeCloseTo(q2['_x'], 8);
-    expect(q1['_y']).toBeCloseTo(q2['_y'], 8);
-    expect(q1['_z']).toBeCloseTo(q2['_z'], 8);
-    expect(q1['_w']).toBeCloseTo(q2['_w'], 8);
+    expect(q1.x).toBeCloseTo(q2.x, 8);
+    expect(q1.y).toBeCloseTo(q2.y, 8);
+    expect(q1.z).toBeCloseTo(q2.z, 8);
+    expect(q1.w).toBeCloseTo(q2.w, 8);
   }
   function expectVectorsToBeEqual(v1: Vector3, v2: Vector3): void {
-    /* @NOTE Read private fields as to not trigger setters */
-    expect(v1['_x']).toBeCloseTo(v2['_x'], 8);
-    expect(v1['_y']).toBeCloseTo(v2['_y'], 8);
-    expect(v1['_z']).toBeCloseTo(v2['_z'], 8);
+    expect(v1.x).toBeCloseTo(v2.x, 8);
+    expect(v1.y).toBeCloseTo(v2.y, 8);
+    expect(v1.z).toBeCloseTo(v2.z, 8);
   }
 });
 
 
 interface MockRotationConstructorArgs {
   initialValue?: Vector3Definition;
-  onChange?: RotationOnChangeCallback;
+  onChange?: () => void;
 }
+
+
+/* @TODO We should refactor these tests to make more sense under new computed mechanisms */
 class MockRotation extends Rotation {
   public constructor({ initialValue, onChange }: MockRotationConstructorArgs = {}) {
-    super({
-      onChange,
-    });
+    super();
     if (initialValue !== undefined) {
-      // Set initial value and silently recompute internal state
-      this.getEuler().setValue(initialValue, false);
-      this['recomputeQuaternionFromEuler']();
-      this['recomputeQConjugate']();
+      this.euler.setValue(initialValue);
+    }
+    // @NOTE Force evaluation of initial values
+    // @TODO Kind of a hack
+    const _q = this.q;
+    const _qInverse = this.qInverse;
+    const _euler = this.euler;
+
+    if (onChange) {
+      this.q.onChange(onChange);
     }
   }
 
   public getEulerIsDirty(): boolean {
-    return this['eulerIsDirty'];
+    return this['_euler']['isDirty'];
   }
-  public getEuler(): DirtyVector3 {
+  public getEuler(): EulerVector3 {
+    return this['_euler']['_value'];
+  }
+  public getEulerComputed(): WritableComputed<EulerVector3> {
     return this['_euler'];
   }
-  public getQConjugateIsDirty(): boolean {
-    return this['qConjugateIsDirty'];
-  }
-  public getQConjugate(): Quaternion {
-    return this['_qConjugate'];
-  }
 
-  public debug_recomputeEverything(): void {
-    this['recomputeEuler']();
-    this['recomputeQConjugate']();
+  public getQInverseIsDirty(): boolean {
+    return this['_qInverse']['isDirty'];
+  }
+  public getQInverse(): ReadOnlyQuaternion {
+    return this['_qInverse']['_value'];
+  }
+  public getQInverseComputed(): Computed<ReadOnlyQuaternion> {
+    return this['_qInverse'];
   }
 }

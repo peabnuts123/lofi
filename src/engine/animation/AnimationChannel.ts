@@ -74,6 +74,7 @@ export class AnimationChannel {
         /* Linear interpolation */
         const t = inverseLerp(this.timestamps[previousTimestampIndex], this.timestamps[nextTimestampIndex], animationTime);
 
+        // @TODO have some re-usable vectors, quats, laying around
         let value: AnimationTypeValue;
         switch (this.values.type) {
           case 'scalar': {
@@ -104,7 +105,7 @@ export class AnimationChannel {
           case 'quat': {
             const a = this.values.values[previousTimestampIndex];
             const b = this.values.values[nextTimestampIndex];
-            value = Quaternion.slerp(a, b, t);
+            value = a.slerp(b, t);
             break;
           }
           default:

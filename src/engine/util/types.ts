@@ -1,4 +1,34 @@
+/**
+ * Extract the type(s) of elements from an array.
+ * @example
+ * ```
+ * const values = [1, 2, 3, 4];
+ * type ValuesType = ArrayElementType<typeof values>; // Type `number`
+ * ```
+ */
 export type ArrayElementType<T> = T extends Array<infer ElementType> ? ElementType : never;
+
+/**
+ * Like `Partial<T>` but recursive, so all properties and subproperties are also partial.
+ */
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
+
+/**
+ * Any class constructor that produces an instance assignable to `TClass`.
+ * @example
+ * ```
+ * interface INamed {
+ *   name: string;
+ * }
+ * class Dog implements INamed {
+ *   public name: string;
+ *   public constructor(name: string) {
+ *     this.name = name;
+ *   }
+ * }
+ * const Constructor: ClassReference<INamed> = Dog;
+ * ```
+ */
+export type ClassReference<TClass> = abstract new (...args: any[]) => TClass;
