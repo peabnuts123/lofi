@@ -16,9 +16,9 @@ export class Transform<T extends TransformNodeTarget> {
   public readonly children: Transform<T>[];
 
   private readonly _worldMatrix: Computed<Matrix4>;
-  private readonly _absolutePosition: Computed<Vector3>;
-  private readonly _absoluteRotation: Computed<Rotation>;
-  private readonly _absoluteScale: Computed<Vector3>;
+  private readonly _absolutePosition: WritableComputed<Vector3>;
+  private readonly _absoluteRotation: WritableComputed<Rotation>;
+  private readonly _absoluteScale: WritableComputed<Vector3>;
 
   public readonly node: T;
 
@@ -33,6 +33,7 @@ export class Transform<T extends TransformNodeTarget> {
     this._scale = Vector3.one();
 
     /* Absolute transforms */
+    const absolutePositionTmp = Vector3.zero();
     this._absolutePosition = new WritableComputed(Vector3.zero(), {
       dependencies: [
         this.position,
@@ -67,13 +68,29 @@ export class Transform<T extends TransformNodeTarget> {
 
           // @NOTE Basically just reverse order of `recompute()`
           // 1. Subtract parent's absolute position
-          this.position
+          absolutePositionTmp
             .setValue(value)
             .subtractSelf(this.parent.absolutePosition)
             // 2. "Unrotate" by inverse of parent's absolute rotation
-            .multiplySelf(this.parent.absoluteRotation.qInverse)
-            // 3. Divide by parent's absolute scale
-            .divideSelf(this.parent.absoluteScale);
+            .multiplySelf(this.parent.absoluteRotation.qInverse);
+          // 3. Divide by parent's absolute scale
+          if (Math.abs(this.parent.absoluteScale.x) <= Number.EPSILON) {
+            console.warn(`Cannot set absolute position to '${value}' for node '${this.node.name}' as its parent(s) scaling.x is currently 0. Its local position.x will be calculated as if parent.absoluteScale.x = 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
+          } else {
+            absolutePositionTmp.x /= this.parent.absoluteScale.x;
+          }
+          if (Math.abs(this.parent.absoluteScale.y) <= Number.EPSILON) {
+            console.warn(`Cannot set absolute position to '${value}' for node '${this.node.name}' as its parent(s) scaling.y is currently 0. Its local position.y will be calculated as if parent.absoluteScale.y = 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
+          } else {
+            absolutePositionTmp.y /= this.parent.absoluteScale.y;
+          }
+          if (Math.abs(this.parent.absoluteScale.z) <= Number.EPSILON) {
+            console.warn(`Cannot set absolute position to '${value}' for node '${this.node.name}' as its parent(s) scaling.z is currently 0. Its local position.z will be calculated as if parent.absoluteScale.z = 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
+          } else {
+            absolutePositionTmp.z /= this.parent.absoluteScale.z;
+          }
+
+          this.position.setValue(absolutePositionTmp);
         } else {
           // No parent - absolute is the same as local
           this.position = value;
@@ -190,11 +207,17 @@ export class Transform<T extends TransformNodeTarget> {
    * @throws {Error} If the child already has a different parent
    */
   public addChild(child: Transform<T>): void {
-    if (child.parent !== undefined) {
-      throw new Error(`Cannot add transform '${child.node.name}' as child of transform '${this.node.name}': It is already the child of another transform: '${child.parent.node.name}'`);
-    } else if (this.children.some((existingChild) => existingChild === child)) {
+    if (this.children.some((existingChild) => existingChild === child)) {
       console.warn(`Tried to add transform '${child.node.name}' as child of transform '${this.node.name}' but it is already a child of this node`);
+    } else if (child.parent !== undefined) {
+      throw new Error(`Cannot add transform '${child.node.name}' as child of transform '${this.node.name}': It is already the child of another transform: '${child.parent.node.name}'`);
     } else {
+      // Ensure absolute properties are up to date, as we will immediately
+      // use them to recompute local properties after reparenting
+      child._absolutePosition.forceRecompute();
+      child._absoluteRotation.forceRecompute();
+      child._absoluteScale.forceRecompute();
+
       // Set parent
       this.children.push(child);
       child._parent = this;
@@ -213,9 +236,9 @@ export class Transform<T extends TransformNodeTarget> {
       );
 
       // Force recalculate child local position/rotation/scale
-      child.absolutePosition.setValue(child.absolutePosition);
-      child.absoluteRotation.set(child.absoluteRotation.q);
-      child.absoluteScale.setValue(child.absoluteScale);
+      child._absolutePosition.forceWriteBack();
+      child._absoluteRotation.forceWriteBack();
+      child._absoluteScale.forceWriteBack();
     }
   }
 
@@ -232,6 +255,12 @@ export class Transform<T extends TransformNodeTarget> {
     if (index < 0) {
       console.warn(`Cannot remove transform '${child.node.name}' from children of node '${this.node.name}': it is not a child of this node`);
     } else {
+      // Ensure absolute properties are up to date, as we will immediately
+      // use them to recompute local properties after reparenting
+      child._absolutePosition.forceRecompute();
+      child._absoluteRotation.forceRecompute();
+      child._absoluteScale.forceRecompute();
+
       // Set parent
       this.children.splice(index, 1);
       child._parent = undefined;
@@ -250,9 +279,9 @@ export class Transform<T extends TransformNodeTarget> {
       );
 
       // Force recalculate child local position/rotation/scale
-      child.absolutePosition.setValue(child.absolutePosition);
-      child.absoluteRotation.set(child.absoluteRotation.q);
-      child.absoluteScale.setValue(child.absoluteScale);
+      child._absolutePosition.forceWriteBack();
+      child._absoluteRotation.forceWriteBack();
+      child._absoluteScale.forceWriteBack();
     }
   }
 

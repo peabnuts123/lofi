@@ -25,30 +25,37 @@ export class Quaternion extends PlainObservable {
     // From: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5217
     const result = new EulerVector3(0, 0, 0);
 
-    const qz = this.z;
-    const qx = this.x;
-    const qy = this.y;
-    const qw = this.w;
+    const { x, y, z, w } = this;
 
-    const zAxisY = qy * qz - qx * qw;
+    // Early check for identity to produce nice Vector3 without -0
+    if (
+      x === 0 &&
+      y === 0 &&
+      z === 0 &&
+      w === 1
+    ) {
+      return result;
+    }
+
+    const zAxisY = y * z - x * w;
     const limit = 0.4999999;
 
     if (zAxisY < -limit) {
-      result.y = 2 * Math.atan2(qy, qw);
       result.x = Math.PI / 2;
+      result.y = 2 * Math.atan2(y, w);
       result.z = 0;
     } else if (zAxisY > limit) {
-      result.y = 2 * Math.atan2(qy, qw);
       result.x = -Math.PI / 2;
+      result.y = 2 * Math.atan2(y, w);
       result.z = 0;
     } else {
-      const sqw = qw * qw;
-      const sqz = qz * qz;
-      const sqx = qx * qx;
-      const sqy = qy * qy;
-      result.z = Math.atan2(2.0 * (qx * qy + qz * qw), -sqz - sqx + sqy + sqw);
+      const xSquared = x * x;
+      const ySquared = y * y;
+      const zSquared = z * z;
+      const wSquared = w * w;
       result.x = Math.asin(-2.0 * zAxisY);
-      result.y = Math.atan2(2.0 * (qz * qx + qy * qw), sqz - sqx - sqy + sqw);
+      result.z = Math.atan2(2.0 * (x * y + z * w), -zSquared - xSquared + ySquared + wSquared);
+      result.y = Math.atan2(2.0 * (z * x + y * w), zSquared - xSquared - ySquared + wSquared);
     }
 
     // Convert to degrees
@@ -184,6 +191,8 @@ export class Quaternion extends PlainObservable {
     return new Quaternion(0, 0, 0, 1);
   }
 
+  /** Reusable static value for `Quaternion.fromAxisAngle()` */
+  private static fromAxisAngleTmp: Vector3 | undefined;
   /**
    * Creates a quaternion from an axis and angle (in degrees).
    * @param axis The axis of rotation.
@@ -192,7 +201,15 @@ export class Quaternion extends PlainObservable {
   public static fromAxisAngle(axis: Vector3, angle: number): Quaternion {
     const halfAngle = angle * DegreesToRadians * 0.5;
     const s = Math.sin(halfAngle);
-    axis = axis.normalize();
+
+    // Lazily initialise static Vector instance
+    Quaternion.fromAxisAngleTmp ??= Vector3.zero();
+
+    // Assign to reusable static instance
+    axis = Quaternion.fromAxisAngleTmp
+      .setValue(axis)
+      .normalizeSelf();
+
     return new Quaternion(
       axis.x * s,
       axis.y * s,
@@ -242,22 +259,43 @@ export class Quaternion extends PlainObservable {
     );
   }
 
-  public static fromLookDirection(forward: Vector3, up: Vector3): Quaternion {
-    // Validate
-    if (Math.abs(forward.dot(up)) > 1e-8) {
-      throw new Error(`Cannot create Quaternion from look direction - 'forward' and 'up' vectors must be orthogonal. (DEBUG: (dot='${forward.dot(up)}')) Provided: (forward='${forward}') (up='${up}')`);
-    }
-    // Sanitise
-    if (!forward.isNormalized()) {
-      forward = forward.normalize();
-    }
-    if (!up.isNormalized()) {
-      up = up.normalize();
-    }
+  /** Reusable static values for `Quaternion.fromLookDirection()` */
+  private static fromLookDirectionTmp: {
+    forward?: Vector3,
+    up?: Vector3,
+    right?: Vector3,
+  } = {};
+  /**
+   * Construct a Quaternion from a direction + optional "up" (i.e. "roll") vector.
+   * `up` does not have to be strictly orthogonal to `forward`.
+   * If `up` is not provided, `Vector3.up()` is used as the default value.
+   * @param forward Direction to convert into a Quaternion.
+   * @param up (Optional) Up vector determining the roll of the resulting Quaternion.
+   */
+  public static fromLookDirection(forward: Vector3, up?: Vector3): Quaternion {
+    // Param defaults
+    up ??= Vector3.up();
 
-    const right = up.cross(forward);
+    // Lazily initialise static Vector instances
+    Quaternion.fromLookDirectionTmp.forward ??= Vector3.zero();
+    Quaternion.fromLookDirectionTmp.up ??= Vector3.zero();
+    Quaternion.fromLookDirectionTmp.right ??= Vector3.zero();
 
-    // Mostly from: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5335
+    // Calculate strictly orthogonal basis vectors
+    // using reusable static instances
+    forward = Quaternion.fromLookDirectionTmp.forward
+      .setValue(-forward.x, -forward.y, -forward.z) // Negate to compute right-handed coordinate system
+      .normalizeSelf();
+    const right = Quaternion.fromLookDirectionTmp.right
+      .setValue(up)
+      .crossSelf(forward)
+      .normalizeSelf();
+    up = Quaternion.fromLookDirectionTmp.up
+      .setValue(forward)
+      .crossSelf(right)
+      .normalizeSelf();
+
+    // Mostly inspired from: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5335
     const trace = right.x + up.y + forward.z;
 
     if (trace > 0) {

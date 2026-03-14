@@ -87,10 +87,10 @@ export class Rotation extends PlainObservable {
   public get euler(): Vector3 { return this._euler.value; }
   public set euler(value: Vector3) { this.euler.setValue(value); }
   public get x(): number { return this.euler.x; }
-  public get y(): number { return this.euler.y; }
-  public get z(): number { return this.euler.z; }
   public set x(value: number) { this.euler.x = value; }
+  public get y(): number { return this.euler.y; }
   public set y(value: number) { this.euler.y = value; }
+  public get z(): number { return this.euler.z; }
   public set z(value: number) { this.euler.z = value; }
 
   /* Quaternion */

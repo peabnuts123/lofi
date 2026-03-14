@@ -42,9 +42,7 @@ export class CameraNode extends SceneNode {
 
   public pointAt(target: Vector3): void {
     const direction = this.absolutePosition.subtract(target).normalizeSelf();
-    const right = direction.cross(Vector3.up());
-    const up = right.cross(direction);
-    this.absoluteRotation.set(Quaternion.fromLookDirection(direction, up));
+    this.absoluteRotation.set(Quaternion.fromLookDirection(direction));
   }
 
   private recalculateViewProjectionMatrix(): void {

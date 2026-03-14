@@ -1,3 +1,5 @@
+import { expectVectorsToBeEqual } from '@test/util/expect';
+
 import { describe, test, expect } from 'vitest';
 import { Vector2, Vector3 } from './vector';
 import { Quaternion } from './quaternion';
@@ -60,7 +62,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling addSelf with Vector3 fires onChange() once", () => {
+    test("Calling addSelf() with Vector3 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -75,7 +77,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling addSelf with Vector2 fires onChange() once", () => {
+    test("Calling addSelf() with Vector2 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -90,7 +92,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling subtractSelf with Vector3 fires onChange() once", () => {
+    test("Calling subtractSelf() with Vector3 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -105,7 +107,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling subtractSelf with Vector2 fires onChange() once", () => {
+    test("Calling subtractSelf() with Vector2 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -120,7 +122,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling multiplySelf with factor fires onChange() once", () => {
+    test("Calling multiplySelf() with factor fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -135,7 +137,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling multiplySelf with Vector3 fires onChange() once", () => {
+    test("Calling multiplySelf() with Vector3 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -150,7 +152,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling multiplySelf with Quaternion fires onChange() once", () => {
+    test("Calling multiplySelf() with Quaternion fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -165,7 +167,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling multiplySelf with Matrix4 fires onChange() once", () => {
+    test("Calling multiplySelf() with Matrix4 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -180,7 +182,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling divideSelf with factor fires onChange() once", () => {
+    test("Calling divideSelf() with factor fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -195,7 +197,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling divideSelf with Vector3 fires onChange() once", () => {
+    test("Calling divideSelf() with Vector3 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -210,7 +212,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling normalizeSelf fires onChange() once", () => {
+    test("Calling normalizeSelf() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -225,7 +227,37 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling crossSelf fires onChange() once", () => {
+    test("Calling normalizeSelf() on a vector of length 0 DOES NOT FIRE onChange()", () => {
+      // Setup
+      const vector = Vector3.zero();
+
+      let timesOnChangeCalled = 0;
+      vector.onChange(() => {
+        timesOnChangeCalled++;
+      });
+
+      // Test
+      vector.normalizeSelf();
+
+      // Assert
+      expect(timesOnChangeCalled).toBe(0);
+    });
+    test("Calling normalizeSelf() on a vector of length 1 DOES NOT FIRE onChange()", () => {
+      // Setup
+      const vector = Vector3.forward();
+
+      let timesOnChangeCalled = 0;
+      vector.onChange(() => {
+        timesOnChangeCalled++;
+      });
+
+      // Test
+      vector.normalizeSelf();
+
+      // Assert
+      expect(timesOnChangeCalled).toBe(0);
+    });
+    test("Calling crossSelf() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -240,7 +272,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling withX fires onChange() once", () => {
+    test("Calling withX() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -255,7 +287,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling withY fires onChange() once", () => {
+    test("Calling withY() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -270,7 +302,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling withZ fires onChange() once", () => {
+    test("Calling withZ() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -285,5 +317,486 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
+  });
+  test("Constructor initial values are set initially", () => {
+    // Setup / Test
+    const vector = new Vector3(1, 2, 3);
+
+    // Assert
+    expect(vector.x).toBe(1);
+    expect(vector.y).toBe(2);
+    expect(vector.z).toBe(3);
+  });
+  test("Calling setValue() with separate xyz components mutates correctly", () => {
+    // Setup
+    const vector = Vector3.zero();
+    const expectedValue = new Vector3(1, 2, 3);
+
+    // Test
+    vector.setValue(1, 2, 3);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling setValue() with a Vector3Like mutates correctly", () => {
+    // Setup
+    const vector = Vector3.zero();
+    const expectedValue = new Vector3(1, 2, 3);
+
+    // Test
+    vector.setValue({ x: expectedValue.x, y: expectedValue.y, z: expectedValue.z });
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling addSelf() with a Vector3 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(3, 5, 7);
+
+    // Test
+    vector.addSelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling addSelf() with a Vector2 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const operand = new Vector2(2, 3);
+    const expectedValue = new Vector3(3, 5, 3);
+
+    // Test
+    vector.addSelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling add() with a Vector3 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const original = vector.clone();
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(3, 5, 7);
+
+    // Test
+    const result = vector.add(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling add() with a Vector2 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const original = vector.clone();
+    const operand = new Vector2(2, 3);
+    const expectedValue = new Vector3(3, 5, 3);
+
+    // Test
+    const result = vector.add(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling subtractSelf() with a Vector3 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(5, 7, 9);
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(3, 4, 5);
+
+    // Test
+    vector.subtractSelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling subtractSelf() with a Vector2 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(5, 7, 9);
+    const operand = new Vector2(2, 3);
+    const expectedValue = new Vector3(3, 4, 9);
+
+    // Test
+    vector.subtractSelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling subtract() with a Vector3 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(5, 7, 9);
+    const original = vector.clone();
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(3, 4, 5);
+
+    // Test
+    const result = vector.subtract(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling subtract() with a Vector2 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(5, 7, 9);
+    const original = vector.clone();
+    const operand = new Vector2(2, 3);
+    const expectedValue = new Vector3(3, 4, 9);
+
+    // Test
+    const result = vector.subtract(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling multiplySelf() with a numeric factor mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const factor = 3;
+    const expectedValue = new Vector3(3, 6, 9);
+
+    // Test
+    vector.multiplySelf(factor);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling multiplySelf() with a Vector3 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(2, 6, 12);
+
+    // Test
+    vector.multiplySelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling multiplySelf() with a Quaternion mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 0, 0);
+    const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
+    const expectedValue = new Vector3(0, 0, -1);
+
+    // Test
+    vector.multiplySelf(rotation);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling multiplySelf() with a Matrix4 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 0, 0);
+    const matrix = Matrix4.fromRotationTranslationScale(
+      Quaternion.fromAxisAngle(Vector3.up(), 90),
+      Vector3.one(),
+      new Vector3(2, 2, 2),
+    );
+    // @NOTE order of operations:
+    // 1. Scale
+    // 2. Rotation
+    // 3. Translation
+    const expectedValue = new Vector3(1, 1, -1);
+
+    // Test
+    vector.multiplySelf(matrix);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling multiply() with a numeric factor returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const original = vector.clone();
+    const factor = 3;
+    const expectedValue = new Vector3(3, 6, 9);
+
+    // Test
+    const result = vector.multiply(factor);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling multiply() with a Vector3 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const original = vector.clone();
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(2, 6, 12);
+
+    // Test
+    const result = vector.multiply(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling multiply() with a Quaternion returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 0, 0);
+    const original = vector.clone();
+    const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
+    const expectedValue = new Vector3(0, 0, -1);
+
+    // Test
+    const result = vector.multiply(rotation);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling multiply() with a Matrix4 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 0, 0);
+    const original = vector.clone();
+    const matrix = Matrix4.fromRotationTranslationScale(
+      Quaternion.fromAxisAngle(Vector3.up(), 90),
+      Vector3.one(),
+      new Vector3(2, 2, 2),
+    );
+    // @NOTE order of operations:
+    // 1. Scale
+    // 2. Rotation
+    // 3. Translation
+    const expectedValue = new Vector3(1, 1, -1);
+
+    // Test
+    const result = vector.multiply(matrix);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling divideSelf() with a numeric factor mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(6, 9, 12);
+    const factor = 3;
+    const expectedValue = new Vector3(2, 3, 4);
+
+    // Test
+    vector.divideSelf(factor);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling divideSelf() with a Vector3 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(2, 6, 12);
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(1, 2, 3);
+
+
+    // Test
+    vector.divideSelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling divide() with a numeric factor returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(6, 9, 12);
+    const original = vector.clone();
+    const factor = 3;
+    const expectedValue = new Vector3(2, 3, 4);
+
+    // Test
+    const result = vector.divide(factor);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling divide() with a Vector3 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(2, 6, 12);
+    const original = vector.clone();
+    const operand = new Vector3(2, 3, 4);
+    const expectedValue = new Vector3(1, 2, 3);
+
+    // Test
+    const result = vector.divide(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling length() returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(2, 3, 6);
+    const expectedLength = 7;
+
+    // Test
+    const result = vector.length();
+
+    // Assert
+    expect(result).toBe(expectedLength);
+  });
+  test("Calling lengthSquared() returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(2, 3, 6);
+    const expectedLengthSquared = 49;
+
+    // Test
+    const result = vector.lengthSquared();
+
+    // Assert
+    expect(result).toBe(expectedLengthSquared);
+  });
+  test("Calling normalizeSelf() mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(2, 3, 6);
+    const expectedValue = new Vector3(2 / 7, 3 / 7, 6 / 7);
+
+    // Test
+    vector.normalizeSelf();
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling normalizeSelf() on a zero-length vector mutates correctly", () => {
+    // Setup
+    const vector = Vector3.zero();
+
+    // Test
+    vector.normalizeSelf();
+
+    // Assert
+    expectVectorsToBeEqual(vector, Vector3.zero());
+  });
+  test("Calling normalize() returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(2, 3, 6);
+    const original = vector.clone();
+    const expectedValue = new Vector3(2 / 7, 3 / 7, 6 / 7);
+
+    // Test
+    const result = vector.normalize();
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling normalize() on a zero-length vector returns the correct result", () => {
+    // Setup
+    const vector = Vector3.zero();
+    const original = vector.clone();
+
+    // Test
+    const result = vector.normalize();
+
+    // Assert
+    expectVectorsToBeEqual(result, Vector3.zero());
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling crossSelf() mutates correctly", () => {
+    // Setup
+    const vector = Vector3.forward();
+    const operand = Vector3.up();
+    const expectedValue = Vector3.right();
+
+    // Test
+    vector.crossSelf(operand);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling cross() returns the correct result", () => {
+    // Setup
+    const vector = Vector3.forward();
+    const original = vector.clone();
+    const operand = Vector3.up();
+    const expectedValue = Vector3.right();
+
+    // Test
+    const result = vector.cross(operand);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling dot() returns the correct result", () => {
+    // Setup
+    const a = new Vector3(1, 2, 3);
+    const b = new Vector3(4, 5, 6);
+    const expectedValue = 32;
+
+    // Test
+    const result = a.dot(b);
+
+    // Assert
+    expect(result).toBe(expectedValue);
+  });
+  test("Calling isNormalized() with a unit vector returns true", () => {
+    // Setup
+    const vector = new Vector3(1, 0, 0);
+
+    // Test
+    const result = vector.isNormalized();
+
+    // Assert
+    expect(result).toBe(true);
+  });
+  test("Calling isNormalized() with a non-unit vector returns false", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+
+    // Test
+    const result = vector.isNormalized();
+
+    // Assert
+    expect(result).toBe(false);
+  });
+  test("Calling clone() returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+
+    // Test
+    const cloned = vector.clone();
+
+    // Assert
+    expectVectorsToBeEqual(cloned, vector);
+    expect(cloned).not.toBe(vector);
+  });
+  test("Calling withX() mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const updatedXValue = 10;
+    const expectedValue = new Vector3(updatedXValue, 2, 3);
+
+    // Test
+    vector.withX(updatedXValue);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling withY() mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const updatedYValue = 10;
+    const expectedValue = new Vector3(1, updatedYValue, 3);
+
+    // Test
+    vector.withY(updatedYValue);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling withZ() mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const updatedZValue = 10;
+    const expectedValue = new Vector3(1, 2, updatedZValue);
+
+    // Test
+    vector.withZ(updatedZValue);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
   });
 });

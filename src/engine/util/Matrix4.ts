@@ -32,6 +32,10 @@ export class Matrix4 {
   public m23: number;
   public m33: number;
 
+  /**
+   * Create a new instance of Matrix4. Will be initialised to an identity matrix
+   * if no initial values are provided.
+   */
   public constructor(initialValues?: Matrix4InitialValues | TypedArray) {
     if (initialValues) {
       this.m00 = initialValues[0];
@@ -231,6 +235,7 @@ export class Matrix4 {
     return new Matrix4().perspectiveSelf(fovy, aspect, near, far);
   }
 
+  // @TODO rename / re-order params
   public fromRotationTranslationScaleSelf(q: Quaternion, v: Vector3, s: Vector3): this {
     const x2 = q.x + q.x;
     const y2 = q.y + q.y;
@@ -275,11 +280,16 @@ export class Matrix4 {
     ]);
   }
 
-  public prettyPrint(dp: number = 2, message: string = ""): void {
-    console.log(message,
+  public toString(dp: number = 2): string {
+    return `(Matrix4[\n` +
     /*  */ `${this.m00.toFixed(dp)} ${this.m01.toFixed(dp)} ${this.m02.toFixed(dp)} ${this.m03.toFixed(dp)}\n`
     /**/ + `${this.m10.toFixed(dp)} ${this.m11.toFixed(dp)} ${this.m12.toFixed(dp)} ${this.m13.toFixed(dp)}\n`
     /**/ + `${this.m20.toFixed(dp)} ${this.m21.toFixed(dp)} ${this.m22.toFixed(dp)} ${this.m23.toFixed(dp)}\n`
-    /**/ + `${this.m30.toFixed(dp)} ${this.m31.toFixed(dp)} ${this.m32.toFixed(dp)} ${this.m33.toFixed(dp)}\n`);
+    /**/ + `${this.m30.toFixed(dp)} ${this.m31.toFixed(dp)} ${this.m32.toFixed(dp)} ${this.m33.toFixed(dp)}\n`
+      + `]`;
+  }
+
+  public prettyPrint(dp: number = 2, message: string = ""): void {
+    console.log(message, this.toString(dp));
   }
 }

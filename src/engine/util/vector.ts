@@ -414,19 +414,29 @@ export class Vector3 extends PlainObservable {
     return this.x * this.x + this.y * this.y + this.z * this.z;
   }
 
+  /**
+   * Scale this vector such that it has length 1.
+   * It's efficient to call this if you aren't sure whether
+   * a vector is normalized i.e. there is no performance benefit
+   * to checking first:
+   * ```
+   * // Unnecessary, `normalizeSelf()` already checks this
+   * if (vector.isNormalized()) {
+   *   vector.normalizeSelf();
+   * }
+   * ```
+   */
   public normalizeSelf(): this {
-    const length = this.length();
-    if (length === 0) {
-      this.mutate(() => {
-        this.x = this.y = this.z = 0;
-      });
-    } else {
-      this.mutate(() => {
-        this.x /= length;
-        this.y /= length;
-        this.z /= length;
-      });
+    const lengthSqr = this.lengthSquared();
+    if (lengthSqr === 1 || lengthSqr === 0) {
+      return this;
     }
+    const length = Math.sqrt(lengthSqr);
+    this.mutate(() => {
+      this.x /= length;
+      this.y /= length;
+      this.z /= length;
+    });
     return this;
   }
   public normalize(): Vector3 {

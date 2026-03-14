@@ -64,11 +64,11 @@ export abstract class PlainObservable implements IObservable {
     this.isNotifyDisabled = true;
     try {
       mutator();
-    } catch (e) {
-      console.error(e);
+      this.isNotifyDisabled = false;
+      this.notifyOnChange();
+    } finally {
+      this.isNotifyDisabled = false;
     }
-    this.isNotifyDisabled = false;
-    this.notifyOnChange();
   }
 
   protected notifyOnChange(): void {
@@ -78,7 +78,7 @@ export abstract class PlainObservable implements IObservable {
       try {
         hook();
       } catch (e) {
-        console.error(e);
+        console.error(`Error while calling onChange hook: `, e);
       }
     }
   }
@@ -108,7 +108,7 @@ export class Computed<T> extends PlainObservable {
   public constructor(initialValue: T, { dependencies, recompute, debug_name }: ComputedArgs<T>) {
     super();
     this.isDirty = true;
-    this.debug_name = debug_name ?? `${Math.trunc(Math.random() * 10000 + 1000)}`;
+    this.debug_name = debug_name ?? `${Math.trunc(Math.random() * 9_000 + 1000)}`;
     this._value = initialValue;
     this.recompute = recompute;
 
@@ -145,6 +145,11 @@ export class Computed<T> extends PlainObservable {
     this.isDirty = true;
   }
 
+  public forceRecompute(): void {
+    this.recompute(this._value);
+    this.isDirty = false;
+  }
+
   private onDependencyChange(): void {
     if (this.ignoreDependencies) return;
 
@@ -167,6 +172,7 @@ export interface WritableComputedArgs<T extends IObservable> extends ComputedArg
 
 export class WritableComputed<T extends IObservable> extends Computed<T> {
   private ignoreInternalChanges: boolean = false;
+  private onSetValue: (value: T) => void;
   public constructor(initialValue: T, { dependencies, recompute, onSetValue, debug_name }: WritableComputedArgs<T>) {
     super(initialValue, {
       dependencies,
@@ -174,26 +180,40 @@ export class WritableComputed<T extends IObservable> extends Computed<T> {
         this.ignoreInternalChanges = true;
         try {
           recompute(value);
-        } catch (e) {
-          console.error(e);
+        } finally {
+          this.ignoreInternalChanges = false;
         }
-        this.ignoreInternalChanges = false;
       },
       debug_name,
     });
 
+    this.onSetValue = onSetValue;
     initialValue.onChange(() => {
       if (this.ignoreInternalChanges) return;
 
       this.ignoreDependencies = true;
       try {
         onSetValue(this._value);
-      } catch (e) {
-        console.error(e);
+      } finally {
+        this.notifyOnChange();
+        this.isDirty = false;
+        this.ignoreDependencies = false;
       }
-      this.notifyOnChange();
+    });
+  }
+
+  /**
+   * Force this WritableComputed to write its current value back to itself
+   * as if the internal value had changed.
+   * Calls `onSetValue()` but does not notify onChange.
+   */
+  public forceWriteBack(): void {
+    this.ignoreDependencies = true;
+    try {
+      this.onSetValue(this._value);
+    } finally {
       this.isDirty = false;
       this.ignoreDependencies = false;
-    });
+    }
   }
 }
