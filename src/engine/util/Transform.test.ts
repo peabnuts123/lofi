@@ -6,6 +6,11 @@ import { Quaternion } from './quaternion';
 import { Matrix4 } from './Matrix4';
 import { lerp } from './math';
 
+/*
+  @TODO Test backlog
+     ? POSSIBLE BUG?: `addChild` recomputes transforms. What happens to transitive children e.g. `c.addChild(b); a.addChild(b);` - Does C update correctly?
+ */
+
 describe("Transform", () => {
   test("New Transform instance has expected values", () => {
     // Setup

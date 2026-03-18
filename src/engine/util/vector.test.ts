@@ -5,6 +5,12 @@ import { Vector2, Vector3 } from './vector';
 import { Quaternion } from './quaternion';
 import { Matrix4 } from './Matrix4';
 
+/* @TODO Test backlog
+  - Vector2
+  - EulerVector
+  - divideSelf/divide by 0 throws error
+*/
+
 describe("Vector3", () => {
   describe("Observability", () => {
     test("Setting x, y, z fires onChange() separately", () => {

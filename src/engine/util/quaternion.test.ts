@@ -4,6 +4,13 @@ import { describe, test, expect } from 'vitest';
 import { Quaternion } from './quaternion';
 import { Vector3 } from './vector';
 
+/*
+  @TODO Test Backlog
+    - Normalizing quaternion of length 0 gets identity
+    - Normalizing quaternion of length 1 gets no change, doesn't notify
+    - ReadOnlyQuaternion
+ */
+
 /**
  * Quaternions can have somewhat obtuse values. This is a list of
  * quaternions and equivalent euler vectors that are known to be correct.
