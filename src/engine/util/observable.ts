@@ -4,47 +4,8 @@ export type StopObservingFn = () => void;
 export type IObservable = {
   onChange(callback: OnChangeCallback): StopObservingFn;
 };
-// @TODO REMOVE
-// export function isObservable(value: unknown): value is IObservable {
-//   return typeof (value) === 'object' &&
-//     value !== null &&
-//     'onChange' in value &&
-//     typeof (value.onChange) === 'function';
-// }
 
-
-
-/* @TODO REMOVE ALL THIS IF NOTHING IS USING IT */
-// // @NOTE We need the complex inferred return type on this function
-// // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-// export function Observable<TBase extends ClassReference<any>>(Base: TBase) {
-//   abstract class ObservableMixin extends Base {
-//     private onChangeHooks: OnChangeCallback[] = [];
-
-//     public onChange(callback: OnChangeCallback): RemoveOnChangeCallbackFn {
-//       this.onChangeHooks.push(callback);
-
-//       // Stop listening callback
-//       return () => {
-//         const hookIndex = this.onChangeHooks.indexOf(callback);
-//         if (hookIndex !== -1) {
-//           this.onChangeHooks.splice(hookIndex, 1);
-//         }
-//       };
-//     }
-
-//     protected notifyOnChange(): void {
-//       // @TODO try/catch
-//       for (const hook of this.onChangeHooks) {
-//         hook();
-//       }
-//     }
-//   }
-//   return ObservableMixin;
-// }
-
-// @NOTE The same implementation as `ObservableMixin`
-export abstract class PlainObservable implements IObservable {
+export abstract class Observable implements IObservable {
   private onChangeHooks: OnChangeCallback[] = [];
   private isNotifyDisabled: boolean = false;
 
@@ -95,7 +56,7 @@ export interface ComputedDependency {
   stopObservingFn: StopObservingFn;
 }
 
-export class Computed<T> extends PlainObservable {
+export class Computed<T> extends Observable {
   protected isDirty: boolean;
   protected readonly _value: T;
   private readonly recompute: (currentValue: T) => void;
@@ -119,20 +80,28 @@ export class Computed<T> extends PlainObservable {
   }
 
   public addDependency(...dependencies: IObservable[]): void {
+    const initialNumDependencies = this.dependencies.length;
+
     for (const dependency of dependencies) {
       if (this.dependencies.some((existingDependency) => existingDependency.observable === dependency)) {
         /* @NOTE No-op. `dependency` is already registered. */
-        return;
+      } else {
+        this.dependencies.push({
+          observable: dependency,
+          stopObservingFn: dependency.onChange(() => this.onDependencyChange()),
+        });
       }
-      this.dependencies.push({
-        observable: dependency,
-        stopObservingFn: dependency.onChange(() => this.onDependencyChange()),
-      });
     }
-    this.isDirty = true;
+
+    // Mark computed as dirty if additional dependencies have been added
+    if (this.dependencies.length !== initialNumDependencies) {
+      this.isDirty = true;
+    }
   }
 
   public removeDependency(...dependencies: IObservable[]): void {
+    const initialNumDependencies = this.dependencies.length;
+
     for (const dependency of dependencies) {
       const dependencyEntryIndex = this.dependencies.findIndex((existingDependency) => existingDependency.observable === dependency);
       if (dependencyEntryIndex !== -1) {
@@ -142,7 +111,14 @@ export class Computed<T> extends PlainObservable {
         this.dependencies.splice(dependencyEntryIndex, 1);
       }
     }
-    this.isDirty = true;
+    // Mark computed as dirty if dependencies have been removed.
+    // @NOTE You might think this un-necessary, but a counter example is something
+    // like computed Transform properties that have different logic between
+    // having a parent vs. having no parent. The logic recompute logic might
+    // be different given fewer dependencies, thus we need to invalidate it.
+    if (this.dependencies.length !== initialNumDependencies) {
+      this.isDirty = true;
+    }
   }
 
   public forceRecompute(): void {

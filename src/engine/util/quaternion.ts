@@ -1,8 +1,8 @@
 import { DegreesToRadians, RadiansToDegrees } from "./math";
-import { PlainObservable } from "./observable";
+import { Observable } from "./observable";
 import { EulerVector3, Vector3 } from "./vector";
 
-export class Quaternion extends PlainObservable {
+export class Quaternion extends Observable {
   // @NOTE Raw values encapsulated in annoying object type to prevent
   // accidental direct access. Always use `this.{x,y,z,w}` getters/setters,
   // so that possible subclasses etc. always pick up correct side effects.

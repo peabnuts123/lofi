@@ -1,6 +1,6 @@
 import { betterModulus } from "./math";
 import { Matrix4 } from "./Matrix4";
-import { PlainObservable } from "./observable";
+import { Observable } from "./observable";
 import { Quaternion } from "./quaternion";
 
 type AnyVector = Vector3 | Vector2;
@@ -16,7 +16,7 @@ export interface Vector2Like {
   y: number;
 }
 
-export class Vector2 extends PlainObservable {
+export class Vector2 extends Observable {
   // @NOTE Raw values encapsulated in annoying object type to prevent
   // accidental direct access. Always use `this.{x,y}` getters/setters,
   // so that possible subclasses etc. always pick up correct side effects.
@@ -226,7 +226,7 @@ export class Vector2 extends PlainObservable {
   public static left(): Vector2 { return new Vector2(-1, 0); }
 }
 
-export class Vector3 extends PlainObservable {
+export class Vector3 extends Observable {
   // @NOTE Raw values encapsulated in annoying object type to prevent
   // accidental direct access. Always use `this.{x,y,z}` getters/setters,
   // so that possible subclasses etc. always pick up correct side effects.

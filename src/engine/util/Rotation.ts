@@ -1,10 +1,10 @@
-import { Computed, PlainObservable, WritableComputed } from "./observable";
+import { Computed, Observable, WritableComputed } from "./observable";
 import { Quaternion, ReadOnlyQuaternion } from "./quaternion";
 import { EulerVector3, Vector3, type Vector3Definition } from "./vector";
 
 // I dub thee... "Eulernion"
 // @TODO put an interface around this for control over exposed types / params
-export class Rotation extends PlainObservable {
+export class Rotation extends Observable {
   private readonly _q: Quaternion;
   private readonly _qInverse: Computed<ReadOnlyQuaternion>;
   private readonly _euler: WritableComputed<EulerVector3>;
