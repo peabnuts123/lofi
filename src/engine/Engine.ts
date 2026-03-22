@@ -10,6 +10,7 @@ import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
 import type { DeepPartial } from "./util/types";
 
 import { DebugModule } from "src/util/DebugModule"; // @TODO move into the engine
+import { InputSystem, type IInputSystem } from "./input";
 
 export interface DrawQueues {
   opaque: DrawTask[];
@@ -48,6 +49,7 @@ export interface IEngine {
   get fileSystem(): IFileSystem;
   get collisionSystem(): CollisionSystem; // @TODO These should probably be behind interfaces
   get audioSystem(): IAudioSystem;
+  get inputSystem(): IInputSystem;
   get activeScene(): IScene | undefined;
 }
 
@@ -57,6 +59,7 @@ export class Engine implements IEngine {
   public readonly fileSystem: IFileSystem;
   public readonly collisionSystem: CollisionSystem;
   public readonly audioSystem: IAudioSystem;
+  public readonly inputSystem: InputSystem;
   public readonly config: EngineConfig;
 
   private _normalTmp: Matrix3 = new Matrix3();
@@ -92,6 +95,7 @@ export class Engine implements IEngine {
     this.gl = gl;
     this.collisionSystem = new CollisionSystem();
     this.audioSystem = new AudioSystem({ channels: this.config.audio.numChannels });
+    this.inputSystem = new InputSystem(canvas);
 
 
     // Global UBOs
@@ -153,6 +157,9 @@ export class Engine implements IEngine {
 
       /* Audio system */
       this.audioSystem.onUpdate(this);
+
+      /* Input system */
+      this.inputSystem.onUpdate();
 
       /* Draw scene */
       // @TODO Is there a way we can efficiently clear this memory?

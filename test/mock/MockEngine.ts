@@ -3,8 +3,10 @@ import type { EngineConfig, IEngine } from "@polyzone/engine/Engine";
 import type { IFileSystem } from "@polyzone/engine/filesystem";
 import type { IScene } from "@polyzone/engine/scene";
 import { type IAudioSystem } from "@polyzone/engine/audio/AudioSystem";
+import { type IInputSystem } from "@polyzone/engine/input";
 import { MockFileSystem } from "./MockFileSystem";
 import { MockAudioSystem } from './MockAudioSystem';
+import { MockInputSystem } from "./MockInputSystem";
 
 export interface MockEngineConstructorArgs {
   fileSystem?: IFileSystem;
@@ -14,6 +16,7 @@ export class MockEngine implements IEngine {
   fileSystem: IFileSystem;
   collisionSystem: CollisionSystem;
   audioSystem: IAudioSystem;
+  inputSystem: IInputSystem;
   activeScene: IScene | undefined;
   config: EngineConfig;
 
@@ -32,6 +35,7 @@ export class MockEngine implements IEngine {
       },
     };
     this.audioSystem = new MockAudioSystem();
+    this.inputSystem = new MockInputSystem();
   }
 
   public loadScene(scene: IScene): void {

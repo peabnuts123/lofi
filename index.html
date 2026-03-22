@@ -9,11 +9,16 @@
     <div id="app" class="">
       <h1 class="text-3xl mb-2">WebGL Engine Demo</h1>
       <canvas
+        tabindex="0"
         id="webgl-canvas"
         width="480"
         height="360"
-        class="[image-rendering:pixelated] w-full"
+        class="[image-rendering:pixelated] w-full touch-none select-none"
       ></canvas>
+      <h2>Current input</h2>
+      <div class="min-h-10 pt-2" id="current-input"></div>
+      <h2 class="text-xl">Input events</h2>
+      <pre class="bg-gray-200 whitespace-pre-wrap max-h-100 overflow-y-scroll" id="input-system-console"> </pre>
       <p class="text-sm mb-2 mt-4">Ray Trace Debug (Press Space)</p>
       <canvas
         id="debug-canvas"
