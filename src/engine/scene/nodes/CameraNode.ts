@@ -22,6 +22,8 @@ export class CameraNode extends SceneNode {
   public readonly viewMatrix = new Matrix4();
   public readonly projectionMatrix = new Matrix4();
 
+  private pointAt_tmp = Vector3.zero();
+
   public constructor(scene: IScene, name: string, fov: number, aspectRatio: number) {
     super(scene, name);
     this.fov = fov;
@@ -41,8 +43,9 @@ export class CameraNode extends SceneNode {
   }
 
   public pointAt(target: Vector3): void {
-    const direction = this.absolutePosition.subtract(target).normalizeSelf();
-    this.absoluteRotation.set(Quaternion.fromLookDirection(direction));
+    this.pointAt_tmp.setValue(target)
+      .subtractSelf(this.absolutePosition);
+    this.absoluteRotation.set(Quaternion.fromLookDirection(this.pointAt_tmp));
   }
 
   private recalculateViewProjectionMatrix(): void {
