@@ -1,19 +1,50 @@
+import type { Enum } from "@polyzone/engine/util/enum";
 
 export interface IInputSystem {
+  configure(configuration: InputConfiguration): void;
+  addInput(inputConfig: AddInputArgs): void;
+  removeInput(type: 'button' | 'axis', name: string): void;
+  addInputBinding(inputBinding: AddInputBindingArgs): void;
+  removeInputBinding(inputBinding: RemoveInputBindingArgs): void;
 
+  wasButtonPressed(buttonName: string): boolean;
+  wasButtonReleased(buttonName: string): boolean;
+  isButtonDown(buttonName: string): boolean;
+  getAxis(axisName: string): number;
 }
 
-type InputState<TInput extends string> = {
+type InputState<TInput extends string | number> = {
   current: Partial<Record<TInput, boolean>>;
   previous: Partial<Record<TInput, boolean>>;
 }
-type KeyboardInputState = InputState<KeyCodeName>;
-type MouseInputState = InputState<MouseButtonName>;
-type MouseWheelInputState = InputState<MouseWheelDirection>;
+type KeyboardInputState = InputState<KeyCodeValue>;
+type MouseInputState = InputState<MouseButtonValue>;
+type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
+
+export type ButtonInput = Enum<typeof KeyCode> | Enum<typeof MouseButton> | Enum<typeof MouseWheelDirection>;
+export interface ButtonInputConfiguration {
+  name: string;
+  bindings: ButtonInput[];
+}
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+export type AxisInput = never /* @TODO Gamepad */ | { min: ButtonInput, max: ButtonInput };
+export interface AxisInputConfiguration {
+  name: string;
+  bindings: AxisInput[];
+}
+export interface InputConfiguration {
+  buttons?: ButtonInputConfiguration[];
+  axes?: AxisInputConfiguration[];
+}
+export type AddInputArgs = ({ type: 'button' } & ButtonInputConfiguration) | ({ type: 'axis' } & AxisInputConfiguration);
+export type AddInputBindingArgs = AddInputArgs;
+export type RemoveInputBindingArgs = AddInputArgs;
+
 
 export class InputSystem implements IInputSystem {
   private debug_allKnownKeyCodes: Set<string>;
   private debug_console: InputSystemConsole;
+  private configuration: InputConfiguration;
 
   /**
    * @NOTE Canvas requirements for touch input:
@@ -43,6 +74,7 @@ export class InputSystem implements IInputSystem {
     this.debug_console = new InputSystemConsole();
 
     this.canvas = canvas;
+    this.configuration = DefaultInputConfiguration;
 
     /*
       @TODO Listen to:
@@ -85,6 +117,225 @@ export class InputSystem implements IInputSystem {
     };
   }
 
+  public configure(configuration: InputConfiguration): void {
+    this.configuration = configuration;
+  }
+
+  public addInput(inputConfig: AddInputArgs): void {
+    if (inputConfig.type === 'button') {
+      /* Button */
+      const existingButton = this.getButtonConfig(inputConfig.name);
+      if (existingButton !== undefined) {
+        throw new Error(`Cannot add new button input with name '${inputConfig.name}' - a button input already exists with this name`);
+      }
+      this.configuration.buttons?.push(inputConfig);
+    } else if (inputConfig.type === 'axis') {
+      /* Axis */
+      const existingAxis = this.getAxisConfig(inputConfig.name);
+      if (existingAxis !== undefined) {
+        throw new Error(`Cannot add new axis input with name '${inputConfig.name}' - an axis input already exists with this name`);
+      }
+      this.configuration.axes?.push(inputConfig);
+    } else {
+      /* Unknown */
+      throw new Error(`Unimplemented input type: '${(inputConfig as { type: string }).type}'`);
+    }
+  }
+
+  public removeInput(type: 'button' | 'axis', name: string): void {
+    if (type === 'button') {
+      const inputConfigIndex = this.configuration.buttons?.findIndex((button) => button.name === name);
+      if (inputConfigIndex && inputConfigIndex >= 0) {
+        this.configuration.buttons?.splice(inputConfigIndex, 1);
+      }
+    } else if (type === 'axis') {
+      const inputConfigIndex = this.configuration.axes?.findIndex((axis) => axis.name === name);
+      if (inputConfigIndex && inputConfigIndex >= 0) {
+        this.configuration.axes?.splice(inputConfigIndex, 1);
+      }
+    } else {
+      throw new Error(`Unimplemented type: '${type as string}'`);
+    }
+  }
+
+  public addInputBinding(inputBinding: AddInputBindingArgs): void {
+    if (inputBinding.type === 'button') {
+      /* Button */
+      const inputConfig = this.getButtonConfig(inputBinding.name);
+      if (inputConfig === undefined) {
+        throw new Error(`Cannot add binding to button input with name '${inputBinding.name}' - no button input exists with this name`);
+      }
+      // Add each binding
+      for (const binding of inputBinding.bindings) {
+        // But only if the binding doesn't already exist
+        if (!inputConfig.bindings.includes(binding)) {
+          inputConfig.bindings.push(binding);
+        }
+      }
+    } else if (inputBinding.type === 'axis') {
+      /* Axis */
+      const inputConfig = this.getAxisConfig(inputBinding.name);
+      if (inputConfig === undefined) {
+        throw new Error(`Cannot add binding to axis input with name '${inputBinding.name}' - no axis input exists with this name`);
+      }
+      // Add each binding
+      for (const binding of inputBinding.bindings) {
+        // But only if the binding doesn't already exist
+        if (!inputConfig.bindings.includes(binding)) {
+          inputConfig.bindings.push(binding);
+        }
+      }
+    } else {
+      /* Unknown */
+      throw new Error(`Unimplemented input type: '${(inputBinding as { type: string }).type}'`);
+    }
+  }
+
+  public removeInputBinding(inputBinding: RemoveInputBindingArgs): void {
+    if (inputBinding.type === 'button') {
+      /* Button */
+      const inputConfig = this.getButtonConfig(inputBinding.name);
+      if (inputConfig === undefined) {
+        throw new Error(`Cannot remove binding from button input with name '${inputBinding.name}' - no button input exists with this name`);
+      }
+      // Remove each binding
+      for (const binding of inputBinding.bindings) {
+        // Fail silently if binding doesn't exist (idempotent)
+        const bindingIndex = inputConfig.bindings.indexOf(binding);
+        if (bindingIndex >= 0) {
+          inputConfig.bindings.splice(bindingIndex, 1);
+        }
+      }
+    } else if (inputBinding.type === 'axis') {
+      /* Axis */
+      const inputConfig = this.getAxisConfig(inputBinding.name);
+      if (inputConfig === undefined) {
+        throw new Error(`Cannot remove binding from axis input with name '${inputBinding.name}' - no axis input exists with this name`);
+      }
+      // Remove each binding
+      for (const binding of inputBinding.bindings) {
+        // Fail silently if binding doesn't exist (idempotent)
+        const bindingIndex = inputConfig.bindings.indexOf(binding);
+        if (bindingIndex >= 0) {
+          inputConfig.bindings.splice(bindingIndex, 1);
+        }
+      }
+    } else {
+      /* Unknown */
+      throw new Error(`Unimplemented input type: '${(inputBinding as { type: string }).type}'`);
+    }
+  }
+
+  public wasButtonPressed(buttonName: string): boolean {
+    const buttonConfig = this.getButtonConfig(buttonName);
+    if (buttonConfig === undefined) {
+      return false;
+    }
+
+    let atLeastOneBindingWasPressed = false;
+    for (const binding of buttonConfig.bindings) {
+      let current: boolean;
+      let previous: boolean;
+      switch (binding.type) {
+        case 'Keyboard':
+          current = this.state.keyboard.current[binding.value] === true;
+          previous = this.state.keyboard.previous[binding.value] === true;
+          break;
+        case 'Mouse':
+          current = this.state.mouse.current[binding.value] === true;
+          previous = this.state.mouse.previous[binding.value] === true;
+          break;
+        case 'MouseWheel':
+          current = this.state.mouseWheel.current[binding.value] === true;
+          previous = this.state.mouseWheel.previous[binding.value] === true;
+          break;
+        default:
+          throw new Error(`Unimplemented binding type '${(binding as { type: string }).type}'`);
+      }
+
+      if (previous) {
+        // Button was not pressed since at least one binding was already pressed last frame
+        return false;
+      } else {
+        // At least one binding was pressed if this binding was pressed,
+        // since we know `previous` must be false
+        atLeastOneBindingWasPressed = current || atLeastOneBindingWasPressed;
+      }
+    }
+
+    return atLeastOneBindingWasPressed;
+  }
+  public wasButtonReleased(buttonName: string): boolean {
+    const buttonConfig = this.getButtonConfig(buttonName);
+    if (buttonConfig === undefined) {
+      return false;
+    }
+
+    let atLeastOneBindingWasHeldLastFrame = false;
+    for (const binding of buttonConfig.bindings) {
+      let current: boolean;
+      let previous: boolean;
+      switch (binding.type) {
+        case 'Keyboard':
+          current = this.state.keyboard.current[binding.value] === true;
+          previous = this.state.keyboard.previous[binding.value] === true;
+          break;
+        case 'Mouse':
+          current = this.state.mouse.current[binding.value] === true;
+          previous = this.state.mouse.previous[binding.value] === true;
+          break;
+        case 'MouseWheel':
+          current = this.state.mouseWheel.current[binding.value] === true;
+          previous = this.state.mouseWheel.previous[binding.value] === true;
+          break;
+        default:
+          throw new Error(`Unimplemented binding type '${(binding as { type: string }).type}'`);
+      }
+
+      if (current) {
+        // Button was not released since at least one binding is current being pressed this frame
+        return false;
+      } else {
+        atLeastOneBindingWasHeldLastFrame = previous || atLeastOneBindingWasHeldLastFrame;
+      }
+    }
+
+    return atLeastOneBindingWasHeldLastFrame;
+  }
+  public isButtonDown(buttonName: string): boolean {
+    const buttonConfig = this.getButtonConfig(buttonName);
+    if (buttonConfig === undefined) {
+      return false;
+    }
+
+    for (const binding of buttonConfig.bindings) {
+      let current: boolean;
+      switch (binding.type) {
+        case 'Keyboard':
+          current = this.state.keyboard.current[binding.value] === true;
+          break;
+        case 'Mouse':
+          current = this.state.mouse.current[binding.value] === true;
+          break;
+        case 'MouseWheel':
+          current = this.state.mouseWheel.current[binding.value] === true;
+          break;
+        default:
+          throw new Error(`Unimplemented binding type '${(binding as { type: string }).type}'`);
+      }
+
+      if (current) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+  public getAxis(axisName: string): number {
+    // @TODO
+    throw new Error("Method not implemented.");
+  }
+
   public onUpdate(): void {
     this.debug_updateCurrentInput();
 
@@ -92,7 +343,7 @@ export class InputSystem implements IInputSystem {
     this.updateInputState(this.state.mouse);
     // @NOTE Always clear out mouse wheel state every frame as inputs are instantaneous only
     for (const key in this.state.mouseWheel.current) {
-      delete this.state.mouseWheel.current[key as MouseWheelDirection];
+      delete this.state.mouseWheel.current[key as MouseWheelDirectionValue];
     }
   }
   private updateInputState<TInput extends string>(state: InputState<TInput>): void {
@@ -104,6 +355,14 @@ export class InputSystem implements IInputSystem {
     for (const key in state.previous) {
       state.previous[key as TInput] = state.current[key as TInput] === true;
     }
+  }
+
+  private getButtonConfig(name: string): ButtonInputConfiguration | undefined {
+    return this.configuration.buttons?.find((button) => button.name === name);
+  }
+
+  private getAxisConfig(name: string): AxisInputConfiguration | undefined {
+    return this.configuration.axes?.find((axis) => axis.name === name);
   }
 
   private debug_updateCurrentInput(): void {
@@ -158,7 +417,7 @@ export class InputSystem implements IInputSystem {
   private onKeyDown(e: KeyboardEvent): void {
     this.debug_allKnownKeyCodes.add(e.code); // @TODO @DEBUG REMOVE
     // Ignore key "repeats" and "problematic" keys
-    if (e.repeat || ProblematicKeyCodes[e.code as ProblematicKeyCodeName]) return;
+    if (e.repeat || ProblematicKeyCodes[e.code]) return;
 
     e.preventDefault();
 
@@ -170,11 +429,11 @@ export class InputSystem implements IInputSystem {
     }
 
     // Mark key as currently pressed
-    this.state.keyboard.current[e.code as KeyCodeName] = true;
+    this.state.keyboard.current[e.code as KeyCodeValue] = true;
   }
 
   private onKeyUp(e: KeyboardEvent): void {
-    if (ProblematicKeyCodes[e.code as ProblematicKeyCodeName]) {
+    if (ProblematicKeyCodes[e.code]) {
       // @NOTE "Problematic" keys can cause other keys to stick.
       // For example (on MacOS) while Cmd is pressed, `keyup` events don't fire.
       // Another example: Pressing Opt => Ctrl => L. Pressing `Opt` does not fire `keydown`, releasing `L` does not fire `keyup`
@@ -199,7 +458,7 @@ export class InputSystem implements IInputSystem {
     }
 
     // Mark key as not currently pressed
-    delete this.state.keyboard.current[e.code as KeyCodeName];
+    delete this.state.keyboard.current[e.code as KeyCodeValue];
   }
 
   private onPointerDown(e: PointerEvent): void {
@@ -215,7 +474,7 @@ export class InputSystem implements IInputSystem {
       this.canvas.setPointerCapture(e.pointerId);
 
       // Mark mouse button as currently pressed
-      this.state.mouse.current[getMouseButtonName(e.button)!] = true;
+      this.state.mouse.current[e.button as MouseButtonValue] = true;
     }
   }
 
@@ -227,7 +486,7 @@ export class InputSystem implements IInputSystem {
       this.debug_console.log(`[${InputSystem.name}] (${this.onPointerUp.name}) ${e.button} (${e.pointerType})`); // @TODO @DEBUG REMOVE
 
       // Mark mouse button as not currently pressed
-      delete this.state.mouse.current[getMouseButtonName(e.button)!];
+      delete this.state.mouse.current[e.button as MouseButtonValue];
     }
   }
 
@@ -239,7 +498,7 @@ export class InputSystem implements IInputSystem {
     const absX = Math.abs(e.deltaX);
     const absY = Math.abs(e.deltaY);
     const absZ = Math.abs(e.deltaZ);
-    let type: MouseWheelDirection;
+    let type: MouseWheelDirectionValue;
     if (absZ > absX && absZ > absY) {
       if (e.deltaZ < 0) {
         type = 'back';
@@ -279,32 +538,31 @@ class InputSystemConsole {
   }
 }
 
-export const MouseButton = {
+type InputEnumResult<TType extends string, TEnum extends object> = { [T in keyof TEnum]: { type: TType, value: TEnum[T] } };
+function createInputEnum<TType extends string, TEnum extends object>(type: TType, enumObj: TEnum): InputEnumResult<TType, TEnum> {
+  const result: Partial<InputEnumResult<TType, TEnum>> = {};
+  for (const key in enumObj) {
+    result[key] = { type, value: enumObj[key] };
+  }
+  return result as InputEnumResult<TType, TEnum>;
+}
+type InputEnumValues<T extends InputEnumResult<any, any>> = T[keyof T]['value']
+
+export const MouseButton = createInputEnum('Mouse', {
   'Left': 0 as const,
   'Middle': 1 as const,
   'Right': 2 as const,
-};
-export function getMouseButtonName(button: number): MouseButtonName | undefined {
-  switch (button) {
-    case 0:
-      return 'Left';
-    case 1:
-      return 'Middle';
-    case 2:
-      return 'Right';
-  }
-  return undefined;
-}
-export const MouseWheelDirection = {
-  'up': 'up',
-  'down': 'down',
-  'left': 'left',
-  'right': 'right',
-  'forward': 'forward',
-  'back': 'back',
-};
+});
+export const MouseWheelDirection = createInputEnum('MouseWheel', {
+  'Up': 'up' as const,
+  'Down': 'down' as const,
+  'Left': 'left' as const,
+  'Right': 'right' as const,
+  'Forward': 'forward' as const,
+  'Back': 'back' as const,
+});
 // @TODO Expand this by testing on other devices
-export const KeyCode = {
+export const KeyCode = createInputEnum('Keyboard', {
   Escape: 'Escape' as const,
   F1: 'F1' as const,
   F2: 'F2' as const,
@@ -409,15 +667,47 @@ export const KeyCode = {
   NumpadDivide: 'NumpadDivide' as const,
   NumpadEqual: 'NumpadEqual' as const,
   NumLock: 'NumLock' as const,
-};
-export const ProblematicKeyCodes = {
-  MetaLeft: 'MetaLeft',
-  MetaRight: 'MetaRight',
-  AltLeft: 'AltLeft',
-  AltRight: 'AltRight',
+});
+export const ProblematicKeyCodes: Record<string, true> = {
+  ['MetaLeft']: true,
+  ['MetaRight']: true,
+  ['AltLeft']: true,
+  ['AltRight']: true,
 };
 
-export type MouseButtonName = keyof typeof MouseButton;
-export type KeyCodeName = keyof typeof KeyCode;
-export type ProblematicKeyCodeName = keyof typeof ProblematicKeyCodes;
-export type MouseWheelDirection = keyof typeof MouseWheelDirection;
+export type MouseButtonValue = InputEnumValues<typeof MouseButton>;
+export type KeyCodeValue = InputEnumValues<typeof KeyCode>;
+export type MouseWheelDirectionValue = InputEnumValues<typeof MouseWheelDirection>;
+
+export const DefaultInputConfiguration: InputConfiguration = {
+  buttons: [
+    {
+      name: 'jump',
+      bindings: [
+        KeyCode.Space,
+      ],
+    },
+    {
+      name: 'action',
+      bindings: [
+        KeyCode.KeyF,
+      ],
+    },
+  ],
+  axes: [
+    {
+      name: 'player:x',
+      bindings: [
+        { min: KeyCode.KeyA, max: KeyCode.KeyD },
+        { min: KeyCode.ArrowLeft, max: KeyCode.ArrowRight },
+      ],
+    },
+    {
+      name: 'player:y',
+      bindings: [
+        { min: KeyCode.KeyS, max: KeyCode.KeyW },
+        { min: KeyCode.ArrowDown, max: KeyCode.ArrowUp },
+      ],
+    },
+  ],
+};
