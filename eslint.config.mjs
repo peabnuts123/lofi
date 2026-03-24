@@ -25,6 +25,7 @@ export default tseslint.config(
     },
     ignores: [
       'dist/**/*',
+      'coverage/**/*',
     ],
     rules: {
       // Rules that are explicitly disabled

@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:watch": "npm run test -- --watch",
+    "test:coverage": "npm run test -- --coverage && http-server coverage -p 8080",
     "lint": "eslint --max-warnings 0 --no-error-on-unmatched-pattern \"*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}\" \"src/**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}\" \"test/**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}\"",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "checkall": "npm run typecheck && npm run lint && npm run test"
@@ -16,8 +17,10 @@
     "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
+    "@vitest/coverage-v8": "^4.1.0",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
+    "http-server": "^14.1.1",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
     "standardized-audio-context-mock": "^9.7.27",
