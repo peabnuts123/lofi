@@ -360,7 +360,7 @@ describe("Transform", () => {
         // Setup
         const transform = createTransform();
         const updatedPositionX = 30;
-        const expectedPosition = Vector3.zero().withX(updatedPositionX);
+        const expectedPosition = Vector3.zero().setX(updatedPositionX);
         const expectedWorldMatrix = worldMatrix({ position: expectedPosition });
 
         // Test
@@ -389,7 +389,7 @@ describe("Transform", () => {
         // Setup
         const transform = createTransform();
         const updatedPositionX = 30;
-        const expectedPosition = Vector3.zero().withX(updatedPositionX);
+        const expectedPosition = Vector3.zero().setX(updatedPositionX);
         const expectedWorldMatrix = worldMatrix({ position: expectedPosition });
 
         // Test
@@ -451,7 +451,7 @@ describe("Transform", () => {
         parentTransform.position = new Vector3(5, 10, 15);
         parentTransform.addChild(transform);
         const updatedPositionX = 30;
-        const expectedPosition = Vector3.zero().subtract(parentTransform.position).withX(updatedPositionX);
+        const expectedPosition = Vector3.zero().subtract(parentTransform.position).setX(updatedPositionX);
         const expectedAbsolutePosition = parentTransform.position.add(expectedPosition);
         const expectedWorldMatrix = worldMatrix({ position: expectedAbsolutePosition });
 
@@ -488,7 +488,7 @@ describe("Transform", () => {
         parentTransform.position = new Vector3(5, 10, 15);
         parentTransform.addChild(transform);
         const updatedPositionX = 30;
-        const expectedAbsolutePosition = Vector3.zero().withX(updatedPositionX);
+        const expectedAbsolutePosition = Vector3.zero().setX(updatedPositionX);
         const expectedPosition = expectedAbsolutePosition.subtract(parentTransform.absolutePosition);
         const expectedWorldMatrix = worldMatrix({ position: expectedAbsolutePosition });
 
@@ -822,7 +822,7 @@ describe("Transform", () => {
         // Setup
         const transform = createTransform();
         const updatedScaleX = 1.5;
-        const expectedScale = Vector3.one().withX(updatedScaleX);
+        const expectedScale = Vector3.one().setX(updatedScaleX);
         const expectedWorldMatrix = worldMatrix({ scale: expectedScale });
 
         // Test
@@ -851,7 +851,7 @@ describe("Transform", () => {
         // Setup
         const transform = createTransform();
         const updatedScaleX = 1.3;
-        const expectedScale = Vector3.one().withX(updatedScaleX);
+        const expectedScale = Vector3.one().setX(updatedScaleX);
         const expectedWorldMatrix = worldMatrix({ scale: expectedScale });
 
         // Test
@@ -913,7 +913,7 @@ describe("Transform", () => {
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
         parentTransform.addChild(transform);
         const updatedScaleX = 30;
-        const expectedScale = Vector3.one().divide(parentTransform.scale).withX(updatedScaleX);
+        const expectedScale = Vector3.one().divide(parentTransform.scale).setX(updatedScaleX);
         const expectedAbsoluteScale = parentTransform.scale.multiply(expectedScale);
         const expectedWorldMatrix = worldMatrix({ scale: expectedAbsoluteScale });
 
@@ -950,7 +950,7 @@ describe("Transform", () => {
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
         parentTransform.addChild(transform);
         const updatedScaleX = 30;
-        const expectedAbsoluteScale = Vector3.one().withX(updatedScaleX);
+        const expectedAbsoluteScale = Vector3.one().setX(updatedScaleX);
         const expectedScale = expectedAbsoluteScale.divide(parentTransform.absoluteScale);
         const expectedWorldMatrix = worldMatrix({ scale: expectedAbsoluteScale });
 

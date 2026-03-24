@@ -9,6 +9,7 @@ import { Matrix4 } from './Matrix4';
   - Vector2
   - EulerVector
   - divideSelf/divide by 0 throws error
+  - withX/withY/withZ
 */
 
 describe("Vector3", () => {
@@ -278,7 +279,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling withX() fires onChange() once", () => {
+    test("Calling setX() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -288,12 +289,12 @@ describe("Vector3", () => {
       });
 
       // Test
-      vector.withX(4);
+      vector.setX(4);
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling withY() fires onChange() once", () => {
+    test("Calling setY() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -303,12 +304,12 @@ describe("Vector3", () => {
       });
 
       // Test
-      vector.withY(4);
+      vector.setY(4);
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling withZ() fires onChange() once", () => {
+    test("Calling setZ() fires onChange() once", () => {
       // Setup
       const vector = new Vector3(1, 2, 3);
 
@@ -318,7 +319,7 @@ describe("Vector3", () => {
       });
 
       // Test
-      vector.withZ(4);
+      vector.setZ(4);
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
@@ -769,38 +770,38 @@ describe("Vector3", () => {
     expectVectorsToBeEqual(cloned, vector);
     expect(cloned).not.toBe(vector);
   });
-  test("Calling withX() mutates correctly", () => {
+  test("Calling setX() mutates correctly", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const updatedXValue = 10;
     const expectedValue = new Vector3(updatedXValue, 2, 3);
 
     // Test
-    vector.withX(updatedXValue);
+    vector.setX(updatedXValue);
 
     // Assert
     expectVectorsToBeEqual(vector, expectedValue);
   });
-  test("Calling withY() mutates correctly", () => {
+  test("Calling setY() mutates correctly", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const updatedYValue = 10;
     const expectedValue = new Vector3(1, updatedYValue, 3);
 
     // Test
-    vector.withY(updatedYValue);
+    vector.setY(updatedYValue);
 
     // Assert
     expectVectorsToBeEqual(vector, expectedValue);
   });
-  test("Calling withZ() mutates correctly", () => {
+  test("Calling setZ() mutates correctly", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const updatedZValue = 10;
     const expectedValue = new Vector3(1, 2, updatedZValue);
 
     // Test
-    vector.withZ(updatedZValue);
+    vector.setZ(updatedZValue);
 
     // Assert
     expectVectorsToBeEqual(vector, expectedValue);

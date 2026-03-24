@@ -191,14 +191,20 @@ export class Vector2 extends Observable {
     return new Vector2(this.x, this.y);
   }
 
-  public withX(value: number): this {
+  public setX(value: number): this {
     this.x = value;
     return this;
   }
+  public withX(value: number): Vector2 {
+    return this.clone().setX(value);
+  }
 
-  public withY(value: number): this {
+  public setY(value: number): this {
     this.y = value;
     return this;
+  }
+  public withY(value: number): Vector2 {
+    return this.clone().setY(value);
   }
 
   public toString(): string {
@@ -476,19 +482,28 @@ export class Vector3 extends Observable {
     return new Vector3(this.x, this.y, this.z);
   }
 
-  public withX(value: number): this {
+  public setX(value: number): this {
     this.x = value;
     return this;
   }
+  public withX(value: number): Vector3 {
+    return this.clone().setX(value);
+  }
 
-  public withY(value: number): this {
+  public setY(value: number): this {
     this.y = value;
     return this;
   }
+  public withY(value: number): Vector3 {
+    return this.clone().setY(value);
+  }
 
-  public withZ(value: number): this {
+  public setZ(value: number): this {
     this.z = value;
     return this;
+  }
+  public withZ(value: number): Vector3 {
+    return this.clone().setZ(value);
   }
 
   public toString(): string {

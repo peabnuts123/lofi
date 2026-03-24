@@ -33,7 +33,7 @@ export abstract class Game {
     /* Lighting */
     if (Flags.LightingEnabled) {
       const light = new PointLightNode(scene, 'light', Color3.white());
-      light.position = Vector3.one().withX(-1);
+      light.position = Vector3.one().setX(-1);
     }
 
     /* Camera */

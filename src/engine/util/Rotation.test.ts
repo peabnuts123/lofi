@@ -330,7 +330,7 @@ describe("Rotation", () => {
     // Setup
     const rotation = new Rotation();
     const updatedXValue = 20;
-    const expectedEuler = Vector3.zero().withX(updatedXValue);
+    const expectedEuler = Vector3.zero().setX(updatedXValue);
     const expectedQuaternion = Quaternion.fromEuler(expectedEuler);
     const expectedInverse = expectedQuaternion.invert();
 
@@ -348,15 +348,15 @@ describe("Rotation", () => {
     // const updatedXValue = 20;
     const updatedEulerAngles = new Vector3(10, 20, 30);
     /* After X update */
-    const expectedEulerAfterXUpdate = Vector3.zero().withX(updatedEulerAngles.x);
+    const expectedEulerAfterXUpdate = Vector3.zero().setX(updatedEulerAngles.x);
     const expectedQuaternionAfterXUpdate = Quaternion.fromEuler(expectedEulerAfterXUpdate);
     const expectedInverseAfterXUpdate = expectedQuaternionAfterXUpdate.invert();
     /* After Y update */
-    const expectedEulerAfterYUpdate = expectedEulerAfterXUpdate.clone().withY(updatedEulerAngles.y);
+    const expectedEulerAfterYUpdate = expectedEulerAfterXUpdate.clone().setY(updatedEulerAngles.y);
     const expectedQuaternionAfterYUpdate = Quaternion.fromEuler(expectedEulerAfterYUpdate);
     const expectedInverseAfterYUpdate = expectedQuaternionAfterYUpdate.invert();
     /* After Z update */
-    const expectedEulerAfterZUpdate = expectedEulerAfterYUpdate.clone().withZ(updatedEulerAngles.z);
+    const expectedEulerAfterZUpdate = expectedEulerAfterYUpdate.clone().setZ(updatedEulerAngles.z);
     const expectedQuaternionAfterZUpdate = Quaternion.fromEuler(expectedEulerAfterZUpdate);
     const expectedInverseAfterZUpdate = expectedQuaternionAfterZUpdate.invert();
 
