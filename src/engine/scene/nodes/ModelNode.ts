@@ -32,8 +32,10 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
     if (!animation) {
       throw new Error(`Cannot play animation. No animation exists with name '${animationName}'`);
     }
-    this.currentAnimation = animation;
-    this.currentAnimationTime = 0;
+    if (this.currentAnimation !== animation) {
+      this.currentAnimation = animation;
+      this.currentAnimationTime = 0;
+    }
     this.currentAnimationSpeed = speed;
   }
 
