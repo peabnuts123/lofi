@@ -1,5 +1,19 @@
 import type { Enum } from "@polyzone/engine/util/enum";
 
+/*
+  @TODO Backlog
+    // - Gamepad binding
+    - Axes
+    - Pointer position / delta
+    // - Axes as buttons
+    - Virtual gamepads (on screen)
+
+    - A callback for "on any input" => get device ID / stop listening
+    // - Method to set player X is device ID Y
+    // - Player 1 is assumed to be device ID 0, player 2 is assumed to be device Id 1, etc.
+    - A callback for gamepads connecting / disconnecting?
+    - Hack Y axis of standard controllers to be `positive=up`...
+ */
 export interface IInputSystem {
   configure(configuration: InputConfiguration): void;
   addInput(inputConfig: AddInputArgs): void;
@@ -7,27 +21,32 @@ export interface IInputSystem {
   addInputBinding(inputBinding: AddInputBindingArgs): void;
   removeInputBinding(inputBinding: RemoveInputBindingArgs): void;
 
-  wasButtonPressed(buttonName: string): boolean;
-  wasButtonReleased(buttonName: string): boolean;
-  isButtonDown(buttonName: string): boolean;
-  getAxis(axisName: string): number;
+  wasButtonPressed(buttonName: string, playerNumber?: PlayerNumber): boolean;
+  wasButtonReleased(buttonName: string, playerNumber?: PlayerNumber): boolean;
+  isButtonDown(buttonName: string, playerNumber?: PlayerNumber): boolean;
+  getAxis(axisName: string, playerNumber?: PlayerNumber): number;
+
+  assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void;
 }
 
 type InputState<TInput extends string | number> = {
-  current: Partial<Record<TInput, boolean>>;
-  previous: Partial<Record<TInput, boolean>>;
+  current: Partial<Record<TInput, NumberZeroToOne>>;
+  previous: Partial<Record<TInput, NumberZeroToOne>>;
 }
 type KeyboardInputState = InputState<KeyCodeValue>;
 type MouseInputState = InputState<MouseButtonValue>;
 type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
+type GamepadButtonInputState = InputState<GamepadButtonValue>;
+type GamepadAxisInputState = InputState<GamepadAxisValue>;
 
-export type ButtonInput = Enum<typeof KeyCode> | Enum<typeof MouseButton> | Enum<typeof MouseWheelDirection>;
+type RawButtonInput = Enum<typeof KeyCode> | Enum<typeof MouseButton> | Enum<typeof MouseWheelDirection> | Enum<typeof GamepadButton>;
+export type ButtonInput = RawButtonInput | { axis: RawAxisInput, direction: 'positive' | 'negative' };
 export interface ButtonInputConfiguration {
   name: string;
   bindings: ButtonInput[];
 }
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-export type AxisInput = never /* @TODO Gamepad */ | { min: ButtonInput, max: ButtonInput };
+type RawAxisInput = Enum<typeof GamepadAxis>;
+export type AxisInput = RawAxisInput | { min: RawButtonInput, max: RawButtonInput };
 export interface AxisInputConfiguration {
   name: string;
   bindings: AxisInput[];
@@ -40,11 +59,25 @@ export type AddInputArgs = ({ type: 'button' } & ButtonInputConfiguration) | ({ 
 export type AddInputBindingArgs = AddInputArgs;
 export type RemoveInputBindingArgs = AddInputArgs;
 
+export type InputDeviceId = typeof KeyboardAndMouseDeviceId | GamepadDeviceId;
+export type InputDeviceType = InputDeviceId['type'];
+export type GamepadDeviceId = { type: 'Gamepad', gamepadIndex: NativeGamepadIndex };
+export const KeyboardAndMouseDeviceId = { type: 'KeyboardAndMouse' as const };
+export function gamepadIndexToDeviceId(index: NativeGamepadIndex): GamepadDeviceId {
+  return {
+    type: 'Gamepad',
+    gamepadIndex: index,
+  };
+}
 
 export class InputSystem implements IInputSystem {
   private debug_allKnownKeyCodes: Set<string>;
   private debug_console: InputSystemConsole;
-  private configuration: InputConfiguration;
+
+  /**
+   * Threshold over which an analog input is considered "pressed".
+   */
+  public analogButtonPressedThreshold = 0.2;
 
   /**
    * @NOTE Canvas requirements for touch input:
@@ -53,6 +86,21 @@ export class InputSystem implements IInputSystem {
    *  - `user-select: none` (CSS) - Prevent selecting the canvas on mobile (e.g. long press)
    */
   private canvas: HTMLCanvasElement;
+  /**
+   * Mapping of input sources to semantic input actions.
+   */
+  private configuration: InputConfiguration;
+  /**
+   * Set of all currently-connected gamepad indices.
+   */
+  private connectedGamepadIndices: Set<NativeGamepadIndex>;
+  /**
+   * Mapping of players to their associated input devices.
+   */
+  private playerInputDeviceMapping: Map<PlayerNumber, Set<InputDeviceId>>;
+
+
+  /** State of all inputs for this frame and the previous frame. */
   private state = {
     isCanvasFocused: false,
     keyboard: {
@@ -67,6 +115,12 @@ export class InputSystem implements IInputSystem {
       current: {},
       previous: {},
     } satisfies MouseWheelInputState as MouseWheelInputState,
+    gamepadButton: {
+      /* @NOTE Gamepad state is first keyed by gamepad index */
+    } as Record<NativeGamepadIndex, GamepadButtonInputState>,
+    gamepadAxis: {
+      /* @NOTE Gamepad state is first keyed by gamepad index */
+    } as Record<NativeGamepadIndex, GamepadAxisInputState>,
   };
 
   public constructor(canvas: HTMLCanvasElement) {
@@ -75,20 +129,19 @@ export class InputSystem implements IInputSystem {
 
     this.canvas = canvas;
     this.configuration = DefaultInputConfiguration;
+    this.connectedGamepadIndices = new Set();
+    this.playerInputDeviceMapping = new Map();
+    // @NOTE Assign keyboard and mouse by default
+    this.assignInputDeviceToPlayer(0, KeyboardAndMouseDeviceId);
 
-    /*
-      @TODO Listen to:
-        // - keydown/up
-        // - mouse down / up
-        - gamepad connected
-        - gamepad button down / up
-     */
     canvas.addEventListener('keydown', (e) => this.onKeyDown(e));
     canvas.addEventListener('keyup', (e) => this.onKeyUp(e));
     canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
     canvas.addEventListener('wheel', (e) => this.onWheel(e, true));
     canvas.addEventListener('mousewheel', (e) => this.onWheel(e as WheelEvent, false));
+    window.addEventListener('gamepadconnected', (e) => this.onGamepadConnected(e));
+    window.addEventListener('gamepaddisconnected', (e) => this.onGamepadDisconnected(e));
 
     canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -105,6 +158,7 @@ export class InputSystem implements IInputSystem {
       this.state.mouseWheel.current = {};
     });
 
+    // @TODO @DEBUG REMOVE
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     (window as any)['debug__logAllKnownCodes'] = () => {
       console.log(
@@ -226,134 +280,296 @@ export class InputSystem implements IInputSystem {
     }
   }
 
-  public wasButtonPressed(buttonName: string): boolean {
+  public wasButtonPressed(buttonName: string, playerNumber: PlayerNumber = 0): boolean {
     const buttonConfig = this.getButtonConfig(buttonName);
     if (buttonConfig === undefined) {
       return false;
     }
 
-    let atLeastOneBindingWasPressed = false;
-    for (const binding of buttonConfig.bindings) {
-      let current: boolean;
-      let previous: boolean;
-      switch (binding.type) {
-        case 'Keyboard':
-          current = this.state.keyboard.current[binding.value] === true;
-          previous = this.state.keyboard.previous[binding.value] === true;
-          break;
-        case 'Mouse':
-          current = this.state.mouse.current[binding.value] === true;
-          previous = this.state.mouse.previous[binding.value] === true;
-          break;
-        case 'MouseWheel':
-          current = this.state.mouseWheel.current[binding.value] === true;
-          previous = this.state.mouseWheel.previous[binding.value] === true;
-          break;
-        default:
-          throw new Error(`Unimplemented binding type '${(binding as { type: string }).type}'`);
-      }
+    const deviceIds = this.playerInputDeviceMapping.get(playerNumber);
+    if (deviceIds === undefined || deviceIds.size === 0) {
+      console.error(`[${InputSystem.name}] (${this.wasButtonPressed.name}) Player '${playerNumber}' has no input devices assigned`);
+      return false;
+    }
 
-      if (previous) {
-        // Button was not pressed since at least one binding was already pressed last frame
-        return false;
-      } else {
-        // At least one binding was pressed if this binding was pressed,
-        // since we know `previous` must be false
-        atLeastOneBindingWasPressed = current || atLeastOneBindingWasPressed;
+    let atLeastOneBindingWasPressed = false;
+    for (const deviceId of deviceIds) {
+      for (const binding of buttonConfig.bindings) {
+        const inputState = this.getButtonInputState(deviceId, binding);
+
+        // Binding is not tied to this device (e.g. 'South' gamepad button is not tied to 'KeyboardAndMouse' device)
+        if (inputState === undefined) {
+          continue;
+        }
+
+        if (inputState.previous > this.analogButtonPressedThreshold) {
+          // Button was not pressed since at least one binding was already pressed last frame
+          return false;
+        } else {
+          // We know this binding was not pressed last frame,
+          // so we record if it is pressed this frame
+          atLeastOneBindingWasPressed = inputState.current > this.analogButtonPressedThreshold || atLeastOneBindingWasPressed;
+        }
       }
     }
 
     return atLeastOneBindingWasPressed;
   }
-  public wasButtonReleased(buttonName: string): boolean {
+
+  public wasButtonReleased(buttonName: string, playerNumber: PlayerNumber = 0): boolean {
     const buttonConfig = this.getButtonConfig(buttonName);
     if (buttonConfig === undefined) {
       return false;
     }
 
-    let atLeastOneBindingWasHeldLastFrame = false;
-    for (const binding of buttonConfig.bindings) {
-      let current: boolean;
-      let previous: boolean;
-      switch (binding.type) {
-        case 'Keyboard':
-          current = this.state.keyboard.current[binding.value] === true;
-          previous = this.state.keyboard.previous[binding.value] === true;
-          break;
-        case 'Mouse':
-          current = this.state.mouse.current[binding.value] === true;
-          previous = this.state.mouse.previous[binding.value] === true;
-          break;
-        case 'MouseWheel':
-          current = this.state.mouseWheel.current[binding.value] === true;
-          previous = this.state.mouseWheel.previous[binding.value] === true;
-          break;
-        default:
-          throw new Error(`Unimplemented binding type '${(binding as { type: string }).type}'`);
-      }
+    const deviceIds = this.playerInputDeviceMapping.get(playerNumber);
+    if (deviceIds === undefined || deviceIds.size === 0) {
+      console.error(`[${InputSystem.name}] (${this.wasButtonPressed.name}) Player '${playerNumber}' has no input devices assigned`);
+      return false;
+    }
 
-      if (current) {
-        // Button was not released since at least one binding is current being pressed this frame
-        return false;
-      } else {
-        atLeastOneBindingWasHeldLastFrame = previous || atLeastOneBindingWasHeldLastFrame;
+    let atLeastOneBindingWasHeldLastFrame = false;
+    for (const deviceId of deviceIds) {
+      for (const binding of buttonConfig.bindings) {
+        const inputState = this.getButtonInputState(deviceId, binding);
+
+        // Binding is not tied to this device (e.g. 'South' gamepad button is not tied to 'KeyboardAndMouse' device)
+        if (inputState === undefined) {
+          continue;
+        }
+
+        if (inputState.current > this.analogButtonPressedThreshold) {
+          // Button was not released since at least one binding is current being pressed this frame
+          return false;
+        } else {
+          atLeastOneBindingWasHeldLastFrame = inputState.previous > this.analogButtonPressedThreshold || atLeastOneBindingWasHeldLastFrame;
+        }
       }
     }
 
     return atLeastOneBindingWasHeldLastFrame;
   }
-  public isButtonDown(buttonName: string): boolean {
+
+  public isButtonDown(buttonName: string, playerNumber: PlayerNumber = 0): boolean {
     const buttonConfig = this.getButtonConfig(buttonName);
     if (buttonConfig === undefined) {
       return false;
     }
 
-    for (const binding of buttonConfig.bindings) {
-      let current: boolean;
-      switch (binding.type) {
-        case 'Keyboard':
-          current = this.state.keyboard.current[binding.value] === true;
-          break;
-        case 'Mouse':
-          current = this.state.mouse.current[binding.value] === true;
-          break;
-        case 'MouseWheel':
-          current = this.state.mouseWheel.current[binding.value] === true;
-          break;
-        default:
-          throw new Error(`Unimplemented binding type '${(binding as { type: string }).type}'`);
-      }
+    const deviceIds = this.playerInputDeviceMapping.get(playerNumber);
+    if (deviceIds === undefined || deviceIds.size === 0) {
+      console.error(`[${InputSystem.name}] (${this.wasButtonPressed.name}) Player '${playerNumber}' has no input devices assigned`);
+      return false;
+    }
 
-      if (current) {
-        return true;
+    for (const deviceId of deviceIds) {
+      for (const binding of buttonConfig.bindings) {
+        const inputState = this.getButtonInputState(deviceId, binding);
+
+        // Binding is not tied to this device (e.g. 'South' gamepad button is not tied to 'KeyboardAndMouse' device)
+        if (inputState === undefined) {
+          continue;
+        }
+
+        if (inputState.current > this.analogButtonPressedThreshold) {
+          return true;
+        }
       }
     }
 
     return false;
   }
-  public getAxis(axisName: string): number {
+
+  public getAxis(axisName: string, playerNumber: PlayerNumber = 0): number {
     // @TODO
     throw new Error("Method not implemented.");
+  }
+
+  public assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void {
+    // Remove `deviceId` from every player
+    for (const playerDevices of this.playerInputDeviceMapping.values()) {
+      playerDevices.delete(deviceId);
+    }
+
+    // Ensure input mapping exists for player
+    if (!this.playerInputDeviceMapping.has(playerNumber)) {
+      this.playerInputDeviceMapping.set(playerNumber, new Set());
+    }
+
+    // Assign device to player
+    const playerDevices = this.playerInputDeviceMapping.get(playerNumber)!;
+    playerDevices.add(deviceId);
+    console.log(`[DEBUG] Assigning device '${deviceId.type}' to player '${playerNumber}'`);
   }
 
   public onUpdate(): void {
     this.debug_updateCurrentInput();
 
+    // Update input states (copy current -> previous)
+    /* Keyboard */
     this.updateInputState(this.state.keyboard);
+    /* Mouse */
     this.updateInputState(this.state.mouse);
+    /* Mouse wheel */
     // @NOTE Always clear out mouse wheel state every frame as inputs are instantaneous only
     for (const key in this.state.mouseWheel.current) {
       delete this.state.mouseWheel.current[key as MouseWheelDirectionValue];
     }
+
+    /* Gamepad */
+    for (const gamepadIndex of this.connectedGamepadIndices) {
+      const gamepadButtonState = this.state.gamepadButton[gamepadIndex];
+      const gamepadAxisState = this.state.gamepadAxis[gamepadIndex];
+
+      this.updateInputState(gamepadButtonState);
+      this.updateInputState(gamepadAxisState);
+
+      // Gamepad input state is not handled by callbacks, it needs to be polled.
+      // So we have to read it AFTER we've updated the previous frame's state.
+      const gamepad = window.navigator.getGamepads()[gamepadIndex];
+      if (gamepad !== null) {
+        /* Buttons */
+        for (let i: NativeGamepadButtonIndex = 0; i < gamepad.buttons.length; i++) {
+          const button = gamepad.buttons[i];
+          // @NOTE @ASSUMPTION Gamepads are all "standard" mapping
+          // @TODO Support custom mapping non-standard controllers
+          const gamepadInput = NativeStandardGamepadButtonMapping[i];
+          // Ignore extra / unmapped inputs
+          if (gamepadInput !== undefined) {
+            gamepadButtonState.current[gamepadInput.value] = button.value;
+          }
+        }
+        /* Axes */
+        for (let i: NativeGamepadAxisIndex = 0; i < gamepad.axes.length; i++) {
+          const axis = gamepad.axes[i];
+          // @NOTE @ASSUMPTION Gamepads are all "standard" mapping
+          // @TODO Support custom mapping non-standard controllers
+          const gamepadInput = NativeStandardGamepadAxisMapping[i];
+          // Ignore extra / unmapped inputs
+          if (gamepadInput !== undefined) {
+            gamepadAxisState.current[gamepadInput.value] = axis;
+          }
+        }
+      } else {
+        // I don't think this is "possible". Theoretically `getGamepads()` returns `null` for index 0 and `Gamepad`
+        // data for every other index. So a connected gamepad would have to have index 0, which I don't think is valid.
+        console.error(`[${InputSystem.name}] (${this.onUpdate.name}) Connected gamepad has index '${gamepadIndex}' with null gamepad data`);
+      }
+    }
   }
-  private updateInputState<TInput extends string>(state: InputState<TInput>): void {
+
+  private updateInputState<TInput extends string | number>(state: InputState<TInput>): void {
     // Iterate current inputs
     for (const key in state.current) {
-      state.previous[key as TInput] = state.current[key as TInput] === true;
+      state.previous[key as TInput] = state.current[key as TInput] ?? 0;
     }
     // ALSO iterate previous inputs to update deletes / clears
     for (const key in state.previous) {
-      state.previous[key as TInput] = state.current[key as TInput] === true;
+      state.previous[key as TInput] = state.current[key as TInput] ?? 0;
+    }
+  }
+
+  /**
+   * Get the value of an input binding (e.g. Spacebar) from a specific input device (e.g. KeyboardAndMouse).
+   * If the binding doesn't make sense in the context of the device (e.g. a gamepad binding
+   * from a keyboard input device) then `undefined` is returned.
+   * @param deviceId Device to query.
+   * @param binding Specific input binding to query within the device.
+   * @returns Current + Previous input values, or `undefined` if the input binding does not belong to the device.
+   */
+  private getButtonInputState(deviceId: InputDeviceId, binding: ButtonInput): { current: NumberZeroToOne, previous: NumberZeroToOne } | undefined {
+    /*
+      @NOTE This is very exhaustive with lots of explicit no-ops so that
+      we can be sure we are handling every scenario, including ones we
+      intentionally want to ignore.
+      If there's any new scenarios we haven't considered, they'll get caught
+      and throw errors.
+    */
+    switch (deviceId.type) {
+      case 'KeyboardAndMouse':
+        if ('type' in binding) {
+          switch (binding.type) {
+            case 'Keyboard':
+              return {
+                current: this.state.keyboard.current[binding.value] ?? 0,
+                previous: this.state.keyboard.previous[binding.value] ?? 0,
+              };
+            case 'Mouse':
+              return {
+                current: this.state.mouse.current[binding.value] ?? 0,
+                previous: this.state.mouse.previous[binding.value] ?? 0,
+              };
+            case 'MouseWheel':
+              return {
+                current: this.state.mouseWheel.current[binding.value] ?? 0,
+                previous: this.state.mouseWheel.previous[binding.value] ?? 0,
+              };
+            case 'GamepadButton':
+              // @NOTE No-op
+              return undefined;
+            default:
+              throw new Error(`Unimplemented binding type: ${(binding as { type: string }).type}`);
+          }
+        } else if ('axis' in binding) {
+          switch (binding.axis.type) {
+            case 'GamepadAxis':
+              // @NOTE No-op
+              return undefined;
+            default:
+              throw new Error(`Unimplemented axis binding type: '${binding.axis.type}'`);
+          }
+        } else {
+          throw new Error(`Unimplemented binding type: ${JSON.stringify(binding)}`);
+        }
+      case 'Gamepad':
+        if ('type' in binding) {
+          switch (binding.type) {
+            case 'Keyboard':
+              // @NOTE No-op
+              return undefined;
+            case 'Mouse':
+              // @NOTE No-op
+              return undefined;
+            case 'MouseWheel':
+              // @NOTE No-op
+              return undefined;
+            case 'GamepadButton':
+              return {
+                current: this.state.gamepadButton[deviceId.gamepadIndex].current[binding.value] ?? 0,
+                previous: this.state.gamepadButton[deviceId.gamepadIndex].previous[binding.value] ?? 0,
+              };
+            default:
+              throw new Error(`Unimplemented binding type: ${(binding as { type: string }).type}`);
+          }
+        } else if ('axis' in binding) {
+          // @NOTE Axis being used as a button
+          switch (binding.axis.type) {
+            case 'GamepadAxis': {
+              let current = this.state.gamepadAxis[deviceId.gamepadIndex].current[binding.axis.value] ?? 0;
+              let previous = this.state.gamepadAxis[deviceId.gamepadIndex].previous[binding.axis.value] ?? 0;
+
+              // Cut axis in half, based on direction
+              switch (binding.direction) {
+                case 'positive':
+                  current = Math.max(current, 0);
+                  previous = Math.max(previous, 0);
+                  break;
+                case 'negative':
+                  current = Math.max(-current, 0);
+                  previous = Math.max(-previous, 0);
+                  break;
+              }
+
+              return { current, previous };
+            }
+            default:
+              throw new Error(`Unimplemented axis binding type: '${binding.axis.type}'`);
+          }
+        } else {
+          throw new Error(`Unimplemented binding type: ${JSON.stringify(binding)}`);
+        }
+      default:
+        throw new Error(`Unimplemented device type '${(deviceId as { type: string }).type}'`);
     }
   }
 
@@ -371,42 +587,63 @@ export class InputSystem implements IInputSystem {
       const html: string[] = [];
       const span = (label: string, className?: string): string => `<span class="mr-1 p-2 ${className ?? 'bg-blue-300'}">${label}</span>`;
 
-      function inputStateDown<TInput extends string>(state: InputState<TInput>, toLabel: (input: TInput) => string): void {
+      const inputStateDown = <TInput extends string>(state: InputState<TInput>, toLabel: (input: TInput, value: number) => string): void => {
         for (const key in state.current) {
-          if (state.current[key as TInput]) {
-            html.push(span(toLabel(key as TInput)));
+          const value: number | undefined = state.current[key as TInput];
+          if (Math.abs(value!) > this.analogButtonPressedThreshold) {
+            html.push(span(toLabel(key as TInput, value!)));
           }
         }
-      }
+      };
 
-      function inputStateMomentary<TInput extends string>(state: InputState<TInput>, toLabel: (input: TInput) => string): void {
+      const inputStateMomentary = <TInput extends string>(state: InputState<TInput>, toLabel: (input: TInput) => string): void => {
         for (const key in state.current) {
+          const currentValue: number | undefined = state.current[key as TInput];
+          const previousValue: number | undefined = state.previous[key as TInput];
           if (
-            state.current[key as TInput] &&
-            !state.previous[key as TInput]
+            Math.abs(currentValue!) > this.analogButtonPressedThreshold &&
+            !(Math.abs(previousValue!) > this.analogButtonPressedThreshold)
           ) {
             html.push(span(toLabel(key as TInput), `bg-[red]`));
           }
         }
         for (const key in state.previous) {
+          const currentValue: number | undefined = state.current[key as TInput];
+          const previousValue: number | undefined = state.previous[key as TInput];
           if (
-            !state.current[key as TInput] &&
-            state.previous[key as TInput]
+            !(Math.abs(currentValue!) > this.analogButtonPressedThreshold) &&
+            Math.abs(previousValue!) > this.analogButtonPressedThreshold
           ) {
             html.push(span(toLabel(key as TInput), `bg-[purple]`));
           }
         }
-      }
+      };
 
       html.push(`<div class="mb-2">`);
 
-      inputStateDown(this.state.keyboard, (key) => `Key:${key}`);
-      inputStateDown(this.state.mouse, (button) => `Mouse:${button}`);
-      inputStateDown(this.state.mouseWheel, (direction) => `Wheel:${direction}`);
+      inputStateDown(this.state.keyboard, (key, value) => `Key:${key}:${value}`);
+      inputStateDown(this.state.mouse, (button, value) => `Mouse:${button}:${value}`);
+      inputStateDown(this.state.mouseWheel, (direction, value) => `Wheel:${direction}:${value}`);
+      for (const gamepadIndex of this.connectedGamepadIndices) {
+        if (this.state.gamepadButton[gamepadIndex]) {
+          inputStateDown(this.state.gamepadButton[gamepadIndex], (button, value) => `GamepadButton:${gamepadIndex}:${button}:${value}`);
+        }
+        if (this.state.gamepadAxis[gamepadIndex]) {
+          inputStateDown(this.state.gamepadAxis[gamepadIndex], (axis, value) => `GamepadAxis:${gamepadIndex}:${axis}:${value}`);
+        }
+      }
 
       inputStateMomentary(this.state.keyboard, (key) => `Key:${key}`);
       inputStateMomentary(this.state.mouse, (button) => `Mouse:${button}`);
       inputStateMomentary(this.state.mouseWheel, (direction) => `Wheel:${direction}`);
+      for (const gamepadIndex of this.connectedGamepadIndices) {
+        if (this.state.gamepadButton[gamepadIndex]) {
+          inputStateMomentary(this.state.gamepadButton[gamepadIndex], (button) => `GamepadButton:${gamepadIndex}:${button}`);
+        }
+        if (this.state.gamepadAxis[gamepadIndex]) {
+          inputStateMomentary(this.state.gamepadAxis[gamepadIndex], (axis) => `GamepadAxis:${gamepadIndex}:${axis}`);
+        }
+      }
 
       html.push(`</div>`);
 
@@ -429,7 +666,7 @@ export class InputSystem implements IInputSystem {
     }
 
     // Mark key as currently pressed
-    this.state.keyboard.current[e.code as KeyCodeValue] = true;
+    this.state.keyboard.current[e.code as KeyCodeValue] = 1;
   }
 
   private onKeyUp(e: KeyboardEvent): void {
@@ -474,7 +711,7 @@ export class InputSystem implements IInputSystem {
       this.canvas.setPointerCapture(e.pointerId);
 
       // Mark mouse button as currently pressed
-      this.state.mouse.current[e.button as MouseButtonValue] = true;
+      this.state.mouse.current[e.button as MouseButtonValue] = 1;
     }
   }
 
@@ -519,7 +756,48 @@ export class InputSystem implements IInputSystem {
       }
     }
     this.debug_console.log(`[${InputSystem.name}] (${this.onWheel.name}) Wheel ${type}${isLegacy ? " (legacy)" : ""}`);// @TODO @DEBUG REMOVE
-    this.state.mouseWheel.current[type] = true;
+    this.state.mouseWheel.current[type] = 1;
+  }
+
+  private onGamepadConnected(e: GamepadEvent): void {
+    const { gamepad } = e;
+
+    if (gamepad.mapping !== 'standard') {
+      // @TODO support custom mapping of buttons for non-standard controllers
+      console.warn(`Ignoring non-standard controller: ${gamepad.id}`);
+      return;
+    }
+
+    this.connectedGamepadIndices.add(gamepad.index);
+
+    // Ensure state is initialised for this gamepad
+    this.state.gamepadButton[gamepad.index] ??= {
+      current: {},
+      previous: {},
+    };
+    this.state.gamepadAxis[gamepad.index] ??= {
+      current: {},
+      previous: {},
+    };
+
+    // Assign first controller to player 0 by default
+    if (this.connectedGamepadIndices.size === 1) {
+      this.assignInputDeviceToPlayer(0, gamepadIndexToDeviceId(gamepad.index));
+    }
+
+    // @TODO @DEBUG REMOVE
+    console.log(`[${InputSystem.name}] (${this.onGamepadConnected.name}) Gamepad connected (${e.gamepad.index}). Total gamepads connected: ${this.connectedGamepadIndices.size}`,
+      gamepad.id,
+      gamepad.buttons,
+      gamepad.axes,
+      e);
+  }
+  private onGamepadDisconnected(e: GamepadEvent): void {
+    const { gamepad } = e;
+    this.connectedGamepadIndices.delete(gamepad.index);
+
+    // @TODO @DEBUG REMOVE
+    console.log(`[${InputSystem.name}] (${this.onGamepadDisconnected.name}) Gamepad disconnected. Total gamepads connected: ${this.connectedGamepadIndices.size}`, e);
   }
 }
 
@@ -531,37 +809,77 @@ class InputSystemConsole {
   }
 
   public log(str: string): void {
-    console.log(`[InputSystem] (Console) ${str}`);
+    // console.log(`[InputSystem] (Console) ${str}`);
     if (this.console) {
       this.console.innerHTML = `${str}\n` + this.console.innerHTML;
     }
   }
 }
 
-type InputEnumResult<TType extends string, TEnum extends object> = { [T in keyof TEnum]: { type: TType, value: TEnum[T] } };
-function createInputEnum<TType extends string, TEnum extends object>(type: TType, enumObj: TEnum): InputEnumResult<TType, TEnum> {
-  const result: Partial<InputEnumResult<TType, TEnum>> = {};
+/**
+ * An enum that holds a mapping of friendly names to an object containing
+ * the type of the enum as well as the raw / native value
+ * e.g.
+ * ```json
+ * {
+ *   "KeyA": { "type": "Keyboard", "value": "KeyA" },
+ *   "KeyS": { "type": "Keyboard", "value": "KeyS" },
+ *   ...
+ * }
+ * ```
+ */
+type InputEnum<TType extends string, TEnum extends object> = {
+  [T in keyof TEnum]: { type: TType, value: TEnum[T] }
+};
+/**
+ * Convert a raw enum object into an `InputEnum`.
+ * @param type
+ * @param enumObj
+ */
+function createInputEnum<TType extends string, TEnum extends object>(type: TType, enumObj: TEnum): InputEnum<TType, TEnum> {
+  const result: Partial<InputEnum<TType, TEnum>> = {};
   for (const key in enumObj) {
     result[key] = { type, value: enumObj[key] };
   }
-  return result as InputEnumResult<TType, TEnum>;
+  return result as InputEnum<TType, TEnum>;
 }
-type InputEnumValues<T extends InputEnumResult<any, any>> = T[keyof T]['value']
+/** Extract every value from an `InputEnum`. */
+type InputEnumValues<T extends InputEnum<any, any>> = T[keyof T]['value']
+/** Extract the type from an `InputEnum`. */
+type InputEnumType<T extends InputEnum<any, any>> = T[keyof T]['type']
 
+/**
+ * A button pressed on a mouse.
+ */
 export const MouseButton = createInputEnum('Mouse', {
-  'Left': 0 as const,
-  'Middle': 1 as const,
-  'Right': 2 as const,
+  Left: 0 as const,
+  Middle: 1 as const,
+  Right: 2 as const,
 });
+export type MouseButtonValue = InputEnumValues<typeof MouseButton>;
+
+/**
+ * A scroll input in a particular direction.
+ * Note that the frequency of "pressed" events for these inputs
+ * varies wildly based on the input device. For example, some trackpads and other
+ * devices may fire a "pressed" event every frame.
+ *
+ * NOTE: Mouse wheel inputs DO NOT fire "released" events. They are instantaneous inputs only.
+ */
 export const MouseWheelDirection = createInputEnum('MouseWheel', {
-  'Up': 'up' as const,
-  'Down': 'down' as const,
-  'Left': 'left' as const,
-  'Right': 'right' as const,
-  'Forward': 'forward' as const,
-  'Back': 'back' as const,
+  Up: 'up' as const,
+  Down: 'down' as const,
+  Left: 'left' as const,
+  Right: 'right' as const,
+  Forward: 'forward' as const,
+  Back: 'back' as const,
 });
+export type MouseWheelDirectionValue = InputEnumValues<typeof MouseWheelDirection>;
+
 // @TODO Expand this by testing on other devices
+/**
+ * A key pressed on a keyboard.
+ */
 export const KeyCode = createInputEnum('Keyboard', {
   Escape: 'Escape' as const,
   F1: 'F1' as const,
@@ -668,16 +986,111 @@ export const KeyCode = createInputEnum('Keyboard', {
   NumpadEqual: 'NumpadEqual' as const,
   NumLock: 'NumLock' as const,
 });
+export type KeyCodeValue = InputEnumValues<typeof KeyCode>;
+
+/**
+ * "Problematic" keys on a keyboard that can cause bugs in different
+ * environments. Pressing any of these keys clears all currently pressed keyboard inputs.
+ */
 export const ProblematicKeyCodes: Record<string, true> = {
   ['MetaLeft']: true,
   ['MetaRight']: true,
   ['AltLeft']: true,
   ['AltRight']: true,
 };
+/**
+ * A button pressed on any gamepad / controller.
+ */
+export const GamepadButton = createInputEnum('GamepadButton', {
+  South: 'South' as const,
+  East: 'East' as const,
+  West: 'West' as const,
+  North: 'North' as const,
+  L1: 'L1' as const,
+  R1: 'R1' as const,
+  L2: 'L2' as const,
+  R2: 'R2' as const,
+  Select: 'Select' as const,
+  Start: 'Start' as const,
+  L3: 'L3' as const,
+  R3: 'R3' as const,
+  DpadUp: 'DpadUp' as const,
+  DpadDown: 'DpadDown' as const,
+  DpadLeft: 'DpadLeft' as const,
+  DpadRight: 'DpadRight' as const,
+  Home: 'Home' as const,
+});
+export type GamepadButtonValue = InputEnumValues<typeof GamepadButton>;
 
-export type MouseButtonValue = InputEnumValues<typeof MouseButton>;
-export type KeyCodeValue = InputEnumValues<typeof KeyCode>;
-export type MouseWheelDirectionValue = InputEnumValues<typeof MouseWheelDirection>;
+/**
+ * A 1D axis on any gamepad / controller.
+ */
+export const GamepadAxis = createInputEnum('GamepadAxis', {
+  JoyLeftX: 'JoyLeftX' as const,
+  JoyLeftY: 'JoyLeftY' as const,
+  JoyRightX: 'JoyRightX' as const,
+  JoyRightY: 'JoyRightY' as const,
+});
+export type GamepadAxisValue = InputEnumValues<typeof GamepadAxis>;
+
+/**
+ * Mapping of native button indices to `GamepadButton` enum.
+ */
+export const NativeStandardGamepadButtonMapping: Record<NativeGamepadButtonIndex, typeof GamepadButton[keyof typeof GamepadButton]> = {
+  // See: https://w3c.github.io/gamepad#remapping
+  [0]: GamepadButton.South,
+  [1]: GamepadButton.East,
+  [2]: GamepadButton.West,
+  [3]: GamepadButton.North,
+  [4]: GamepadButton.L1,
+  [5]: GamepadButton.R1,
+  [6]: GamepadButton.L2,
+  [7]: GamepadButton.R2,
+  [8]: GamepadButton.Select,
+  [9]: GamepadButton.Start,
+  [10]: GamepadButton.L3,
+  [11]: GamepadButton.R3,
+  [12]: GamepadButton.DpadUp,
+  [13]: GamepadButton.DpadDown,
+  [14]: GamepadButton.DpadLeft,
+  [15]: GamepadButton.DpadRight,
+  [16]: GamepadButton.Home,
+};
+/**
+ * Mapping of native axis indices to `GamepadAxis` enum.
+ */
+export const NativeStandardGamepadAxisMapping: Record<NativeGamepadAxisIndex, typeof GamepadAxis[keyof typeof GamepadAxis]> = {
+  // See: https://w3c.github.io/gamepad#remapping
+  [0]: GamepadAxis.JoyLeftX,
+  [1]: GamepadAxis.JoyLeftY,
+  [2]: GamepadAxis.JoyRightX,
+  [3]: GamepadAxis.JoyRightY,
+};
+
+/**
+ * Index of a connected gamepad input. Unique to each connected gamepad. Assigned when the gamepad is connected.
+ */
+export type NativeGamepadIndex = number;
+/**
+ * Index of a button input on a gamepad.
+ */
+export type NativeGamepadButtonIndex = number;
+/**
+ * Index of an axis input on a gamepad.
+ */
+export type NativeGamepadAxisIndex = number;
+
+/**
+ * Enum type of every input enum i.e. every type of input binding.
+ */
+export type InputBindingType = InputEnumType<typeof MouseButton> | InputEnumType<typeof MouseWheelDirection> | InputEnumType<typeof KeyCode> | InputEnumType<typeof GamepadButton> | InputEnumType<typeof GamepadAxis>;
+
+/** A player index. Player 1 is `0`. */
+export type PlayerNumber = number;
+/** A number that is intended to be between values 0 and 1 (inclusive) */
+export type NumberZeroToOne = number;
+/** A number that is intended to be between values -1 and 1 (inclusive) */
+export type NumberNegativeOneToOne = number;
 
 export const DefaultInputConfiguration: InputConfiguration = {
   buttons: [
@@ -685,12 +1098,14 @@ export const DefaultInputConfiguration: InputConfiguration = {
       name: 'jump',
       bindings: [
         KeyCode.Space,
+        GamepadButton.South,
       ],
     },
     {
       name: 'action',
       bindings: [
         KeyCode.KeyF,
+        GamepadButton.West,
       ],
     },
   ],
@@ -700,6 +1115,7 @@ export const DefaultInputConfiguration: InputConfiguration = {
       bindings: [
         { min: KeyCode.KeyA, max: KeyCode.KeyD },
         { min: KeyCode.ArrowLeft, max: KeyCode.ArrowRight },
+        GamepadAxis.JoyLeftX,
       ],
     },
     {
@@ -707,6 +1123,7 @@ export const DefaultInputConfiguration: InputConfiguration = {
       bindings: [
         { min: KeyCode.KeyS, max: KeyCode.KeyW },
         { min: KeyCode.ArrowDown, max: KeyCode.ArrowUp },
+        GamepadAxis.JoyLeftY,
       ],
     },
   ],
