@@ -23,8 +23,6 @@ export class Quaternion extends Observable {
    */
   public toEuler(): EulerVector3 {
     // From: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5217
-    const result = new EulerVector3(0, 0, 0);
-
     const { x, y, z, w } = this;
 
     // Early check for identity to produce nice Vector3 without -0
@@ -34,36 +32,38 @@ export class Quaternion extends Observable {
       z === 0 &&
       w === 1
     ) {
-      return result;
+      return new EulerVector3(0, 0, 0);
     }
 
     const zAxisY = y * z - x * w;
     const limit = 0.4999999;
 
+    let resultX: number, resultY: number, resultZ: number;
+
     if (zAxisY < -limit) {
-      result.x = Math.PI / 2;
-      result.y = 2 * Math.atan2(y, w);
-      result.z = 0;
+      resultX = Math.PI / 2;
+      resultY = 2 * Math.atan2(y, w);
+      resultZ = 0;
     } else if (zAxisY > limit) {
-      result.x = -Math.PI / 2;
-      result.y = 2 * Math.atan2(y, w);
-      result.z = 0;
+      resultX = -Math.PI / 2;
+      resultY = 2 * Math.atan2(y, w);
+      resultZ = 0;
     } else {
       const xSquared = x * x;
       const ySquared = y * y;
       const zSquared = z * z;
       const wSquared = w * w;
-      result.x = Math.asin(-2.0 * zAxisY);
-      result.z = Math.atan2(2.0 * (x * y + z * w), -zSquared - xSquared + ySquared + wSquared);
-      result.y = Math.atan2(2.0 * (z * x + y * w), zSquared - xSquared - ySquared + wSquared);
+      resultX = Math.asin(-2.0 * zAxisY);
+      resultY = Math.atan2(2.0 * (z * x + y * w), zSquared - xSquared - ySquared + wSquared);
+      resultZ = Math.atan2(2.0 * (x * y + z * w), -zSquared - xSquared + ySquared + wSquared);
     }
 
     // Convert to degrees
-    result.x *= RadiansToDegrees;
-    result.y *= RadiansToDegrees;
-    result.z *= RadiansToDegrees;
-
-    return result;
+    return new EulerVector3(
+      resultX * RadiansToDegrees,
+      resultY * RadiansToDegrees,
+      resultZ * RadiansToDegrees,
+    );
   }
 
   public multiplySelf(q: Quaternion): this {
