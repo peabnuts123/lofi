@@ -3,7 +3,7 @@ import type { Enum } from "@polyzone/engine/util/enum";
 /*
   @TODO Backlog
     // - Gamepad binding
-    - Axes
+    // - Axes
     - Pointer position / delta
     // - Axes as buttons
     - Virtual gamepads (on screen)
@@ -13,6 +13,8 @@ import type { Enum } from "@polyzone/engine/util/enum";
     // - Player 1 is assumed to be device ID 0, player 2 is assumed to be device Id 1, etc.
     - A callback for gamepads connecting / disconnecting?
     - Hack Y axis of standard controllers to be `positive=up`...
+    - Tidy this dang class up
+    - Write tests
  */
 export interface IInputSystem {
   configure(configuration: InputConfiguration): void;
@@ -24,20 +26,21 @@ export interface IInputSystem {
   wasButtonPressed(buttonName: string, playerNumber?: PlayerNumber): boolean;
   wasButtonReleased(buttonName: string, playerNumber?: PlayerNumber): boolean;
   isButtonDown(buttonName: string, playerNumber?: PlayerNumber): boolean;
-  getAxis(axisName: string, playerNumber?: PlayerNumber): number;
+  getButtonValue(buttonName: string, playerNumber?: PlayerNumber): NumberZeroToOne;
+  getAxisValue(axisName: string, playerNumber?: PlayerNumber): NumberNegativeOneToOne;
 
   assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void;
 }
 
-type InputState<TInput extends string | number> = {
-  current: Partial<Record<TInput, NumberZeroToOne>>;
-  previous: Partial<Record<TInput, NumberZeroToOne>>;
+type InputState<TInput extends string | number, TRange extends number = NumberZeroToOne> = {
+  current: Partial<Record<TInput, TRange>>;
+  previous: Partial<Record<TInput, TRange>>;
 }
 type KeyboardInputState = InputState<KeyCodeValue>;
 type MouseInputState = InputState<MouseButtonValue>;
 type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
 type GamepadButtonInputState = InputState<GamepadButtonValue>;
-type GamepadAxisInputState = InputState<GamepadAxisValue>;
+type GamepadAxisInputState = InputState<GamepadAxisValue, NumberNegativeOneToOne>;
 
 type RawButtonInput = Enum<typeof KeyCode> | Enum<typeof MouseButton> | Enum<typeof MouseWheelDirection> | Enum<typeof GamepadButton>;
 export type ButtonInput = RawButtonInput | { axis: RawAxisInput, direction: 'positive' | 'negative' };
@@ -78,6 +81,10 @@ export class InputSystem implements IInputSystem {
    * Threshold over which an analog input is considered "pressed".
    */
   public analogButtonPressedThreshold = 0.2;
+  /**
+   * Threshold under which the value of an analog axis is ignored.
+   */
+  public analogAxisDeadZone = 0.1;
 
   /**
    * @NOTE Canvas requirements for touch input:
@@ -324,7 +331,7 @@ export class InputSystem implements IInputSystem {
 
     const deviceIds = this.playerInputDeviceMapping.get(playerNumber);
     if (deviceIds === undefined || deviceIds.size === 0) {
-      console.error(`[${InputSystem.name}] (${this.wasButtonPressed.name}) Player '${playerNumber}' has no input devices assigned`);
+      console.error(`[${InputSystem.name}] (${this.wasButtonReleased.name}) Player '${playerNumber}' has no input devices assigned`);
       return false;
     }
 
@@ -351,16 +358,24 @@ export class InputSystem implements IInputSystem {
   }
 
   public isButtonDown(buttonName: string, playerNumber: PlayerNumber = 0): boolean {
+    const buttonValue = this.getButtonValue(buttonName, playerNumber);
+    return buttonValue > this.analogButtonPressedThreshold;
+  }
+
+  public getButtonValue(buttonName: string, playerNumber: PlayerNumber = 0): NumberZeroToOne {
     const buttonConfig = this.getButtonConfig(buttonName);
     if (buttonConfig === undefined) {
-      return false;
+      return 0;
     }
 
     const deviceIds = this.playerInputDeviceMapping.get(playerNumber);
     if (deviceIds === undefined || deviceIds.size === 0) {
-      console.error(`[${InputSystem.name}] (${this.wasButtonPressed.name}) Player '${playerNumber}' has no input devices assigned`);
-      return false;
+      console.error(`[${InputSystem.name}] (${this.getButtonValue.name}) Player '${playerNumber}' has no input devices assigned`);
+      return 0;
     }
+
+    // Largest value we've seen from all inputs
+    let maxValue: NumberZeroToOne = 0;
 
     for (const deviceId of deviceIds) {
       for (const binding of buttonConfig.bindings) {
@@ -371,18 +386,51 @@ export class InputSystem implements IInputSystem {
           continue;
         }
 
-        if (inputState.current > this.analogButtonPressedThreshold) {
-          return true;
+        if (inputState.current > maxValue) {
+          maxValue = inputState.current;
         }
       }
     }
 
-    return false;
+    return maxValue;
   }
 
-  public getAxis(axisName: string, playerNumber: PlayerNumber = 0): number {
-    // @TODO
-    throw new Error("Method not implemented.");
+  public getAxisValue(axisName: string, playerNumber: PlayerNumber = 0): NumberNegativeOneToOne {
+    const axisConfig = this.getAxisConfig(axisName);
+    if (axisConfig === undefined) {
+      return 0;
+    }
+
+    const deviceIds = this.playerInputDeviceMapping.get(playerNumber);
+    if (deviceIds === undefined || deviceIds.size === 0) {
+      console.error(`[${InputSystem.name}] (${this.getAxisValue.name}) Player '${playerNumber}' has no input devices assigned`);
+      return 0;
+    }
+
+    // Largest (magnitude) value we've seen from all inputs
+    let maxValue: NumberNegativeOneToOne = 0;
+
+    for (const deviceId of deviceIds) {
+      for (const binding of axisConfig.bindings) {
+        const inputState = this.getAxisInputState(deviceId, binding);
+
+        // Binding is not tied to this device (e.g. 'JoyLeftX' gamepad axis is not tied to 'KeyboardAndMouse' device)
+        if (inputState === undefined) {
+          continue;
+        }
+
+        if (Math.abs(inputState.current) > Math.abs(maxValue)) {
+          maxValue = inputState.current;
+        }
+      }
+    }
+
+    // Do not return a value if the largest magnitude number is less than the axis dead zone
+    if (maxValue > this.analogAxisDeadZone || maxValue < -this.analogAxisDeadZone) {
+      return maxValue;
+    } else {
+      return 0;
+    }
   }
 
   public assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void {
@@ -399,7 +447,7 @@ export class InputSystem implements IInputSystem {
     // Assign device to player
     const playerDevices = this.playerInputDeviceMapping.get(playerNumber)!;
     playerDevices.add(deviceId);
-    console.log(`[DEBUG] Assigning device '${deviceId.type}' to player '${playerNumber}'`);
+    console.log(`[DEBUG] Assigning device '${JSON.stringify(deviceId)}' to player '${playerNumber}'`);
   }
 
   public onUpdate(): void {
@@ -433,10 +481,10 @@ export class InputSystem implements IInputSystem {
           const button = gamepad.buttons[i];
           // @NOTE @ASSUMPTION Gamepads are all "standard" mapping
           // @TODO Support custom mapping non-standard controllers
-          const gamepadInput = NativeStandardGamepadButtonMapping[i];
+          const gamepadBinding = NativeStandardGamepadButtonMapping[i];
           // Ignore extra / unmapped inputs
-          if (gamepadInput !== undefined) {
-            gamepadButtonState.current[gamepadInput.value] = button.value;
+          if (gamepadBinding !== undefined) {
+            gamepadButtonState.current[gamepadBinding.value] = button.value;
           }
         }
         /* Axes */
@@ -444,10 +492,17 @@ export class InputSystem implements IInputSystem {
           const axis = gamepad.axes[i];
           // @NOTE @ASSUMPTION Gamepads are all "standard" mapping
           // @TODO Support custom mapping non-standard controllers
-          const gamepadInput = NativeStandardGamepadAxisMapping[i];
+          const gamepadBinding = NativeStandardGamepadAxisMapping[i];
           // Ignore extra / unmapped inputs
-          if (gamepadInput !== undefined) {
-            gamepadAxisState.current[gamepadInput.value] = axis;
+          if (gamepadBinding !== undefined) {
+            if (gamepadBinding.value === GamepadAxis.JoyLeftY.value || gamepadBinding.value === GamepadAxis.JoyRightY.value) {
+              // @NOTE Insane decision from the authors of W3C Gamepad standard
+              // to define vertical axis of gamepad joysticks as "negative up"
+              // See: https://www.w3.org/TR/gamepad/#remapping
+              gamepadAxisState.current[gamepadBinding.value] = -axis;
+            } else {
+              gamepadAxisState.current[gamepadBinding.value] = axis;
+            }
           }
         }
       } else {
@@ -565,6 +620,85 @@ export class InputSystem implements IInputSystem {
             default:
               throw new Error(`Unimplemented axis binding type: '${binding.axis.type}'`);
           }
+        } else {
+          throw new Error(`Unimplemented binding type: ${JSON.stringify(binding)}`);
+        }
+      default:
+        throw new Error(`Unimplemented device type '${(deviceId as { type: string }).type}'`);
+    }
+  }
+  private getAxisInputState(deviceId: InputDeviceId, binding: AxisInput): { current: NumberNegativeOneToOne, previous: NumberNegativeOneToOne } | undefined {
+    /*
+      @NOTE This is very exhaustive with lots of explicit no-ops so that
+      we can be sure we are handling every scenario, including ones we
+      intentionally want to ignore.
+      If there's any new scenarios we haven't considered, they'll get caught
+      and throw errors.
+    */
+    switch (deviceId.type) {
+      case 'KeyboardAndMouse':
+        if ('type' in binding) {
+          switch (binding.type) {
+            case 'GamepadAxis':
+              // @NOTE No-op
+              return undefined;
+            default:
+              throw new Error(`Unimplemented binding type: ${(binding as { type: string }).type}`);
+          }
+        } else if ('min' in binding && 'max' in binding) {
+          // @NOTE Buttons being used as an axis
+          const min = this.getButtonInputState(deviceId, binding.min);
+          const max = this.getButtonInputState(deviceId, binding.max);
+
+          // Device / input binding combination can still be invalid / not relevant
+          // For example: calling getAxisInputState() for an axis binding like: { min: GamepadButton.DpadLeft, max: GamepadButton.DpadRight })
+          // when the player is only assigned the keyboard device.
+          if (min === undefined || max === undefined) {
+            return undefined;
+          }
+
+          // Binding is relevant, add min + max as 1D "vectors", essentially.
+          // If min is pressed, return -1.
+          // If max is pressed, return 1.
+          // If both min and max are pressed, return 0.
+          return {
+            current: (-1 * min.current) + max.current,
+            previous: (-1 * min.previous) + max.previous,
+          };
+        } else {
+          throw new Error(`Unimplemented binding type: ${JSON.stringify(binding)}`);
+        }
+      case 'Gamepad':
+        if ('type' in binding) {
+          switch (binding.type) {
+            case 'GamepadAxis':
+              return {
+                current: this.state.gamepadAxis[deviceId.gamepadIndex].current[binding.value] ?? 0,
+                previous: this.state.gamepadAxis[deviceId.gamepadIndex].previous[binding.value] ?? 0,
+              };
+            default:
+              throw new Error(`Unimplemented binding type: ${(binding as { type: string }).type}`);
+          }
+        } else if ('min' in binding && 'max' in binding) {
+          // @NOTE Buttons being used as an axis
+          const min = this.getButtonInputState(deviceId, binding.min);
+          const max = this.getButtonInputState(deviceId, binding.max);
+
+          // Device / input binding combination can still be invalid / not relevant
+          // For example: calling getAxisInputState() for an axis binding like: { min: GamepadButton.DpadLeft, max: GamepadButton.DpadRight })
+          // when the player is only assigned the keyboard device.
+          if (min === undefined || max === undefined) {
+            return undefined;
+          }
+
+          // Binding is relevant, add min + max as 1D "vectors", essentially.
+          // If min is pressed, return -1.
+          // If max is pressed, return 1.
+          // If both min and max are pressed, return 0.
+          return {
+            current: (-1 * min.current) + max.current,
+            previous: (-1 * min.previous) + max.previous,
+          };
         } else {
           throw new Error(`Unimplemented binding type: ${JSON.stringify(binding)}`);
         }
@@ -1037,7 +1171,7 @@ export type GamepadAxisValue = InputEnumValues<typeof GamepadAxis>;
  * Mapping of native button indices to `GamepadButton` enum.
  */
 export const NativeStandardGamepadButtonMapping: Record<NativeGamepadButtonIndex, typeof GamepadButton[keyof typeof GamepadButton]> = {
-  // See: https://w3c.github.io/gamepad#remapping
+  // See: https://www.w3.org/TR/gamepad/#remapping
   [0]: GamepadButton.South,
   [1]: GamepadButton.East,
   [2]: GamepadButton.West,
@@ -1060,7 +1194,7 @@ export const NativeStandardGamepadButtonMapping: Record<NativeGamepadButtonIndex
  * Mapping of native axis indices to `GamepadAxis` enum.
  */
 export const NativeStandardGamepadAxisMapping: Record<NativeGamepadAxisIndex, typeof GamepadAxis[keyof typeof GamepadAxis]> = {
-  // See: https://w3c.github.io/gamepad#remapping
+  // See: https://www.w3.org/TR/gamepad/#remapping
   [0]: GamepadAxis.JoyLeftX,
   [1]: GamepadAxis.JoyLeftY,
   [2]: GamepadAxis.JoyRightX,
