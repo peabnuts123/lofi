@@ -32,3 +32,18 @@ export type DeepPartial<T> = {
  * ```
  */
 export type ClassReference<TClass> = abstract new (...args: any[]) => TClass;
+
+
+/**
+ * Extract the values from an enum constant.
+ * @example
+ * ```
+ * const Colors = {
+ *   Red: 'red',
+ *   Green: 'green',
+ *   Blue: 'blue',
+ * } as const;
+ * type Color = Enum<typeof Colors>; // Type `'red' | 'green' | 'blue'`
+ * ```
+ */
+export type Enum<T> = T[keyof T];

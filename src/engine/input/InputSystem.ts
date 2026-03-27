@@ -1,4 +1,4 @@
-import type { Enum } from "@polyzone/engine/util/enum";
+import type { Enum } from "@polyzone/engine/util/types";
 import {
   GamepadAxis, type GamepadAxisValue,
   GamepadButton, type GamepadButtonValue,
