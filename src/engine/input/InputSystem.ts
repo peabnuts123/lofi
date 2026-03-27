@@ -1,26 +1,13 @@
 import type { Enum } from "@polyzone/engine/util/enum";
-
-/*
-  @TODO Backlog
-    // - Gamepad binding
-    // - Axes
-    // - A callback for "on any input" => get device ID / stop listening / is it an explicit "listen for all device IDs" listen function (to prevent abuse)
-    - A callback for gamepads connecting / disconnecting?
-    // - Pointer position / delta
-    // - Pointer lock
-    // - Axes as buttons
-    - Tidy this dang class up
-    - Write tests
-    - Virtual gamepads (on screen)
-    // - Method to set player X is device ID Y
-    // - Player 1 is assumed to be device ID 0, player 2 is assumed to be device Id 1, etc.
-    // - Hack Y axis of standard controllers to be `positive=up`...
-
-    - BUG: Game is not rendering on my phone due to `requestPointerLock`
-    - Tidy up and commit the coco game.
-    - Make some kind of 2 player proof of concept
-      - What about 2 players 1 keyboard?
- */
+import {
+  GamepadAxis, type GamepadAxisValue,
+  GamepadButton, type GamepadButtonValue,
+  KeyCode, type KeyCodeValue,
+  MouseButton, type MouseButtonValue,
+  MouseWheelDirection, type MouseWheelDirectionValue,
+} from './enum';
+import type { NativeGamepadAxisIndex, NativeGamepadButtonIndex, NativeGamepadIndex, NumberNegativeOneToOne, NumberZeroToOne, PlayerNumber } from "./types";
+import { NativeStandardGamepadAxisMapping, NativeStandardGamepadButtonMapping } from "./mapping";
 
 export interface IInputSystem {
   configure(configuration: InputConfiguration): void;
@@ -44,38 +31,13 @@ export interface IInputSystem {
   assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void;
 }
 
-export type ListenForDevicesCallback = (deviceId: InputDeviceId) => void;
-
-type InputState<TInput extends string | number, TRange extends number = NumberZeroToOne> = {
-  current: Partial<Record<TInput, TRange>>;
-  previous: Partial<Record<TInput, TRange>>;
-}
-type KeyboardInputState = InputState<KeyCodeValue>;
-type MouseInputState = InputState<MouseButtonValue>;
-type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
-type GamepadButtonInputState = InputState<GamepadButtonValue>;
-type GamepadAxisInputState = InputState<GamepadAxisValue, NumberNegativeOneToOne>;
-
+/* Input bindings */
 type RawButtonInput = Enum<typeof KeyCode> | Enum<typeof MouseButton> | Enum<typeof MouseWheelDirection> | Enum<typeof GamepadButton>;
 export type ButtonInput = RawButtonInput | { axis: RawAxisInput, direction: 'positive' | 'negative' };
-export interface ButtonInputConfiguration {
-  name: string;
-  bindings: ButtonInput[];
-}
 type RawAxisInput = Enum<typeof GamepadAxis>;
 export type AxisInput = RawAxisInput | { min: RawButtonInput, max: RawButtonInput };
-export interface AxisInputConfiguration {
-  name: string;
-  bindings: AxisInput[];
-}
-export interface InputConfiguration {
-  buttons?: ButtonInputConfiguration[];
-  axes?: AxisInputConfiguration[];
-}
-export type AddInputArgs = ({ type: 'button' } & ButtonInputConfiguration) | ({ type: 'axis' } & AxisInputConfiguration);
-export type AddInputBindingArgs = AddInputArgs;
-export type RemoveInputBindingArgs = AddInputArgs;
 
+/* Input devices */
 export type InputDeviceId = typeof KeyboardAndMouseDeviceId | GamepadDeviceId;
 export type InputDeviceType = InputDeviceId['type'];
 export type GamepadDeviceId = { type: 'Gamepad', gamepadIndex: NativeGamepadIndex };
@@ -87,9 +49,38 @@ export function gamepadIndexToDeviceId(index: NativeGamepadIndex): GamepadDevice
   };
 }
 
+/* InputSystem state */
+type InputState<TInput extends string | number, TRange extends number = NumberZeroToOne> = {
+  current: Partial<Record<TInput, TRange>>;
+  previous: Partial<Record<TInput, TRange>>;
+}
+type KeyboardInputState = InputState<KeyCodeValue>;
+type MouseInputState = InputState<MouseButtonValue>;
+type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
+type GamepadButtonInputState = InputState<GamepadButtonValue>;
+type GamepadAxisInputState = InputState<GamepadAxisValue, NumberNegativeOneToOne>;
+
+/* Function parameters */
+export interface ButtonInputConfiguration {
+  name: string;
+  bindings: ButtonInput[];
+}
+export interface AxisInputConfiguration {
+  name: string;
+  bindings: AxisInput[];
+}
+export interface InputConfiguration {
+  buttons?: ButtonInputConfiguration[];
+  axes?: AxisInputConfiguration[];
+}
+export type AddInputArgs = ({ type: 'button' } & ButtonInputConfiguration) | ({ type: 'axis' } & AxisInputConfiguration);
+export type AddInputBindingArgs = AddInputArgs;
+export type RemoveInputBindingArgs = AddInputArgs;
+export type ListenForDevicesCallback = (deviceId: InputDeviceId) => void;
+
+
 export class InputSystem implements IInputSystem {
   private debug_allKnownKeyCodes: Set<string>;
-  private debug_console: InputSystemConsole;
 
   /**
    * Threshold over which an analog input is considered "pressed".
@@ -141,7 +132,7 @@ export class InputSystem implements IInputSystem {
     mouse: {
       current: {},
       previous: {},
-    } satisfies KeyboardInputState as MouseInputState,
+    } satisfies MouseInputState as MouseInputState,
     mouseWheel: {
       current: {},
       previous: {},
@@ -156,7 +147,6 @@ export class InputSystem implements IInputSystem {
 
   public constructor(canvas: HTMLCanvasElement) {
     this.debug_allKnownKeyCodes = new Set();
-    this.debug_console = new InputSystemConsole();
 
     this.canvas = canvas;
     this.configuration = DefaultInputConfiguration;
@@ -181,11 +171,9 @@ export class InputSystem implements IInputSystem {
       e.preventDefault();
     });
     canvas.addEventListener('focus', () => {
-      this.debug_console.log(`Focused game.`);
       this.state.isCanvasFocused = true;
     });
     canvas.addEventListener('blur', () => {
-      this.debug_console.log(`Lost focus.`);
       this.state.isCanvasFocused = false;
       this.state.keyboard.current = {};
       this.state.mouse.current = {};
@@ -461,13 +449,11 @@ export class InputSystem implements IInputSystem {
   }
 
   public lockPointer(): void {
-    // @NOTE mobile browsers do not have this API at all,
-    // so we must first check it exists.
+    // @NOTE mobile browsers don't have this API, so we must first check it exists.
     if ('requestPointerLock' in this.canvas) {
       this.state.isPointerLocked = true;
 
-      // @NOTE This might fail, in which case it will be retried in
-      // any kind of pointer event.
+      // @NOTE This might fail. It will be retried on the next pointer event.
       void this.canvas.requestPointerLock().catch((e) => {
         console.warn(`Failed to request pointer lock. It will be retried on next player pointer interaction.`, e);
       });
@@ -475,13 +461,11 @@ export class InputSystem implements IInputSystem {
   }
 
   public releasePointer(): void {
-    // @NOTE mobile browsers do not have this API at all,
-    // so we must first check it exists.
+    // @NOTE mobile browsers don't have this API, so we must first check it exists.
     if ('exitPointerLock' in document) {
       this.state.isPointerLocked = false;
 
-      // @NOTE This might fail, in which case it will be retried in
-      // any kind of pointer event.
+      // @NOTE This might fail. It will be retried on the next pointer event.
       document.exitPointerLock();
     }
   }
@@ -512,7 +496,6 @@ export class InputSystem implements IInputSystem {
     // Assign device to player
     const playerDevices = this.playerInputDeviceMapping.get(playerNumber)!;
     playerDevices.add(deviceId);
-    console.log(`[DEBUG] Assigning device '${JSON.stringify(deviceId)}' to player '${playerNumber}'`);
   }
 
   public onUpdate(): void {
@@ -530,6 +513,8 @@ export class InputSystem implements IInputSystem {
     }
 
     /* Cursor */
+    // @NOTE Always clear out pointer delta every frame, since we only get
+    // pointermove events when the pointer actually moves.
     this.state.pointer.xDelta = 0;
     this.state.pointer.yDelta = 0;
 
@@ -577,6 +562,7 @@ export class InputSystem implements IInputSystem {
               // @NOTE Insane decision from the authors of W3C Gamepad standard
               // to define vertical axis of gamepad joysticks as "negative up"
               // See: https://www.w3.org/TR/gamepad/#remapping
+              // @TODO We can't do this if the layout isn't "standard"
               gamepadAxisState.current[gamepadBinding.value] = -axis;
             } else {
               gamepadAxisState.current[gamepadBinding.value] = axis;
@@ -615,8 +601,8 @@ export class InputSystem implements IInputSystem {
       @NOTE This is very exhaustive with lots of explicit no-ops so that
       we can be sure we are handling every scenario, including ones we
       intentionally want to ignore.
-      If there's any new scenarios we haven't considered, they'll get caught
-      and throw errors.
+      This is so that if there's any new scenarios we haven't considered,
+      they'll get caught and throw errors.
     */
     switch (deviceId.type) {
       case 'KeyboardAndMouse':
@@ -710,8 +696,8 @@ export class InputSystem implements IInputSystem {
       @NOTE This is very exhaustive with lots of explicit no-ops so that
       we can be sure we are handling every scenario, including ones we
       intentionally want to ignore.
-      If there's any new scenarios we haven't considered, they'll get caught
-      and throw errors.
+      This is so that if there's any new scenarios we haven't considered,
+      they'll get caught and throw errors.
     */
     switch (deviceId.type) {
       case 'KeyboardAndMouse':
@@ -894,8 +880,6 @@ export class InputSystem implements IInputSystem {
 
     e.preventDefault();
 
-    this.debug_console.log(`[${InputSystem.name}] (${this.onKeyDown.name}) ${e.code}`); // @TODO @DEBUG REMOVE
-
     // Watch for unfamiliar keys (mostly @DEBUG)
     if (!(e.code in KeyCode)) {
       console.warn(`[${InputSystem.name}] (${this.onKeyDown.name}}) Unfamiliar key pressed: ${e.code}`);
@@ -925,8 +909,6 @@ export class InputSystem implements IInputSystem {
 
     e.preventDefault();
 
-    this.debug_console.log(`[${InputSystem.name}] (${this.onKeyUp.name}) ${e.code}`); // @TODO @DEBUG REMOVE
-
     // Watch for unfamiliar keys (mostly @DEBUG)
     if (!(e.code in KeyCode)) {
       console.warn(`[${InputSystem.name}] (${this.onKeyUp.name}}) Unfamiliar key released: ${e.code}`);
@@ -946,7 +928,7 @@ export class InputSystem implements IInputSystem {
 
     // Clear out current state
     for (const mouseButton in this.state.mouse.current) {
-      delete this.state.mouse.current[mouseButton as unknown as MouseButtonValue]; // @TODO Type laundering?
+      delete this.state.mouse.current[mouseButton as unknown as MouseButtonValue]; // @NOTE Type laundering because strings are fine here.
     }
 
     // Read each bit, only store buttons that are pressed
@@ -968,8 +950,6 @@ export class InputSystem implements IInputSystem {
     if (this.state.isCanvasFocused) {
       e.preventDefault();
 
-      this.debug_console.log(`[${InputSystem.name}] (${this.onPointerDown.name}) ${e.button} (${e.pointerType})`); // @TODO @DEBUG REMOVE
-
       if (!this.isPointerActuallyLocked) {
         // Capture pointer, for dragging outside of the canvas
         this.canvas.setPointerCapture(e.pointerId);
@@ -990,7 +970,6 @@ export class InputSystem implements IInputSystem {
     // doesn't misfire a rogue `pointerup` event.
     if (this.state.isCanvasFocused) {
       e.preventDefault();
-      this.debug_console.log(`[${InputSystem.name}] (${this.onPointerUp.name}) ${e.button} (${e.pointerType})`); // @TODO @DEBUG REMOVE
 
       // If remove touch / stylus input, deactivate the cursor
       if (e.pointerType !== 'mouse') {
@@ -1042,7 +1021,7 @@ export class InputSystem implements IInputSystem {
     }
   }
 
-  private onWheel(e: WheelEvent, isLegacy: boolean): void {
+  private onWheel(e: WheelEvent, _isLegacy: boolean): void {
     e.preventDefault();
 
     // Detect which is the primary direction of scrolling
@@ -1070,7 +1049,6 @@ export class InputSystem implements IInputSystem {
         type = 'down';
       }
     }
-    this.debug_console.log(`[${InputSystem.name}] (${this.onWheel.name}) Wheel ${type}${isLegacy ? " (legacy)" : ""}`);// @TODO @DEBUG REMOVE
     this.state.mouseWheel.current[type] = 1;
 
     this.notifyDeviceListeners(KeyboardAndMouseDeviceId);
@@ -1101,13 +1079,6 @@ export class InputSystem implements IInputSystem {
     if (this.connectedGamepadIndices.size === 1) {
       this.assignInputDeviceToPlayer(0, gamepadIndexToDeviceId(gamepad.index));
     }
-
-    // @TODO @DEBUG REMOVE
-    console.log(`[${InputSystem.name}] (${this.onGamepadConnected.name}) Gamepad connected (${e.gamepad.index}). Total gamepads connected: ${this.connectedGamepadIndices.size}`,
-      gamepad.id,
-      gamepad.buttons,
-      gamepad.axes,
-      e);
   }
 
   private onGamepadDisconnected(e: GamepadEvent): void {
@@ -1129,193 +1100,6 @@ export class InputSystem implements IInputSystem {
   }
 }
 
-// @TODO DEBUG
-class InputSystemConsole {
-  private console: Element | null;
-  public constructor() {
-    this.console = document.querySelector('#input-system-console');
-  }
-
-  public log(str: string): void {
-    // console.log(`[InputSystem] (Console) ${str}`);
-    if (this.console) {
-      this.console.innerHTML = `${str}\n` + this.console.innerHTML;
-    }
-  }
-}
-
-/**
- * An enum that holds a mapping of friendly names to an object containing
- * the type of the enum as well as the raw / native value
- * e.g.
- * ```json
- * {
- *   "KeyA": { "type": "Keyboard", "value": "KeyA" },
- *   "KeyS": { "type": "Keyboard", "value": "KeyS" },
- *   ...
- * }
- * ```
- */
-type InputEnum<TType extends string, TEnum extends object> = {
-  [T in keyof TEnum]: { type: TType, value: TEnum[T] }
-};
-/**
- * Convert a raw enum object into an `InputEnum`.
- * @param type
- * @param enumObj
- */
-function createInputEnum<TType extends string, TEnum extends object>(type: TType, enumObj: TEnum): InputEnum<TType, TEnum> {
-  const result: Partial<InputEnum<TType, TEnum>> = {};
-  for (const key in enumObj) {
-    result[key] = { type, value: enumObj[key] };
-  }
-  return result as InputEnum<TType, TEnum>;
-}
-/** Extract every value from an `InputEnum`. */
-type InputEnumValues<T extends InputEnum<any, any>> = T[keyof T]['value']
-/** Extract the type from an `InputEnum`. */
-type InputEnumType<T extends InputEnum<any, any>> = T[keyof T]['type']
-
-/**
- * A button pressed on a mouse.
- */
-export const MouseButton = createInputEnum('Mouse', {
-  Left: 0 as const,
-  Middle: 1 as const,
-  Right: 2 as const,
-});
-export type MouseButtonValue = InputEnumValues<typeof MouseButton>;
-
-/**
- * A scroll input in a particular direction.
- * Note that the frequency of "pressed" events for these inputs
- * varies wildly based on the input device. For example, some trackpads and other
- * devices may fire a "pressed" event every frame.
- *
- * NOTE: Mouse wheel inputs DO NOT fire "released" events. They are instantaneous inputs only.
- */
-export const MouseWheelDirection = createInputEnum('MouseWheel', {
-  Up: 'up' as const,
-  Down: 'down' as const,
-  Left: 'left' as const,
-  Right: 'right' as const,
-  Forward: 'forward' as const,
-  Back: 'back' as const,
-});
-export type MouseWheelDirectionValue = InputEnumValues<typeof MouseWheelDirection>;
-
-// @TODO Expand this by testing on other devices
-/**
- * A key pressed on a keyboard.
- */
-export const KeyCode = createInputEnum('Keyboard', {
-  Escape: 'Escape' as const,
-  F1: 'F1' as const,
-  F2: 'F2' as const,
-  F3: 'F3' as const,
-  F4: 'F4' as const,
-  F5: 'F5' as const,
-  F6: 'F6' as const,
-  F7: 'F7' as const,
-  F8: 'F8' as const,
-  F9: 'F9' as const,
-  F10: 'F10' as const,
-  F11: 'F11' as const,
-  F12: 'F12' as const,
-  F13: 'F13' as const,
-  F14: 'F14' as const,
-  F15: 'F15' as const,
-  F16: 'F16' as const,
-  F17: 'F17' as const,
-  F18: 'F18' as const,
-  F19: 'F19' as const,
-  F20: 'F20' as const,
-  Backquote: 'Backquote' as const,
-  Digit1: 'Digit1' as const,
-  Digit2: 'Digit2' as const,
-  Digit3: 'Digit3' as const,
-  Digit4: 'Digit4' as const,
-  Digit5: 'Digit5' as const,
-  Digit6: 'Digit6' as const,
-  Digit7: 'Digit7' as const,
-  Digit8: 'Digit8' as const,
-  Digit9: 'Digit9' as const,
-  Digit0: 'Digit0' as const,
-  Minus: 'Minus' as const,
-  Equal: 'Equal' as const,
-  Backspace: 'Backspace' as const,
-  Tab: 'Tab' as const,
-  KeyQ: 'KeyQ' as const,
-  KeyW: 'KeyW' as const,
-  KeyE: 'KeyE' as const,
-  KeyR: 'KeyR' as const,
-  KeyT: 'KeyT' as const,
-  KeyY: 'KeyY' as const,
-  KeyU: 'KeyU' as const,
-  KeyI: 'KeyI' as const,
-  KeyO: 'KeyO' as const,
-  KeyP: 'KeyP' as const,
-  BracketLeft: 'BracketLeft' as const,
-  BracketRight: 'BracketRight' as const,
-  Backslash: 'Backslash' as const,
-  CapsLock: 'CapsLock' as const,
-  KeyA: 'KeyA' as const,
-  KeyS: 'KeyS' as const,
-  KeyD: 'KeyD' as const,
-  KeyF: 'KeyF' as const,
-  KeyG: 'KeyG' as const,
-  KeyH: 'KeyH' as const,
-  KeyJ: 'KeyJ' as const,
-  KeyK: 'KeyK' as const,
-  KeyL: 'KeyL' as const,
-  Semicolon: 'Semicolon' as const,
-  Quote: 'Quote' as const,
-  Enter: 'Enter' as const,
-  ShiftLeft: 'ShiftLeft' as const,
-  KeyZ: 'KeyZ' as const,
-  KeyX: 'KeyX' as const,
-  KeyC: 'KeyC' as const,
-  KeyV: 'KeyV' as const,
-  KeyB: 'KeyB' as const,
-  KeyN: 'KeyN' as const,
-  KeyM: 'KeyM' as const,
-  Comma: 'Comma' as const,
-  Period: 'Period' as const,
-  Slash: 'Slash' as const,
-  ShiftRight: 'ShiftRight' as const,
-  ControlLeft: 'ControlLeft' as const,
-  Space: 'Space' as const,
-  ControlRight: 'ControlRight' as const,
-  Home: 'Home' as const,
-  Delete: 'Delete' as const,
-  End: 'End' as const,
-  PageUp: 'PageUp' as const,
-  PageDown: 'PageDown' as const,
-  ArrowLeft: 'ArrowLeft' as const,
-  ArrowRight: 'ArrowRight' as const,
-  ArrowUp: 'ArrowUp' as const,
-  ArrowDown: 'ArrowDown' as const,
-  Numpad0: 'Numpad0' as const,
-  Numpad1: 'Numpad1' as const,
-  Numpad2: 'Numpad2' as const,
-  Numpad3: 'Numpad3' as const,
-  Numpad4: 'Numpad4' as const,
-  Numpad5: 'Numpad5' as const,
-  Numpad6: 'Numpad6' as const,
-  Numpad7: 'Numpad7' as const,
-  Numpad8: 'Numpad8' as const,
-  Numpad9: 'Numpad9' as const,
-  NumpadDecimal: 'NumpadDecimal' as const,
-  NumpadEnter: 'NumpadEnter' as const,
-  NumpadAdd: 'NumpadAdd' as const,
-  NumpadSubtract: 'NumpadSubtract' as const,
-  NumpadMultiply: 'NumpadMultiply' as const,
-  NumpadDivide: 'NumpadDivide' as const,
-  NumpadEqual: 'NumpadEqual' as const,
-  NumLock: 'NumLock' as const,
-});
-export type KeyCodeValue = InputEnumValues<typeof KeyCode>;
-
 /**
  * "Problematic" keys on a keyboard that can cause bugs in different
  * environments. Pressing any of these keys clears all currently pressed keyboard inputs.
@@ -1326,99 +1110,6 @@ export const ProblematicKeyCodes: Record<string, true> = {
   ['AltLeft']: true,
   ['AltRight']: true,
 };
-/**
- * A button pressed on any gamepad / controller.
- */
-export const GamepadButton = createInputEnum('GamepadButton', {
-  South: 'South' as const,
-  East: 'East' as const,
-  West: 'West' as const,
-  North: 'North' as const,
-  L1: 'L1' as const,
-  R1: 'R1' as const,
-  L2: 'L2' as const,
-  R2: 'R2' as const,
-  Select: 'Select' as const,
-  Start: 'Start' as const,
-  L3: 'L3' as const,
-  R3: 'R3' as const,
-  DpadUp: 'DpadUp' as const,
-  DpadDown: 'DpadDown' as const,
-  DpadLeft: 'DpadLeft' as const,
-  DpadRight: 'DpadRight' as const,
-  Home: 'Home' as const,
-});
-export type GamepadButtonValue = InputEnumValues<typeof GamepadButton>;
-
-/**
- * A 1D axis on any gamepad / controller.
- */
-export const GamepadAxis = createInputEnum('GamepadAxis', {
-  JoyLeftX: 'JoyLeftX' as const,
-  JoyLeftY: 'JoyLeftY' as const,
-  JoyRightX: 'JoyRightX' as const,
-  JoyRightY: 'JoyRightY' as const,
-});
-export type GamepadAxisValue = InputEnumValues<typeof GamepadAxis>;
-
-/**
- * Mapping of native button indices to `GamepadButton` enum.
- */
-export const NativeStandardGamepadButtonMapping: Record<NativeGamepadButtonIndex, typeof GamepadButton[keyof typeof GamepadButton]> = {
-  // See: https://www.w3.org/TR/gamepad/#remapping
-  [0]: GamepadButton.South,
-  [1]: GamepadButton.East,
-  [2]: GamepadButton.West,
-  [3]: GamepadButton.North,
-  [4]: GamepadButton.L1,
-  [5]: GamepadButton.R1,
-  [6]: GamepadButton.L2,
-  [7]: GamepadButton.R2,
-  [8]: GamepadButton.Select,
-  [9]: GamepadButton.Start,
-  [10]: GamepadButton.L3,
-  [11]: GamepadButton.R3,
-  [12]: GamepadButton.DpadUp,
-  [13]: GamepadButton.DpadDown,
-  [14]: GamepadButton.DpadLeft,
-  [15]: GamepadButton.DpadRight,
-  [16]: GamepadButton.Home,
-};
-/**
- * Mapping of native axis indices to `GamepadAxis` enum.
- */
-export const NativeStandardGamepadAxisMapping: Record<NativeGamepadAxisIndex, typeof GamepadAxis[keyof typeof GamepadAxis]> = {
-  // See: https://www.w3.org/TR/gamepad/#remapping
-  [0]: GamepadAxis.JoyLeftX,
-  [1]: GamepadAxis.JoyLeftY,
-  [2]: GamepadAxis.JoyRightX,
-  [3]: GamepadAxis.JoyRightY,
-};
-
-/**
- * Index of a connected gamepad input. Unique to each connected gamepad. Assigned when the gamepad is connected.
- */
-export type NativeGamepadIndex = number;
-/**
- * Index of a button input on a gamepad.
- */
-export type NativeGamepadButtonIndex = number;
-/**
- * Index of an axis input on a gamepad.
- */
-export type NativeGamepadAxisIndex = number;
-
-/**
- * Enum type of every input enum i.e. every type of input binding.
- */
-export type InputBindingType = InputEnumType<typeof MouseButton> | InputEnumType<typeof MouseWheelDirection> | InputEnumType<typeof KeyCode> | InputEnumType<typeof GamepadButton> | InputEnumType<typeof GamepadAxis>;
-
-/** A player index. Player 1 is `0`. */
-export type PlayerNumber = number;
-/** A number that is intended to be between values 0 and 1 (inclusive) */
-export type NumberZeroToOne = number;
-/** A number that is intended to be between values -1 and 1 (inclusive) */
-export type NumberNegativeOneToOne = number;
 
 export const DefaultInputConfiguration: InputConfiguration = {
   buttons: [
