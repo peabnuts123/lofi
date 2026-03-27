@@ -4,18 +4,24 @@ import type { Enum } from "@polyzone/engine/util/enum";
   @TODO Backlog
     // - Gamepad binding
     // - Axes
-    - Pointer position / delta
-    // - Axes as buttons
-    - Virtual gamepads (on screen)
-
-    - A callback for "on any input" => get device ID / stop listening
-    // - Method to set player X is device ID Y
-    // - Player 1 is assumed to be device ID 0, player 2 is assumed to be device Id 1, etc.
+    - A callback for "on any input" => get device ID / stop listening / is it an explicit "listen for all device IDs" listen function (to prevent abuse)
     - A callback for gamepads connecting / disconnecting?
-    - Hack Y axis of standard controllers to be `positive=up`...
+    // - Pointer position / delta
+    // - Pointer lock
+    // - Axes as buttons
     - Tidy this dang class up
     - Write tests
+    - Virtual gamepads (on screen)
+    // - Method to set player X is device ID Y
+    // - Player 1 is assumed to be device ID 0, player 2 is assumed to be device Id 1, etc.
+    // - Hack Y axis of standard controllers to be `positive=up`...
+
+    - BUG: Game is not rendering on my phone due to `requestPointerLock`
+    - Tidy up and commit the coco game.
+    - Make some kind of 2 player proof of concept
+      - What about 2 players 1 keyboard?
  */
+
 export interface IInputSystem {
   configure(configuration: InputConfiguration): void;
   addInput(inputConfig: AddInputArgs): void;
@@ -28,6 +34,10 @@ export interface IInputSystem {
   isButtonDown(buttonName: string, playerNumber?: PlayerNumber): boolean;
   getButtonValue(buttonName: string, playerNumber?: PlayerNumber): NumberZeroToOne;
   getAxisValue(axisName: string, playerNumber?: PlayerNumber): NumberNegativeOneToOne;
+
+  lockPointer(): void;
+  releasePointer(): void;
+  getPointer(): InputSystem['state']['pointer'];
 
   assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void;
 }
@@ -106,10 +116,16 @@ export class InputSystem implements IInputSystem {
    */
   private playerInputDeviceMapping: Map<PlayerNumber, Set<InputDeviceId>>;
 
-
   /** State of all inputs for this frame and the previous frame. */
   private state = {
     isCanvasFocused: false,
+    isPointerLocked: false,
+    pointer: {
+      x: undefined as number | undefined,
+      y: undefined as number | undefined,
+      xDelta: 0,
+      yDelta: 0,
+    },
     keyboard: {
       current: {},
       previous: {},
@@ -145,6 +161,7 @@ export class InputSystem implements IInputSystem {
     canvas.addEventListener('keyup', (e) => this.onKeyUp(e));
     canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
     canvas.addEventListener('wheel', (e) => this.onWheel(e, true));
     canvas.addEventListener('mousewheel', (e) => this.onWheel(e as WheelEvent, false));
     window.addEventListener('gamepadconnected', (e) => this.onGamepadConnected(e));
@@ -433,6 +450,36 @@ export class InputSystem implements IInputSystem {
     }
   }
 
+  public lockPointer(): void {
+    // @NOTE mobile browsers do not have this API at all,
+    // so we must first check it exists.
+    if ('requestPointerLock' in this.canvas) {
+      this.state.isPointerLocked = true;
+
+      // @NOTE This might fail, in which case it will be retried in
+      // any kind of pointer event.
+      void this.canvas.requestPointerLock().catch((e) => {
+        console.warn(`Failed to request pointer lock: `, e);
+      });
+    }
+  }
+
+  public releasePointer(): void {
+    // @NOTE mobile browsers do not have this API at all,
+    // so we must first check it exists.
+    if ('exitPointerLock' in document) {
+      this.state.isPointerLocked = false;
+
+      // @NOTE This might fail, in which case it will be retried in
+      // any kind of pointer event.
+      document.exitPointerLock();
+    }
+  }
+
+  public getPointer(): InputSystem['state']['pointer'] {
+    return this.state.pointer;
+  }
+
   public assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void {
     // Remove `deviceId` from every player
     for (const playerDevices of this.playerInputDeviceMapping.values()) {
@@ -463,6 +510,11 @@ export class InputSystem implements IInputSystem {
     for (const key in this.state.mouseWheel.current) {
       delete this.state.mouseWheel.current[key as MouseWheelDirectionValue];
     }
+
+    /* Cursor */
+    this.state.pointer.xDelta = 0;
+    this.state.pointer.yDelta = 0;
+
 
     /* Gamepad */
     for (const gamepadIndex of this.connectedGamepadIndices) {
@@ -715,6 +767,20 @@ export class InputSystem implements IInputSystem {
     return this.configuration.axes?.find((axis) => axis.name === name);
   }
 
+  /**
+   * Check whether the pointer lock state matches reality and attempt
+   * to change it if it doesn't.
+   */
+  private ensurePointerLockIsCorrect(): void {
+    if (this.state.isPointerLocked && !this.isPointerActuallyLocked && 'requestPointerLock' in this.canvas) {
+      void this.canvas.requestPointerLock().catch((e) => {
+        console.warn(`Failed to request pointer lock: `, e);
+      });
+    } else if (!this.state.isPointerLocked && this.isPointerActuallyLocked && 'exitPointerLock' in document) {
+      document.exitPointerLock();
+    }
+  }
+
   private debug_updateCurrentInput(): void {
     const element = document.querySelector('#current-input');
     if (element) {
@@ -832,6 +898,31 @@ export class InputSystem implements IInputSystem {
     delete this.state.keyboard.current[e.code as KeyCodeValue];
   }
 
+  /**
+   * Update the current mouse input state from a `buttons`
+   * bit mask, emitted from PointerEvents.
+   * @param buttonsBitMask Bit mask of mouse button states.
+   */
+  private updateMouseState(buttonsBitMask: number): void {
+    let buttonNumber = 0;
+
+    // Clear out current state
+    for (const mouseButton in this.state.mouse.current) {
+      delete this.state.mouse.current[mouseButton as unknown as MouseButtonValue]; // @TODO Type laundering?
+    }
+
+    // Read each bit, only store buttons that are pressed
+    while (buttonsBitMask !== 0) {
+      const buttonState = (buttonsBitMask & 0x1);
+      if (buttonState > 0) {
+        this.state.mouse.current[buttonNumber as MouseButtonValue] = buttonState;
+      }
+
+      buttonNumber++;
+      buttonsBitMask >>= 1;
+    }
+  }
+
   private onPointerDown(e: PointerEvent): void {
     // Only acknowledge `pointerdown` if the canvas is already focused.
     // Otherwise we would prevent focusing the canvas initially (i.e. by clicking on it)
@@ -841,11 +932,15 @@ export class InputSystem implements IInputSystem {
 
       this.debug_console.log(`[${InputSystem.name}] (${this.onPointerDown.name}) ${e.button} (${e.pointerType})`); // @TODO @DEBUG REMOVE
 
-      // Capture pointer, for dragging outside of the canvas
-      this.canvas.setPointerCapture(e.pointerId);
+      if (!this.isPointerActuallyLocked) {
+        // Capture pointer, for dragging outside of the canvas
+        this.canvas.setPointerCapture(e.pointerId);
+      }
 
-      // Mark mouse button as currently pressed
-      this.state.mouse.current[e.button as MouseButtonValue] = 1;
+      this.ensurePointerLockIsCorrect();
+
+      // Update mouse state from current buttons bit mask
+      this.updateMouseState(e.buttons);
     }
   }
 
@@ -854,10 +949,56 @@ export class InputSystem implements IInputSystem {
     // This prevents some edge cases where e.g. clicking and dragging into the canvas
     // doesn't misfire a rogue `pointerup` event.
     if (this.state.isCanvasFocused) {
+      e.preventDefault();
       this.debug_console.log(`[${InputSystem.name}] (${this.onPointerUp.name}) ${e.button} (${e.pointerType})`); // @TODO @DEBUG REMOVE
 
-      // Mark mouse button as not currently pressed
-      delete this.state.mouse.current[e.button as MouseButtonValue];
+      // If remove touch / stylus input, deactivate the cursor
+      if (e.pointerType !== 'mouse') {
+        this.state.pointer.x = undefined;
+        this.state.pointer.y = undefined;
+      }
+
+      this.ensurePointerLockIsCorrect();
+
+      // Update mouse state from current buttons bit mask
+      this.updateMouseState(e.buttons);
+    }
+  }
+
+  private onPointerMove(e: PointerEvent): void {
+    /**
+     * @NOTE Tricky variable to name.
+     * "Active" means we should be listening to pointer movements.
+     * If the pointer is supposed to be locked (through `lockPointer()`)
+     * and the pointer is actually locked then it is active.
+     * If the pointer is supposed to be locked but the pointer lock is not
+     * actually locked (because e.g. the user pressed escape) then the pointer
+     * is NOT active.
+     * If the pointer is not supposed to be locked then it is always active.
+     * This feels intuitive on the page but is hard to think about
+     * in the code here.
+     */
+    const isPointerActive = !this.state.isPointerLocked || this.isPointerActuallyLocked;
+    if (this.state.isCanvasFocused && isPointerActive) {
+      const { canvas } = this;
+      const pageToCanvasX = canvas.width / canvas.clientWidth;
+      const pageToCanvasY = canvas.height / canvas.clientHeight;
+
+      this.state.pointer.x = e.offsetX * pageToCanvasX;
+      this.state.pointer.y = e.offsetY * pageToCanvasY;
+
+      this.state.pointer.xDelta = e.movementX * pageToCanvasX;
+      this.state.pointer.yDelta = e.movementY * pageToCanvasY;
+
+      // Update mouse state from current buttons bit mask
+      // @NOTE Weird to do this in `pointermove` you might ask?
+      // Yeah, pretty weird. But you might be surprised to learn
+      // this is how the specification works.
+      // `pointerup` and `pointerdown` don't fire if you are already
+      // pressing another mouse button. The specification says
+      // that subsequent mouse pressed must generate `pointermove`
+      // events.
+      this.updateMouseState(e.buttons);
     }
   }
 
@@ -926,12 +1067,23 @@ export class InputSystem implements IInputSystem {
       gamepad.axes,
       e);
   }
+
   private onGamepadDisconnected(e: GamepadEvent): void {
     const { gamepad } = e;
     this.connectedGamepadIndices.delete(gamepad.index);
 
     // @TODO @DEBUG REMOVE
     console.log(`[${InputSystem.name}] (${this.onGamepadDisconnected.name}) Gamepad disconnected. Total gamepads connected: ${this.connectedGamepadIndices.size}`, e);
+  }
+
+  /**
+   * Whether the pointer is actually locked in the DOM.
+   * Does not necessarily reflect the value in `state`.
+   * For example, if the user pressed Escape and exits
+   * pointer lock, the values will not agree.
+   */
+  private get isPointerActuallyLocked(): boolean {
+    return document.pointerLockElement === this.canvas;
   }
 }
 
