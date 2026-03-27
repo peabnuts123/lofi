@@ -541,7 +541,7 @@ export class Vector3 extends Observable {
 
 /**
  * A Vector3 specifically for expressing Euler rotation angles,
- * where all xyz components are always wrapped between 0 and 360.
+ * where all xyz components are always wrapped between -360 and 360.
  */
 export class EulerVector3 extends Vector3 {
   public constructor(
@@ -550,24 +550,24 @@ export class EulerVector3 extends Vector3 {
     z: number,
   ) {
     super(
-      betterModulus(x, 360),
-      betterModulus(y, 360),
-      betterModulus(z, 360),
+      x % 360,
+      y % 360,
+      z % 360,
     );
   }
 
   public override get x(): number { return super.x; }
   public override set x(value: number) {
-    super.x = betterModulus(value, 360);
+    super.x = value % 360;
   }
 
   public override get y(): number { return super.y; }
   public override set y(value: number) {
-    super.y = betterModulus(value, 360);
+    super.y = value % 360;
   }
 
   public override get z(): number { return super.z; }
   public override set z(value: number) {
-    super.z = betterModulus(value, 360);
+    super.z = value % 360;
   }
 }
