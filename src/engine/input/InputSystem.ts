@@ -4,7 +4,7 @@ import type { Enum } from "@polyzone/engine/util/enum";
   @TODO Backlog
     // - Gamepad binding
     // - Axes
-    - A callback for "on any input" => get device ID / stop listening / is it an explicit "listen for all device IDs" listen function (to prevent abuse)
+    // - A callback for "on any input" => get device ID / stop listening / is it an explicit "listen for all device IDs" listen function (to prevent abuse)
     - A callback for gamepads connecting / disconnecting?
     // - Pointer position / delta
     // - Pointer lock
@@ -39,8 +39,12 @@ export interface IInputSystem {
   releasePointer(): void;
   getPointer(): InputSystem['state']['pointer'];
 
+  listenForDevices(listenFn: (deviceId: InputDeviceId) => void): void;
+  stopListeningForDevices(): void;
   assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void;
 }
+
+export type ListenForDevicesCallback = (deviceId: InputDeviceId) => void;
 
 type InputState<TInput extends string | number, TRange extends number = NumberZeroToOne> = {
   current: Partial<Record<TInput, TRange>>;
@@ -115,6 +119,10 @@ export class InputSystem implements IInputSystem {
    * Mapping of players to their associated input devices.
    */
   private playerInputDeviceMapping: Map<PlayerNumber, Set<InputDeviceId>>;
+  /**
+   * List of callbacks fired any time a button is pressed.
+   */
+  private listenForDevicesCallbacks: Set<ListenForDevicesCallback>;
 
   /** State of all inputs for this frame and the previous frame. */
   private state = {
@@ -154,6 +162,8 @@ export class InputSystem implements IInputSystem {
     this.configuration = DefaultInputConfiguration;
     this.connectedGamepadIndices = new Set();
     this.playerInputDeviceMapping = new Map();
+
+    this.listenForDevicesCallbacks = new Set();
     // @NOTE Assign keyboard and mouse by default
     this.assignInputDeviceToPlayer(0, KeyboardAndMouseDeviceId);
 
@@ -459,7 +469,7 @@ export class InputSystem implements IInputSystem {
       // @NOTE This might fail, in which case it will be retried in
       // any kind of pointer event.
       void this.canvas.requestPointerLock().catch((e) => {
-        console.warn(`Failed to request pointer lock: `, e);
+        console.warn(`Failed to request pointer lock. It will be retried on next player pointer interaction.`, e);
       });
     }
   }
@@ -478,6 +488,14 @@ export class InputSystem implements IInputSystem {
 
   public getPointer(): InputSystem['state']['pointer'] {
     return this.state.pointer;
+  }
+
+  public listenForDevices(listenFn: (deviceId: InputDeviceId) => void): void {
+    this.listenForDevicesCallbacks.add(listenFn);
+  }
+
+  public stopListeningForDevices(): void {
+    this.listenForDevicesCallbacks.clear();
   }
 
   public assignInputDeviceToPlayer(playerNumber: PlayerNumber, deviceId: InputDeviceId): void {
@@ -537,6 +555,14 @@ export class InputSystem implements IInputSystem {
           // Ignore extra / unmapped inputs
           if (gamepadBinding !== undefined) {
             gamepadButtonState.current[gamepadBinding.value] = button.value;
+
+            // Check for button press
+            if (
+              gamepadButtonState.current[gamepadBinding.value]! > this.analogButtonPressedThreshold &&
+              gamepadButtonState.previous[gamepadBinding.value]! < this.analogButtonPressedThreshold
+            ) {
+              this.notifyDeviceListeners(gamepadIndexToDeviceId(gamepadIndex));
+            }
           }
         }
         /* Axes */
@@ -774,10 +800,20 @@ export class InputSystem implements IInputSystem {
   private ensurePointerLockIsCorrect(): void {
     if (this.state.isPointerLocked && !this.isPointerActuallyLocked && 'requestPointerLock' in this.canvas) {
       void this.canvas.requestPointerLock().catch((e) => {
-        console.warn(`Failed to request pointer lock: `, e);
+        console.warn(`Failed to request pointer lock. It will be retried on next player pointer interaction.`, e);
       });
     } else if (!this.state.isPointerLocked && this.isPointerActuallyLocked && 'exitPointerLock' in document) {
       document.exitPointerLock();
+    }
+  }
+
+  /**
+   * Notify all `listenForDevices()` callbacks that a device was pressed.
+   * @param deviceId Id of the device that was pressed.
+   */
+  private notifyDeviceListeners(deviceId: InputDeviceId): void {
+    for (const listenerFn of this.listenForDevicesCallbacks) {
+      listenerFn(deviceId);
     }
   }
 
@@ -867,6 +903,8 @@ export class InputSystem implements IInputSystem {
 
     // Mark key as currently pressed
     this.state.keyboard.current[e.code as KeyCodeValue] = 1;
+
+    this.notifyDeviceListeners(KeyboardAndMouseDeviceId);
   }
 
   private onKeyUp(e: KeyboardEvent): void {
@@ -941,6 +979,8 @@ export class InputSystem implements IInputSystem {
 
       // Update mouse state from current buttons bit mask
       this.updateMouseState(e.buttons);
+
+      this.notifyDeviceListeners(KeyboardAndMouseDeviceId);
     }
   }
 
@@ -1032,6 +1072,8 @@ export class InputSystem implements IInputSystem {
     }
     this.debug_console.log(`[${InputSystem.name}] (${this.onWheel.name}) Wheel ${type}${isLegacy ? " (legacy)" : ""}`);// @TODO @DEBUG REMOVE
     this.state.mouseWheel.current[type] = 1;
+
+    this.notifyDeviceListeners(KeyboardAndMouseDeviceId);
   }
 
   private onGamepadConnected(e: GamepadEvent): void {
