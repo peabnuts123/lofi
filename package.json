@@ -1,11 +1,29 @@
 {
   "name": "webgl-engine",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
+  "description": "LoFi is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.",
+  "author": "peabnuts123",
+  "keywords": [
+    "gamedev",
+    "game development",
+    "game engine",
+    "retro",
+    "retrogaming"
+  ],
+  "homepage": "https://github.com/peabnuts123/lofi",
+  "bugs": {
+    "url": "https://github.com/peabnuts123/lofi/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peabnuts123/lofi.git"
+  },
   "type": "module",
   "scripts": {
     "start": "vite --host",
     "build": "rm -rf dist && node -r @swc-node/register scripts/build.ts",
+    "publish": "node -r @swc-node/register scripts/publish.ts",
     "test": "vitest run",
     "test:watch": "npm run test -- --watch",
     "test:coverage": "npm run test -- --coverage && http-server coverage -p 8080",
@@ -34,5 +52,6 @@
     "fflate": "^0.8.2",
     "online-3d-viewer": "^0.18.0",
     "standardized-audio-context": "^25.3.77"
-  }
+  },
+  "license": "UNLICENSED"
 }
