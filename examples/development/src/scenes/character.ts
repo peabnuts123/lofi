@@ -1,0 +1,247 @@
+import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
+import { Model } from '@polyzone/engine/models';
+import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
+import { Engine } from '@polyzone/engine/Engine';
+import { Scene } from '@polyzone/engine/scene';
+import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
+import { Color3 } from '@polyzone/engine/util/Color3';
+import { GltfLoader } from '@polyzone/engine/loaders/GltfLoader';
+import { GamepadAxis, GamepadButton, KeyCode, MouseWheelDirection } from '@polyzone/engine/input';
+import { Quaternion } from '@polyzone/engine/util/quaternion';
+
+import { DebugGeometry } from '@game/util/DebugGeometry';
+
+const MaxRuntimeSeconds = 180;
+const fileSystem = new WebFileSystem();
+const debugGeometry = new DebugGeometry(fileSystem);
+
+const Flags = {
+  ...{
+    LightingEnabled: false,
+    GroundEnabled: false,
+  },
+  LightingEnabled: true,
+  GroundEnabled: true,
+};
+
+export abstract class Game {
+  public static async run(canvas: HTMLCanvasElement): Promise<void> {
+    /* Engine */
+    const engine = new Engine(canvas, fileSystem);
+    const { inputSystem: input } = engine;
+    const scene = new Scene(engine);
+    scene.lighting.ambientColor = new Color3(110, 100, 90);
+
+    const runLoopHooks: Array<(dt: number) => void> = [];
+
+    /* Input */
+    input.configure({
+      buttons: [
+        {
+          name: 'player:jump',
+          bindings: [
+            KeyCode.Space,
+            GamepadButton.South,
+          ],
+        },
+        {
+          name: 'player:sprint',
+          bindings: [
+            KeyCode.ShiftLeft,
+            GamepadButton.R2,
+          ],
+        },
+        {
+          name: 'camera:zoom-in',
+          bindings: [
+            MouseWheelDirection.Up,
+          ],
+        },
+        {
+          name: 'camera:zoom-out',
+          bindings: [
+            MouseWheelDirection.Down,
+          ],
+        },
+      ],
+      axes: [
+        {
+          name: 'player:x',
+          bindings: [
+            { min: KeyCode.KeyA, max: KeyCode.KeyD },
+            GamepadAxis.JoyLeftX,
+          ],
+        },
+        {
+          name: 'player:y',
+          bindings: [
+            { min: KeyCode.KeyS, max: KeyCode.KeyW },
+            GamepadAxis.JoyLeftY,
+          ],
+        },
+        {
+          name: 'camera:x',
+          bindings: [
+            { min: KeyCode.ArrowLeft, max: KeyCode.ArrowRight },
+            GamepadAxis.JoyRightX,
+          ],
+        },
+        {
+          name: 'camera:y',
+          bindings: [
+            { min: KeyCode.ArrowDown, max: KeyCode.ArrowUp },
+            GamepadAxis.JoyRightY,
+          ],
+        },
+        {
+          name: 'camera:zoom',
+          bindings: [
+            { min: GamepadButton.R1, max: GamepadButton.L1 },
+          ],
+        },
+      ],
+    });
+
+    /* Model definitions */
+    const cubeModel = await Model.fromDefinition(engine, {
+      rootNodes: [debugGeometry.simpleNode({ name: 'cube' })],
+      animations: [],
+    });
+    const rigDefinition = await GltfLoader.loadModel('/models/Rig_Medium_MovementBasic.glb', fileSystem);
+    const playerModelDefinition = await GltfLoader.loadModel('/models/rig_mage.glb', fileSystem);
+    console.log(playerModelDefinition.rootNodes);
+    playerModelDefinition.rootNodes.forEach((node) => node.transform.scale.multiplySelf(0.75));
+
+    /* Models */
+    const playerModel = await Model.fromDefinition(engine, playerModelDefinition);
+    const rig = await Model.fromDefinition(engine, rigDefinition);
+
+    /* Lighting */
+    if (Flags.LightingEnabled) {
+      const light = new PointLightNode(scene, 'light', Color3.white());
+      light.position = new Vector3(1, 2, 1);
+    }
+
+    /* Camera */
+    const camera = new CameraNode(scene, 'camera', 60, canvas.width / canvas.height);
+
+    const cameraPivot = new ObjectNode(scene, 'camera_pivot');
+    cameraPivot.addChild(camera);
+    cameraPivot.position.y = 0.7;
+    cameraPivot.rotation.euler = new Vector3(-35, 180, 0);
+
+    const cameraParent = new ObjectNode(scene, 'camera_parent');
+    cameraParent.addChild(cameraPivot);
+
+    let cameraDistance = 3;
+    const repositionCamera = (): void => {
+      camera.position.z = cameraDistance;
+      camera.pointAt(cameraPivot.absolutePosition);
+    };
+    repositionCamera();
+
+    const CameraRotateSpeed = 150;
+    const CameraCursorFactor = 0.3;
+    const CameraZoomSpeed = 2;
+
+    input.lockPointer();
+
+    runLoopHooks.push((dt) => {
+      cameraParent.position = player.position;
+
+      let cameraXSpeed = 0;
+      let cameraYSpeed = 0;
+
+      const cameraAxisXInput = input.getAxisValue('camera:x');
+      const cameraAxisYInput = input.getAxisValue('camera:y');
+
+      // @NOTE prefer joystick, fallback to cursor movement
+      if (cameraAxisXInput !== 0 || cameraAxisYInput !== 0) {
+        /* Joystick */
+        cameraXSpeed = cameraAxisXInput * CameraRotateSpeed * dt;
+        cameraYSpeed = cameraAxisYInput * CameraRotateSpeed * dt;
+      } else {
+        /* Pointer */
+        cameraXSpeed = input.getPointer().xDelta * CameraCursorFactor;
+        cameraYSpeed = -input.getPointer().yDelta * CameraCursorFactor;
+      }
+
+      cameraPivot.rotation.euler.y -= cameraXSpeed;
+      cameraPivot.rotation.euler.x += cameraYSpeed;
+
+      cameraDistance += input.getAxisValue('camera:zoom') * CameraZoomSpeed * dt;
+      if (input.wasButtonPressed('camera:zoom-in')) {
+        cameraDistance -= CameraZoomSpeed * 0.2;
+      }
+      if (input.wasButtonPressed('camera:zoom-out')) {
+        cameraDistance += CameraZoomSpeed * 0.2;
+      }
+      repositionCamera();
+    });
+
+    /* Scene */
+    // Ground
+    if (Flags.GroundEnabled) {
+      const ground = new ModelNode(scene, 'ground', cubeModel);
+      ground.scale = new Vector3(5, 0.5, 5);
+      ground.position.y = -0.25;
+    }
+
+    // Player
+    const player = new ModelNode(scene, 'player', playerModel);
+    player.animationSource = rig;
+
+    const playerSpeedH = Vector2.zero();
+    let playerSpeedV = 0;
+    const playerSpeed = Vector3.zero();
+    const PlayerMaxSpeed = 3;
+    const PlayerSprintFactor = 1.5;
+    const Gravity = 0.4;
+    const JumpSpeed = 0.075;
+
+    runLoopHooks.unshift((dt) => { // @TODO lol `unshift` to reorder logic
+      /* Input */
+      playerSpeedH.setValue(0, 0);
+      playerSpeedV -= Gravity * dt;
+
+      playerSpeedH.x = input.getAxisValue('player:x');
+      playerSpeedH.y = input.getAxisValue('player:y');
+
+      if (input.wasButtonPressed('player:jump')) {
+        playerSpeedV = JumpSpeed;
+      }
+      const isSprinting = input.isButtonDown('player:sprint');
+      const movementSpeedFactor = isSprinting ? PlayerSprintFactor : 1;
+      playerSpeedH.normalizeSelf().multiplySelf(PlayerMaxSpeed * dt * movementSpeedFactor);
+
+      playerSpeed.setValue(playerSpeedH.x, 0, -playerSpeedH.y).multiplySelf(camera.absoluteRotation.q).setY(playerSpeedV);
+
+      /* Movement */
+      player.absolutePosition.addSelf(playerSpeed);
+      if (player.absolutePosition.y < 0) {
+        player.absolutePosition.y = 0;
+        playerSpeedV = 0;
+      }
+
+      /* Facing */
+      if (playerSpeedH.lengthSquared() > 0) {
+        player.playAnimation('Running_A', movementSpeedFactor);
+        player.rotation.q = Quaternion.fromLookDirection(playerSpeed.withY(0).multiplySelf(-1));
+      } else {
+        player.playAnimation('T-Pose');
+      }
+    });
+
+    /* Run */
+    let time = 0;
+    engine.run((dt, stop) => {
+      // Invoke hooks
+      runLoopHooks.forEach((hook) => hook(dt));
+
+      time += dt;
+      if (time > MaxRuntimeSeconds) {
+        stop();
+      }
+    });
+  }
+}

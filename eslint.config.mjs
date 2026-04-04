@@ -1,6 +1,7 @@
 // @ts-check
 
 import eslint from '@eslint/js';
+import { globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
@@ -12,21 +13,17 @@ const ERROR = 'error';
 export default tseslint.config(
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
+  globalIgnores([
+    'dist/**/*',
+    'coverage/**/*',
+  ]),
   {
     languageOptions: {
       parserOptions: {
         projectService: true,
-        /* @NOTE FFS TS / ESlint */
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         tsconfigRootDir: import.meta.dirname,
       },
     },
-    ignores: [
-      'dist/**/*',
-      'coverage/**/*',
-    ],
     rules: {
       // Rules that are explicitly disabled
       '@typescript-eslint/no-explicit-any': DISABLED, // Too restrictive, you need `any` in certain situations

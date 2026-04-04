@@ -4,22 +4,20 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "declaration": true,
-    // "emitDeclarationOnly": true,
-    "outDir": "dist",
-    "stripInternal": true,
-    "skipLibCheck": true, // Fucks sake, TypeScript: https://github.com/microsoft/TypeScript/issues/40426
+    "types": ["vite/client"],
+    "skipLibCheck": true,
     "allowJs": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    // "allowImportingTsExtensions": true,
+    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+    "noEmit": true,
 
     "paths": {
-      "@polyzone/engine/*": ["./src/*"],
-      "@test/*": ["./test/*"],
+      "@polyzone/engine/*": ["../../dist/*"],
+      "@game/*": ["./src/*"],
     },
 
     /* Linting */
@@ -31,10 +29,9 @@
     "noUncheckedSideEffectImports": true,
   },
   "include": [
-    "src/",
-    "test/",
-    "eslint.config.mjs",
-    "vitest.config.ts",
-    "scripts/",
+    "src",
+    "vite.config.ts",
+    "tailwind.config.js",
+    "postcss.config.js",
   ],
 }

@@ -1,0 +1,2 @@
+declare const FragmentShaderSource: string;
+export default FragmentShaderSource;

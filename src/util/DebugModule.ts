@@ -1,5 +1,5 @@
 import { type MediaStreamAudioDestinationNode, type IAudioContext } from 'standardized-audio-context';
-import type { Engine } from '@polyzone/engine/Engine';
+import type { Engine, IEngine } from '@polyzone/engine/Engine';
 import { zipSync } from 'fflate';
 
 /**
@@ -11,6 +11,7 @@ interface RecordCanvasOptions {
    * If no value is specified, recording will last until `Debug.stopRecording()` is called.
    */
   length: number | undefined;
+  delay: number | undefined;
 }
 
 /**
@@ -38,7 +39,7 @@ export class DebugModule {
    * Optional override for saving files (e.g. for Tauri integration).
    * If set, this will be called with (data: Blob, filename: string) instead of using <a> tag download.
    */
-  public saveOverride?: SaveOverrideFunction;
+  public saveOverride: SaveOverrideFunction | undefined;
 
   private _currentMediaRecorder: MediaRecorder | undefined = undefined;
   private _currentRecordingBlobs: Blob[] | undefined = undefined;
@@ -76,6 +77,7 @@ export class DebugModule {
     let canvasSelector = 'canvas';
     const DefaultOptions: RecordCanvasOptions = {
       length: 3,
+      delay: 0,
     };
     let options: RecordCanvasOptions = { ...DefaultOptions };
 
@@ -135,7 +137,8 @@ export class DebugModule {
     }
 
     // Look up associated Engine instance (if any)
-    const engine = DebugModule.engineInstances.get(canvas);
+    // const engine = DebugModule.engineInstances.get(canvas);
+    const engine: IEngine | undefined = undefined! as IEngine; // @TODO Fix this
 
     // Initialise objects used for recording
     this._currentRecordingBlobs = [];
@@ -194,7 +197,14 @@ export class DebugModule {
     };
 
     // Start recording
-    this._currentMediaRecorder.start(1000);
+    if (options.delay && options.delay > 0) {
+      console.log(`Delaying record start for '${options.delay} seconds'`);
+      setTimeout(() => {
+        this._currentMediaRecorder!.start(1000);
+      }, options.delay * 1000);
+    } else {
+      this._currentMediaRecorder.start(1000);
+    }
   }
 
   public stopRecording(): void {
@@ -282,6 +292,7 @@ export class DebugModule {
     let canvasSelector = 'canvas';
     const DefaultOptions: RecordCanvasRawOptions = {
       length: 5,
+      delay: 0,
     };
     let options: RecordCanvasRawOptions = { ...DefaultOptions };
 
