@@ -86,6 +86,7 @@ These items are roughly in priority order.
   - Virtual input devices (on screen)
   - [ ] `Color3` observable
   - [ ] `Vector2` tests
+  - Still a bunch of stuff @TODO left in GltfLoader
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.
@@ -94,5 +95,6 @@ These items are roughly in priority order.
     - Or a `parent` param for Node constructors for implicit local coordinates
     - Or `addChild()` returns the param for fluent-style adding
   - Memoize / cache values like `getVerticesWorldSpace`
-    - Some kind of generic pattern for Dirty____?
+    - ~~Some kind of generic pattern for Dirty____?~~ observables.
+    - Should be more possible now that we have observables.
     - Or potentially a specific worldMatrix-based cache
