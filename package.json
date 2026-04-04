@@ -1,5 +1,5 @@
 {
-  "name": "webgl-engine",
+  "name": "@lofi/engine",
   "private": true,
   "version": "0.0.1",
   "description": "LoFi is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.",
