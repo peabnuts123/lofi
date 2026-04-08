@@ -8,8 +8,7 @@ await buildLibrary({
   async postBuild(options) {
     /* Manually transform and emit shader files */
     console.log(`Compiling shader files... `);
-    // const shaderFiles = await findFiles(/(\.vert$|\.frag$)/, SrcDirectory);
-    const shaderFiles = await findFiles(/(\.glsl$)/, SrcDirectory);
+    const shaderFiles = await findFiles(/(\.vert$|\.frag$)/, SrcDirectory);
     for (const shaderFile of shaderFiles) {
       const fileContents = await readFile(shaderFile);
       const newFileContents = `export default ${JSON.stringify(fileContents)}`;
