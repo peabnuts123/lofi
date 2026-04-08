@@ -5,9 +5,10 @@
   "author": "peabnuts123",
   "license": "UNLICENSED",
   "workspaces": [
-    "src/common",
+    "@NOTE: THESE MUST BE LISTED IN THIS ORDER",
+    "src/engine",
     "src/core",
-    "src/engine"
+    "src/common"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
