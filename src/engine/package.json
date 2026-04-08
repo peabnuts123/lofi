@@ -28,7 +28,8 @@
     "test:watch": "npm run test -- --watch",
     "test:coverage": "npm run test -- --coverage && http-server coverage -p 8080",
     "lint": "eslint --max-warnings 0 --no-error-on-unmatched-pattern",
-    "checkall": "npm run lint && npm run test && npm run build"
+    "typecheck": "tsc --build tsconfig.json",
+    "checkall": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "devDependencies": {
     "standardized-audio-context-mock": "^9.7.27"

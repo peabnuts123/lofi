@@ -1,9 +1,7 @@
 
-import { Vector3 } from '@polyzone/engine/util/vector';
-import { Quaternion } from '@polyzone/engine/util/quaternion';
-import type { MaterialDefinition, MeshPrimitiveDefinition, NodeDefinition } from '@polyzone/engine/loaders/definitions';
-import { Color4 } from '@polyzone/engine/util/Color4';
-import type { IFileSystem } from '@polyzone/engine/filesystem';
+import { Vector3, Quaternion, Color4 } from '@lofi/core/math';
+import type { MaterialDefinition, MeshPrimitiveDefinition, NodeDefinition } from '@lofi/engine/loaders/definitions';
+import type { IFileSystem } from '@lofi/engine/filesystem';
 
 export class DebugGeometry {
   private readonly fileSystem: IFileSystem;

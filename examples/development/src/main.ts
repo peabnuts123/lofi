@@ -3,7 +3,7 @@ import './style.css';
 // import { Game } from './scenes/testfield';
 import { Game } from './scenes/character';
 
-import { DebugModule } from '@polyzone/engine/util/DebugModule';
+import { DebugModule } from '@lofi/engine/util/DebugModule';
 
 DebugModule.register();
 

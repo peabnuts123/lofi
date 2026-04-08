@@ -4,6 +4,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "dist",
+    "allowJs": true,
 
     // Support for node types (used in build scripts)
     "lib": ["esnext"],
@@ -14,5 +15,9 @@
         "./*"
       ],
     },
-  }
+  },
+  "include": [
+    "scripts/",
+    "eslint.config.mjs",
+  ]
 }

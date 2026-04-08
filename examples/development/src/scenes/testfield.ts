@@ -1,19 +1,16 @@
-import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
-import { Model, type Triangle } from '@polyzone/engine/models';
-import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
-import { Engine } from '@polyzone/engine/Engine';
-import { Scene, SceneNode } from '@polyzone/engine/scene';
-import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
-import { Color3 } from '@polyzone/engine/util/Color3';
-import { Quaternion } from '@polyzone/engine/util/quaternion';
-import { DegreesToRadians } from '@polyzone/engine/util/math';
-import { Color4 } from '@polyzone/engine/util/Color4';
-import { rayAABBIntersection, rayTriangleIntersection } from '@polyzone/engine/collision/ray';
-import { AxisAlignedBoundingBox } from '@polyzone/engine/collision';
-import { Material, ShaderBlendingMode } from '@polyzone/engine/materials';
-import { Texture } from '@polyzone/engine/textures';
-import { AudioClip } from '@polyzone/engine/audio';
-import { GltfLoader } from '@polyzone/engine/loaders/GltfLoader';
+import { Vector2, Vector3, Color3, Quaternion, DegreesToRadians } from '@lofi/core/math';
+import { Color4 } from '@lofi/core/math/Color4';
+import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
+import { Model, type Triangle } from '@lofi/engine/models';
+import { Engine } from '@lofi/engine/Engine';
+import { Scene, SceneNode } from '@lofi/engine/scene';
+import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
+import { rayAABBIntersection, rayTriangleIntersection } from '@lofi/engine/collision/ray';
+import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
+import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
+import { Texture } from '@lofi/engine/textures';
+import { AudioClip } from '@lofi/engine/audio';
+import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 

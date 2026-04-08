@@ -1,11 +1,9 @@
-import { CameraNode, ModelNode, PointLightNode } from '@polyzone/engine/scene/nodes';
-import { Model } from '@polyzone/engine/models';
-import { Vector3 } from '@polyzone/engine/util/vector';
-import { Engine } from '@polyzone/engine/Engine';
-import { Scene } from '@polyzone/engine/scene';
-import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
-import { Color3 } from '@polyzone/engine/util/Color3';
-import { Quaternion } from '@polyzone/engine/util/quaternion';
+import { Vector3, Color3, Quaternion } from '@lofi/core/math';
+import { CameraNode, ModelNode, PointLightNode } from '@lofi/engine/scene/nodes';
+import { Model } from '@lofi/engine/models';
+import { Engine } from '@lofi/engine/Engine';
+import { Scene } from '@lofi/engine/scene';
+import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 

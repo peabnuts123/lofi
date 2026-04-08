@@ -1,13 +1,11 @@
-import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@polyzone/engine/scene/nodes';
-import { Model } from '@polyzone/engine/models';
-import { Vector2, Vector3 } from '@polyzone/engine/util/vector';
-import { Engine } from '@polyzone/engine/Engine';
-import { Scene } from '@polyzone/engine/scene';
-import { WebFileSystem } from '@polyzone/engine/filesystem/WebFileSystem';
-import { Color3 } from '@polyzone/engine/util/Color3';
-import { GltfLoader } from '@polyzone/engine/loaders/GltfLoader';
-import { GamepadAxis, GamepadButton, KeyCode, MouseWheelDirection } from '@polyzone/engine/input';
-import { Quaternion } from '@polyzone/engine/util/quaternion';
+import { Vector2, Vector3, Color3, Quaternion } from '@lofi/core/math';
+import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
+import { Model } from '@lofi/engine/models';
+import { Engine } from '@lofi/engine/Engine';
+import { Scene } from '@lofi/engine/scene';
+import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
+import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
+import { GamepadAxis, GamepadButton, KeyCode, MouseWheelDirection } from '@lofi/engine/input';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 

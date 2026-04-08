@@ -27,7 +27,7 @@ export interface PackageJsonType {
 
 export async function spawnAsync(command: string): Promise<void> {
   const [cmd, ...args] = command.split(/\s+/g);
-  const npmProcess = spawn(cmd!, args, { stdio: 'inherit' });
+  const npmProcess = spawn(cmd, args, { stdio: 'inherit' });
   await new Promise<void>((resolve, reject) => {
     npmProcess.on('exit', (code) => {
       if (code === 0) {

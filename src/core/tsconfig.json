@@ -9,6 +9,7 @@
     "rootDir": ".",
     "outDir": "dist",
     "allowJs": true,
+    "noEmit": true,
     "paths": {
       "@lofi/common/*": [
         "../common/*"

@@ -1,32 +1,46 @@
 {
+  "references": [
+    {
+      "path": "../../src/common",
+    },
+    {
+      "path": "../../src/core/tsconfig.build.json",
+    },
+    {
+      "path": "../../src/engine/tsconfig.build.json",
+    },
+  ],
   "compilerOptions": {
-    "target": "ES2022",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
-    "skipLibCheck": true,
-    "allowJs": true,
-
-    /* Bundler mode */
+    "module": "esnext",
+    "target": "esnext",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
+    "types": ["vite/client"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    "rootDir": ".",
     "noEmit": true,
 
+    "allowJs": true,
+    "useDefineForClassFields": true,
+
     "paths": {
-      "@polyzone/engine/*": ["../../dist/*"],
       "@game/*": ["./src/*"],
+      // @NOTE These are only needed because the source is in the same repo.
+      "@lofi/core/*": ["../../src/core/src/*"],
+      "@lofi/common/*": ["../../src/common/*"],
+      "@lofi/engine/*": ["../../src/engine/src/*"],
     },
 
-    /* Linting */
     "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
   },
   "include": [
     "src",
