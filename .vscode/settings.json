@@ -1,0 +1,17 @@
+{
+  "eslint.workingDirectories": [
+    "src/common",
+    "src/core",
+    "src/engine",
+  ],
+  "vsicons.associations.folders": [
+    {
+      "icon": "model",
+      "extensions": [
+        "common",
+        "core",
+        "engine",
+      ],
+    }
+  ]
+}

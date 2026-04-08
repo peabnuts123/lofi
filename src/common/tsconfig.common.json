@@ -1,0 +1,26 @@
+{
+  /* @NOTE Don't reference paths in here, since they will be relative to THIS file. */
+  "compilerOptions": {
+    "composite": true,
+
+    // Environment Settings
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "bundler",
+    "types": [],
+
+    // Other Outputs
+    "declaration": true,
+
+    // Stricter Typechecking Options
+    // "exactOptionalPropertyTypes": true, // @TODO
+
+    // Style Options
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+  },
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@lofi/core",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Core math and utilities for the LoFi 3D game engine.",
+  "author": "peabnuts123",
+  "keywords": [
+    "gamedev",
+    "game development",
+    "game engine",
+    "retro",
+    "retrogaming"
+  ],
+  "homepage": "https://github.com/peabnuts123/lofi",
+  "bugs": {
+    "url": "https://github.com/peabnuts123/lofi/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peabnuts123/lofi.git",
+    "directory": "src/core"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "publish": "tsx scripts/publish.ts",
+    "test": "vitest run",
+    "test:watch": "npm run test -- --watch",
+    "test:coverage": "npm run test -- --coverage && http-server coverage -p 8080",
+    "lint": "eslint --max-warnings 0 --no-error-on-unmatched-pattern",
+    "checkall": "npm run lint && npm run test && npm run build"
+  },
+  "license": "UNLICENSED"
+}

@@ -21,3 +21,6 @@ dist-ssr
 *.sw?
 
 coverage/
+
+# Incremental typescript compilation
+*.tsbuildinfo

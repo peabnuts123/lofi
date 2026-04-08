@@ -1,0 +1,32 @@
+{
+  "extends": "../common/tsconfig.common.json",
+  "references": [
+    {
+      "path": "../common"
+    },
+  ],
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "allowJs": true,
+    "paths": {
+      "@lofi/common/*": [
+        "../common/*"
+      ],
+      "@lofi/core/*": [
+        "./src/*"
+      ],
+      "@test/*": [
+        "./test/*",
+      ],
+    },
+  },
+  "include": [
+    "src/",
+    "scripts/",
+    "test/",
+    "eslint.config.mjs",
+    "vitest.config.ts",
+    // etc.
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.common.json",
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+
+    // Support for node types (used in build scripts)
+    "lib": ["esnext"],
+    "types": ["node"],
+
+    "paths": {
+      "@lofi/common/*": [
+        "./*"
+      ],
+    },
+  }
+}

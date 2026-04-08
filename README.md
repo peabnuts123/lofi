@@ -87,6 +87,9 @@ These items are roughly in priority order.
   - [ ] `Color3` observable
   - [ ] `Vector2` tests
   - Still a bunch of stuff @TODO left in GltfLoader
+  - Dreaded ArrayBuffer / Uint8Array refactor / audit. WHAT IS THE CORRECT THING
+  - Do not import GLTF stuff outside GltfLoader
+  - Make examples reference `npm`
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.

@@ -1,0 +1,26 @@
+{
+  "extends": "../common/tsconfig.common.json",
+  "references": [
+    {
+      "path": "../core/tsconfig.build.json"
+    }
+  ],
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@lofi/core/*": [
+        "../core/src/*"
+      ],
+      "@lofi/engine/*": [
+        "./src/*"
+      ],
+    },
+  },
+  "include": [
+    "src/",
+  ],
+  "exclude": [
+    "**/*.test.ts",
+  ]
+}
