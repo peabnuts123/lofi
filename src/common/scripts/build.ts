@@ -19,7 +19,7 @@ export const DefaultOptions: BuildOptions = {
   distDir: 'dist',
 };
 
-export async function buildLibrary(options: Partial<BuildOptions>): Promise<void> {
+export async function buildLibrary(options?: Partial<BuildOptions>): Promise<void> {
   // Options
   const compiledOptions: BuildOptions = Object.assign({}, DefaultOptions, options);
 
