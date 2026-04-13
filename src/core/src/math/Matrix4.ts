@@ -207,7 +207,7 @@ export class Matrix4 {
   }
 
   public perspectiveSelf(fovy: number, aspect: number, near: number, far: number): this {
-    const f = 1.0 / Math.tan(fovy / 2);
+    const f = 1.0 / Math.tan(fovy * 0.5);
     this.m00 = f / aspect;
     this.m10 = 0;
     this.m20 = 0;
@@ -218,16 +218,16 @@ export class Matrix4 {
     this.m31 = 0;
     this.m02 = 0;
     this.m12 = 0;
-    this.m32 = -1;
+    this.m32 = 1;
     this.m03 = 0;
     this.m13 = 0;
     this.m33 = 0;
-    if (far != null && far !== Infinity) {
-      const nf = 1 / (near - far);
-      this.m22 = (far + near) * nf;
-      this.m23 = 2 * far * near * nf;
+
+    if (far !== 0 && far !== Infinity) {
+      this.m22 = (far + near) / (far - near);
+      this.m23 = (-2 * far * near) / (far - near);
     } else {
-      this.m22 = -1;
+      this.m22 = 1;
       this.m23 = -2 * near;
     }
     return this;

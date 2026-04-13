@@ -206,7 +206,7 @@ export class Engine implements IEngine {
           taskA.material.id - taskB.material.id ||
           taskA.draw.id - taskB.draw.id;
       });
-      drawQueues.transparent.sort((drawTaskA, drawTaskB) => drawTaskA.depth - drawTaskB.depth);
+      drawQueues.transparent.sort((drawTaskA, drawTaskB) => drawTaskB.depth - drawTaskA.depth);
 
       this.drawQueue(drawQueues.opaque);
       this.drawQueue(drawQueues.transparent);

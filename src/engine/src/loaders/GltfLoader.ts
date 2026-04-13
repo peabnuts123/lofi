@@ -21,9 +21,10 @@ import type {
   NodeDefinition,
   SkinDefinition,
 } from './definitions';
+import { convertRightHandCoordinateSystemToLeftHand } from './util';
 
 const GlbMagic = [0x67, 0x6C, 0x54, 0x46];
-const DEBUG_DRAW_BONES = false;
+const DEBUG_DRAW_BONES = false; // @TODO This breaks stuff after converting to LH space
 
 /*
   @TODO Things we should maybe do
@@ -265,6 +266,11 @@ export abstract class GltfLoader {
           primitives: [
             {
               mode: WebGL2RenderingContext.TRIANGLES,
+              material: {
+                name: 'debug',
+                alpha: { mode: 'OPAQUE' },
+                diffuseColor: Color4.red(),
+              },
               positionData: {
                 buffer: new Float32Array([
                   // Front face (z = size) - indices 0-3
@@ -357,12 +363,12 @@ export abstract class GltfLoader {
               },
               indices: {
                 buffer: new Uint8Array([
-                  0, 1, 2, 2, 3, 0,       // Front face
-                  4, 5, 6, 6, 7, 4,       // Right face
-                  8, 9, 10, 10, 11, 8,    // Back face
-                  12, 13, 14, 14, 15, 12, // Left face
-                  16, 17, 18, 18, 19, 16, // Top face
-                  20, 21, 22, 22, 23, 20, // Bottom face
+                  0, 2, 1, /**/ 2, 0, 3,       // Front face
+                  4, 6, 5, /**/ 6, 4, 7,       // Right face
+                  8, 10, 9, /**/ 10, 8, 11,    // Back face
+                  12, 14, 13, /**/ 14, 12, 15, // Left face
+                  16, 18, 17, /**/ 18, 16, 19, // Top face
+                  20, 22, 21, /**/ 22, 20, 23, // Bottom face
                 ]),
                 componentType: WebGL2RenderingContext.UNSIGNED_BYTE,
                 componentCount: 1,
@@ -510,6 +516,9 @@ export abstract class GltfLoader {
 
     // Execute all tidy-up tasks
     tidyUpTasks.forEach((task) => task());
+
+    // @NOTE Convert to left-handed coordinate system
+    rootNodeDefinitions.forEach(convertRightHandCoordinateSystemToLeftHand);
 
     return {
       rootNodes: rootNodeDefinitions,
