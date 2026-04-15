@@ -285,7 +285,7 @@ export class Quaternion extends Observable {
     // Calculate strictly orthogonal basis vectors
     // using reusable static instances
     forward = Quaternion.fromLookDirectionTmp.forward
-      .setValue(forward)
+      .setValue(-forward.x, -forward.y, -forward.z) // Negate to compute right-handed coordinate system
       .normalizeSelf();
     const right = Quaternion.fromLookDirectionTmp.right
       .setValue(up)

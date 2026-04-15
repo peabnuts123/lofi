@@ -164,7 +164,7 @@ export abstract class Game {
         cameraYSpeed = -input.getPointer().yDelta * CameraCursorFactor;
       }
 
-      cameraPivot.rotation.euler.y += cameraXSpeed;
+      cameraPivot.rotation.euler.y -= cameraXSpeed;
       cameraPivot.rotation.euler.x += cameraYSpeed;
 
       cameraDistance += input.getAxisValue('camera:zoom') * CameraZoomSpeed * dt;
@@ -212,7 +212,7 @@ export abstract class Game {
       const movementSpeedFactor = isSprinting ? PlayerSprintFactor : 1;
       playerSpeedH.normalizeSelf().multiplySelf(PlayerMaxSpeed * dt * movementSpeedFactor);
 
-      playerSpeed.setValue(playerSpeedH.x, 0, playerSpeedH.y).multiplySelf(camera.absoluteRotation.q).setY(playerSpeedV);
+      playerSpeed.setValue(playerSpeedH.x, 0, -playerSpeedH.y).multiplySelf(camera.absoluteRotation.q).setY(playerSpeedV);
 
       /* Movement */
       player.absolutePosition.addSelf(playerSpeed);
