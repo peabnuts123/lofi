@@ -122,7 +122,11 @@ export class MeshNode {
 
     if (this.skin !== undefined) {
       this.skin.skeleton.forEach((bone, i) => {
-        this._jointMatricesTmp![i].setValue(bone.worldMatrix).multiplySelf(this.skin!.inverseBindMatrices[i]);
+        this._jointMatricesTmp![i]
+          .setValue(this.worldMatrix)
+          .invertSelf()
+          .multiplySelf(bone.worldMatrix)
+          .multiplySelf(this.skin!.inverseBindMatrices[i]);
       });
     }
 

@@ -713,9 +713,9 @@ describe("Transform", () => {
         const expectedPosition = Vector3.zero().subtractSelf(parentTransform.position);
         const expectedAbsolutePosition = new Vector3(
           // Look, don't ask how much time I spent thinking about this
-          parentTransform.position.x - parentTransform.position.y,
-          parentTransform.position.y + parentTransform.position.x,
+          parentTransform.position.x - parentTransform.position.z,
           0,
+          parentTransform.position.z + parentTransform.position.x,
         );
         const expectedRotation = Quaternion.identity();
         const expectedAbsoluteRotation = operand.clone();

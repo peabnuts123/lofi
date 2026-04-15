@@ -6,6 +6,7 @@ import { Quaternion } from '@lofi/core/math/Quaternion';
 import { Vector3 } from '@lofi/core/math/vector';
 
 import { Rotation } from './Rotation';
+import { WellKnownQuaternions } from '@test/util/quaternions';
 
 describe("Rotation", () => {
   describe("Observability", () => {
@@ -14,7 +15,7 @@ describe("Rotation", () => {
       const rotation = new Rotation();
       const updatedValue = Quaternion.fromAxisAngle(Vector3.up(), 180);
       const expectedInverse = updatedValue.invert();
-      const expectedEuler = new Vector3(0, 180, 0);
+      const expectedEuler = new Vector3(0, 0, 180);
 
       // Test
       rotation.q.setValue(updatedValue);
@@ -235,10 +236,10 @@ describe("Rotation", () => {
   test("Calling multiply() mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
-    const operand = Quaternion.fromAxisAngle(Vector3.up(), 180);
-    const expectedQuaternion = new Quaternion(0, 1, 0, 0);
+    const operand = WellKnownQuaternions['180Z']().quaternion;
+    const expectedQuaternion = WellKnownQuaternions['180Z']().quaternion;
     const expectedInverse = expectedQuaternion.invert();
-    const expectedEuler = new Vector3(0, 180, 0);
+    const expectedEuler = WellKnownQuaternions['180Z']().euler;
 
     // Test
     rotation.multiply(operand);
@@ -251,10 +252,10 @@ describe("Rotation", () => {
   test("Calling slerp() mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
-    const operand = Quaternion.fromAxisAngle(Vector3.up(), 180);
-    const expectedQuaternion = Quaternion.fromAxisAngle(Vector3.up(), 90);
+    const operand = WellKnownQuaternions['180Z']().quaternion;
+    const expectedQuaternion = WellKnownQuaternions['90Z']().quaternion;
     const expectedInverse = expectedQuaternion.invert();
-    const expectedEuler = new Vector3(0, 90, 0);
+    const expectedEuler = WellKnownQuaternions['90Z']().euler;
 
     // Test
     rotation.slerp(operand, 0.5);
@@ -267,9 +268,9 @@ describe("Rotation", () => {
   test("Calling set() with a quaternion mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
-    const quaternion = Quaternion.fromAxisAngle(Vector3.up(), 90);
+    const quaternion = WellKnownQuaternions['90Z']().quaternion;
     const expectedInverse = quaternion.invert();
-    const expectedEuler = new Vector3(0, 90, 0);
+    const expectedEuler = WellKnownQuaternions['90Z']().euler;
 
     // Test
     rotation.set(quaternion);
@@ -347,7 +348,6 @@ describe("Rotation", () => {
   test("Setting {x,y,z} mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
-    // const updatedXValue = 20;
     const updatedEulerAngles = new Vector3(10, 20, 30);
     /* After X update */
     const expectedEulerAfterXUpdate = Vector3.zero().setX(updatedEulerAngles.x);

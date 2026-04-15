@@ -265,6 +265,11 @@ export abstract class GltfLoader {
           primitives: [
             {
               mode: WebGL2RenderingContext.TRIANGLES,
+              material: {
+                name: 'debug',
+                alpha: { mode: 'OPAQUE' },
+                diffuseColor: Color4.red(),
+              },
               positionData: {
                 buffer: new Float32Array([
                   // Front face (z = size) - indices 0-3
@@ -510,6 +515,12 @@ export abstract class GltfLoader {
 
     // Execute all tidy-up tasks
     tidyUpTasks.forEach((task) => task());
+
+    // @NOTE GLTF coordinate system is +Y-up. Convert to +Z-up by rotating along X.
+    // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
+    rootNodeDefinitions.forEach((nodeDefinition) => {
+      nodeDefinition.transform.rotation.multiplySelf(Quaternion.fromAxisAngle(Vector3.right(), 90));
+    });
 
     return {
       rootNodes: rootNodeDefinitions,

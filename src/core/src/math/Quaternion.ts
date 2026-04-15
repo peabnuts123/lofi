@@ -36,27 +36,36 @@ export class Quaternion extends Observable {
       return new EulerVector3(0, 0, 0);
     }
 
-    const zAxisY = y * z - x * w;
+    /*
+      @NOTE Rotation order is ZXY where:
+      Z = Yaw, X = Pitch, Y = Roll
+
+      Equations derived from:
+      https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/index.htm
+      with reference to (angle formulas):
+      https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix
+     */
+
+    const test = y * z + x * w;
     const limit = 0.4999999;
 
     let resultX: number, resultY: number, resultZ: number;
 
-    if (zAxisY < -limit) {
+    if (test > limit) {
       resultX = Math.PI / 2;
-      resultY = 2 * Math.atan2(y, w);
-      resultZ = 0;
-    } else if (zAxisY > limit) {
+      resultY = 0;
+      resultZ = 2 * Math.atan2(z, w);
+    } else if (test < -limit) {
       resultX = -Math.PI / 2;
-      resultY = 2 * Math.atan2(y, w);
-      resultZ = 0;
+      resultY = 0;
+      resultZ = -2 * Math.atan2(z, w);
     } else {
       const xSquared = x * x;
       const ySquared = y * y;
       const zSquared = z * z;
-      const wSquared = w * w;
-      resultX = Math.asin(-2.0 * zAxisY);
-      resultY = Math.atan2(2.0 * (z * x + y * w), zSquared - xSquared - ySquared + wSquared);
-      resultZ = Math.atan2(2.0 * (x * y + z * w), -zSquared - xSquared + ySquared + wSquared);
+      resultX = Math.asin(2 * test);
+      resultZ = Math.atan2(2 * (z * w - x * y), 1 - 2 * (xSquared + zSquared));
+      resultY = Math.atan2(2 * (y * w - x * z), 1 - 2 * (xSquared + ySquared));
     }
 
     // Convert to degrees
@@ -242,9 +251,25 @@ export class Quaternion extends Observable {
       zValue = z! * DegreesToRadians;
     }
 
-    const halfRoll = zValue * 0.5;
+    /*
+      @NOTE Rotation order is ZXY where:
+      Z = Yaw, X = Pitch, Y = Roll
+
+      Equations are equivalent to:
+
+      ```
+      const qx = Quaternion.fromAxisAngle(new Vector3(1, 0, 0), xValue * RadiansToDegrees);
+      const qy = Quaternion.fromAxisAngle(new Vector3(0, 1, 0), yValue * RadiansToDegrees);
+      const qz = Quaternion.fromAxisAngle(new Vector3(0, 0, 1), zValue * RadiansToDegrees);
+      return qz.multiply(qx).multiply(qy);
+      ```
+
+      Equations can be derived by fully expanding the above and simplifying.
+     */
+
+    const halfYaw = zValue * 0.5;
     const halfPitch = xValue * 0.5;
-    const halfYaw = yValue * 0.5;
+    const halfRoll = yValue * 0.5;
     const sinRoll = Math.sin(halfRoll);
     const cosRoll = Math.cos(halfRoll);
     const sinPitch = Math.sin(halfPitch);
@@ -253,10 +278,10 @@ export class Quaternion extends Observable {
     const cosYaw = Math.cos(halfYaw);
 
     return new Quaternion(
-      cosYaw * sinPitch * cosRoll + sinYaw * cosPitch * sinRoll,
-      sinYaw * cosPitch * cosRoll - cosYaw * sinPitch * sinRoll,
-      cosYaw * cosPitch * sinRoll - sinYaw * sinPitch * cosRoll,
-      cosYaw * cosPitch * cosRoll + sinYaw * sinPitch * sinRoll,
+      cosYaw * sinPitch * cosRoll - sinYaw * cosPitch * sinRoll,
+      cosYaw * cosPitch * sinRoll + sinYaw * sinPitch * cosRoll,
+      cosYaw * sinPitch * sinRoll + sinYaw * cosPitch * cosRoll,
+      cosYaw * cosPitch * cosRoll - sinYaw * sinPitch * sinRoll,
     );
   }
 
@@ -284,16 +309,16 @@ export class Quaternion extends Observable {
 
     // Calculate strictly orthogonal basis vectors
     // using reusable static instances
-    forward = Quaternion.fromLookDirectionTmp.forward
-      .setValue(-forward.x, -forward.y, -forward.z) // Negate to compute right-handed coordinate system
-      .normalizeSelf();
     const right = Quaternion.fromLookDirectionTmp.right
-      .setValue(up)
-      .crossSelf(forward)
+      .setValue(forward)
+      .crossSelf(up)
       .normalizeSelf();
     up = Quaternion.fromLookDirectionTmp.up
       .setValue(forward)
-      .crossSelf(right)
+      .normalizeSelf();
+    forward = Quaternion.fromLookDirectionTmp.forward
+      .setValue(right)
+      .crossSelf(forward)
       .normalizeSelf();
 
     // Mostly inspired from: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5335

@@ -117,7 +117,7 @@ export abstract class Game {
     /* Lighting */
     if (Flags.LightingEnabled) {
       const light = new PointLightNode(scene, 'light', Color3.white());
-      light.position = new Vector3(1, 2, 1);
+      light.position = new Vector3(1, 1, 2);
     }
 
     /* Camera */
@@ -125,15 +125,15 @@ export abstract class Game {
 
     const cameraPivot = new ObjectNode(scene, 'camera_pivot');
     cameraPivot.addChild(camera);
-    cameraPivot.position.y = 0.7;
-    cameraPivot.rotation.euler = new Vector3(-35, 180, 0);
+    cameraPivot.position.z = 0.7;
+    cameraPivot.rotation.euler = new Vector3(35, 0, 0);
 
     const cameraParent = new ObjectNode(scene, 'camera_parent');
     cameraParent.addChild(cameraPivot);
 
     let cameraDistance = 3;
     const repositionCamera = (): void => {
-      camera.position.z = cameraDistance;
+      camera.position.y = cameraDistance;
       camera.pointAt(cameraPivot.absolutePosition);
     };
     repositionCamera();
@@ -147,8 +147,8 @@ export abstract class Game {
     runLoopHooks.push((dt) => {
       cameraParent.position = player.position;
 
-      let cameraXSpeed = 0;
-      let cameraYSpeed = 0;
+      let cameraHSpeed = 0;
+      let cameraVSpeed = 0;
 
       const cameraAxisXInput = input.getAxisValue('camera:x');
       const cameraAxisYInput = input.getAxisValue('camera:y');
@@ -156,16 +156,16 @@ export abstract class Game {
       // @NOTE prefer joystick, fallback to cursor movement
       if (cameraAxisXInput !== 0 || cameraAxisYInput !== 0) {
         /* Joystick */
-        cameraXSpeed = cameraAxisXInput * CameraRotateSpeed * dt;
-        cameraYSpeed = cameraAxisYInput * CameraRotateSpeed * dt;
+        cameraHSpeed = cameraAxisXInput * CameraRotateSpeed * dt;
+        cameraVSpeed = cameraAxisYInput * CameraRotateSpeed * dt;
       } else {
         /* Pointer */
-        cameraXSpeed = input.getPointer().xDelta * CameraCursorFactor;
-        cameraYSpeed = -input.getPointer().yDelta * CameraCursorFactor;
+        cameraHSpeed = input.getPointer().xDelta * CameraCursorFactor;
+        cameraVSpeed = -input.getPointer().yDelta * CameraCursorFactor;
       }
 
-      cameraPivot.rotation.euler.y -= cameraXSpeed;
-      cameraPivot.rotation.euler.x += cameraYSpeed;
+      cameraPivot.rotation.euler.z -= cameraHSpeed;
+      cameraPivot.rotation.euler.x -= cameraVSpeed;
 
       cameraDistance += input.getAxisValue('camera:zoom') * CameraZoomSpeed * dt;
       if (input.wasButtonPressed('camera:zoom-in')) {
@@ -181,8 +181,8 @@ export abstract class Game {
     // Ground
     if (Flags.GroundEnabled) {
       const ground = new ModelNode(scene, 'ground', cubeModel);
-      ground.scale = new Vector3(5, 0.5, 5);
-      ground.position.y = -0.25;
+      ground.scale = new Vector3(5, 5, 0.5);
+      ground.position.z = -0.25;
     }
 
     // Player
@@ -212,19 +212,19 @@ export abstract class Game {
       const movementSpeedFactor = isSprinting ? PlayerSprintFactor : 1;
       playerSpeedH.normalizeSelf().multiplySelf(PlayerMaxSpeed * dt * movementSpeedFactor);
 
-      playerSpeed.setValue(playerSpeedH.x, 0, -playerSpeedH.y).multiplySelf(camera.absoluteRotation.q).setY(playerSpeedV);
+      playerSpeed.setValue(playerSpeedH.x, playerSpeedH.y, 0).multiplySelf(camera.absoluteRotation.q).setZ(playerSpeedV);
 
       /* Movement */
       player.absolutePosition.addSelf(playerSpeed);
-      if (player.absolutePosition.y < 0) {
-        player.absolutePosition.y = 0;
+      if (player.absolutePosition.z < 0) {
+        player.absolutePosition.z = 0;
         playerSpeedV = 0;
       }
 
       /* Facing */
       if (playerSpeedH.lengthSquared() > 0) {
         player.playAnimation('Running_A', movementSpeedFactor);
-        player.rotation.q = Quaternion.fromLookDirection(playerSpeed.withY(0).multiplySelf(-1));
+        player.rotation.q = Quaternion.fromLookDirection(playerSpeed.withZ(0).multiplySelf(-1));
       } else {
         player.playAnimation('T-Pose');
       }

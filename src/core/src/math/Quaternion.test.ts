@@ -3,6 +3,7 @@ import { expectQuaternionsToBeEqual, expectVectorsToBeEqual } from '@test/util/e
 import { describe, test, expect } from 'vitest';
 import { Quaternion } from './Quaternion';
 import { Vector3 } from './vector';
+import { WellKnownQuaternions } from '@test/util/quaternions';
 
 /*
   @TODO Test Backlog
@@ -11,50 +12,6 @@ import { Vector3 } from './vector';
     - ReadOnlyQuaternion
  */
 
-/**
- * Quaternions can have somewhat obtuse values. This is a list of
- * quaternions and equivalent euler vectors that are known to be correct.
- */
-const WellKnownResults = {
-  /** Identity i.e. no rotation */
-  ['identity']: () => ({
-    quaternion: Quaternion.identity(),
-    euler: Vector3.zero(),
-  }),
-  /** A rotation of 90 degrees around the Y axis and 90 degrees around the Z axis. */
-  ['90Y90Z']: () => ({
-    quaternion: new Quaternion(0.5, 0.5, 0.5, 0.5),
-    euler: new Vector3(0, 90, 90),
-  }),
-  /** A rotation of 180 degrees around the Y axis. */
-  ['180Y']: () => ({
-    quaternion: new Quaternion(0, 1, 0, 0),
-    euler: new Vector3(0, 180, 0),
-  }),
-  /** A rotation of 90 degrees around the X axis. */
-  ['90X']: () => ({
-    quaternion: new Quaternion(Math.SQRT1_2, 0, 0, Math.SQRT1_2),
-    euler: new Vector3(90, 0, 0),
-  }),
-  /** A rotation of 90 degrees around the Y axis. */
-  ['90Y']: () => ({
-    quaternion: new Quaternion(0, Math.SQRT1_2, 0, Math.SQRT1_2),
-    euler: new Vector3(0, 90, 0),
-  }),
-  /** A rotation of 90 degrees around the Z axis. */
-  ['90Z']: () => ({
-    quaternion: new Quaternion(0, 0, Math.SQRT1_2, Math.SQRT1_2),
-    euler: new Vector3(0, 0, 90),
-  }),
-  /** A rotation of -90 degrees around the X axis. */
-  ['-90X']: () => ({
-    quaternion: new Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2),
-    euler: new Vector3(90, 0, 0),
-  }),
-} satisfies Record<string, () => {
-  quaternion: Quaternion;
-  euler: Vector3;
-}>;
 describe("quaternion", () => {
   describe("Observability", () => {
     test("Setting x, y, z, w fires onChange() separately", () => {
@@ -173,8 +130,14 @@ describe("quaternion", () => {
   });
   test("Calling toEuler() returns the correct result", () => {
     // Setup
-    const quaternion = WellKnownResults['90Y90Z']().quaternion;
-    const expectedResult = WellKnownResults['90Y90Z']().euler;
+    const quaternion = WellKnownQuaternions['90Y90Z']().quaternion;
+    const expectedResult = WellKnownQuaternions['90Y90Z']().euler;
+
+    const qz = Quaternion.fromAxisAngle(new Vector3(0, 0, 1), 90);
+    const qy = Quaternion.fromAxisAngle(new Vector3(0, 1, 0), 90);
+    const mulResult = qz.multiply(qy);
+    console.log(`[DEBUG] mulResult: ${mulResult}`);
+
 
     // Test
     const result = quaternion.toEuler();
@@ -184,9 +147,9 @@ describe("quaternion", () => {
   });
   test("Calling multiplySelf() mutates correctly", () => {
     // Setup
-    const quaternion = WellKnownResults['90Y']().quaternion;
-    const operand = WellKnownResults['90Z']().quaternion;
-    const expected = WellKnownResults['90Y90Z']().quaternion;
+    const quaternion = WellKnownQuaternions['90Z']().quaternion;
+    const operand = WellKnownQuaternions['90Y']().quaternion;
+    const expected = WellKnownQuaternions['90Y90Z']().quaternion;
 
     // Test
     quaternion.multiplySelf(operand);
@@ -196,10 +159,10 @@ describe("quaternion", () => {
   });
   test("Calling multiply() returns the correct result", () => {
     // Setup
-    const quaternion = WellKnownResults['90Y']().quaternion;
+    const quaternion = WellKnownQuaternions['90Z']().quaternion;
     const qOriginal = quaternion.clone();
-    const operand = WellKnownResults['90Z']().quaternion;
-    const expected = WellKnownResults['90Y90Z']().quaternion;
+    const operand = WellKnownQuaternions['90Y']().quaternion;
+    const expected = WellKnownQuaternions['90Y90Z']().quaternion;
 
     // Test
     const result = quaternion.multiply(operand);
@@ -211,8 +174,8 @@ describe("quaternion", () => {
   test("Calling slerpSelf() mutates correctly", () => {
     // Setup
     const quaternion = Quaternion.identity();
-    const target = WellKnownResults['180Y']().quaternion;
-    const expected = WellKnownResults['90Y']().quaternion;
+    const target = WellKnownQuaternions['180Z']().quaternion;
+    const expected = WellKnownQuaternions['90Z']().quaternion;
 
     // Test
     quaternion.slerpSelf(target, 0.5);
@@ -224,8 +187,8 @@ describe("quaternion", () => {
     // Setup
     const quaternion = Quaternion.identity();
     const qOriginal = quaternion.clone();
-    const target = WellKnownResults['180Y']().quaternion;
-    const expected = WellKnownResults['90Y']().quaternion;
+    const target = WellKnownQuaternions['180Z']().quaternion;
+    const expected = WellKnownQuaternions['90Z']().quaternion;
 
     // Test
     const result = quaternion.slerp(target, 0.5);
@@ -236,8 +199,8 @@ describe("quaternion", () => {
   });
   test("Calling invertSelf() mutates correctly", () => {
     // Setup
-    const quaternion = WellKnownResults['90X']().quaternion;
-    const expectedResult = WellKnownResults['-90X']().quaternion;
+    const quaternion = WellKnownQuaternions['90X']().quaternion;
+    const expectedResult = WellKnownQuaternions['-90X']().quaternion;
 
     // Test
     quaternion.invertSelf();
@@ -247,9 +210,9 @@ describe("quaternion", () => {
   });
   test("Calling invert() returns the correct result", () => {
     // Setup
-    const quaternion = WellKnownResults['90X']().quaternion;
+    const quaternion = WellKnownQuaternions['90X']().quaternion;
     const qOriginal = quaternion.clone();
-    const expectedResult = WellKnownResults['-90X']().quaternion;
+    const expectedResult = WellKnownQuaternions['-90X']().quaternion;
 
     // Test
     const result = quaternion.invert();
@@ -332,7 +295,7 @@ describe("quaternion", () => {
   });
   test("Calling Quaternion.fromAxisAngle() creates the correct Quaternion", () => {
     // Setup
-    const expectedResult = WellKnownResults['180Y']().quaternion;
+    const expectedResult = WellKnownQuaternions['180Z']().quaternion;
 
     // Test
     const result = Quaternion.fromAxisAngle(Vector3.up(), 180);
@@ -342,8 +305,8 @@ describe("quaternion", () => {
   });
   test("Calling Quaternion.fromEuler() with a Vector3 creates the correct Quaternion", () => {
     // Setup
-    const euler = WellKnownResults['90Y90Z']().euler;
-    const expectedResult = WellKnownResults['90Y90Z']().quaternion;
+    const euler = WellKnownQuaternions['90Y90Z']().euler;
+    const expectedResult = WellKnownQuaternions['90Y90Z']().quaternion;
 
     // Test
     const result = Quaternion.fromEuler(euler);
@@ -353,8 +316,8 @@ describe("quaternion", () => {
   });
   test("Calling Quaternion.fromEuler() with separate xyz components creates the correct Quaternion", () => {
     // Setup
-    const euler = WellKnownResults['90Y90Z']().euler;
-    const expectedResult = WellKnownResults['90Y90Z']().quaternion;
+    const euler = WellKnownQuaternions['90Y90Z']().euler;
+    const expectedResult = WellKnownQuaternions['90Y90Z']().quaternion;
 
     // Test
     const result = Quaternion.fromEuler(euler.x, euler.y, euler.z);
@@ -376,12 +339,32 @@ describe("quaternion", () => {
     // Setup
     const forward = Vector3.down();
     const up = Vector3.forward();
-    const expectedResult = WellKnownResults['-90X']().quaternion;
+    const expectedResult = WellKnownQuaternions['-90X']().quaternion;
 
     // Test
     const result = Quaternion.fromLookDirection(forward, up);
 
     // Assert
     expectQuaternionsToBeEqual(result, expectedResult);
+  });
+  test.each([
+    '90X',
+    '90Y',
+    '90Z',
+    '180Z',
+    '90Y90Z',
+    'identity',
+  ] satisfies Array<keyof typeof WellKnownQuaternions>)("Sanity check of various toEuler()/fromEuler() round trips: Well-known quaternion \"%s\"", (testCase) => {
+    const { quaternion, euler } = WellKnownQuaternions[testCase]();
+    const qToEuler = quaternion.toEuler();
+    const qToEulerToQ = Quaternion.fromEuler(qToEuler);
+
+    const eulerToQ = Quaternion.fromEuler(euler);
+    const eulerToQToEuler = eulerToQ.toEuler();
+
+    expectVectorsToBeEqual(qToEuler, euler);
+    expectQuaternionsToBeEqual(qToEulerToQ, quaternion);
+    expectQuaternionsToBeEqual(eulerToQ, quaternion);
+    expectVectorsToBeEqual(eulerToQToEuler, euler);
   });
 });
