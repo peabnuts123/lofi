@@ -8,6 +8,7 @@ interface TransformNodeTarget {
   get name(): string;
 }
 
+// @TODO Could lift up into `@lofi/engine` ?
 export class Transform<T extends TransformNodeTarget> {
   private readonly _position: Vector3;
   private readonly _rotation: Rotation;
@@ -23,10 +24,14 @@ export class Transform<T extends TransformNodeTarget> {
 
   public readonly node: T;
 
-  public constructor(node: T) {
+  public constructor(node: T, parent?: Transform<T>) {
     this.node = node;
 
     this.children = [];
+
+    /* Parent */
+    this._parent = parent;
+    this._parent?.children.push(this);
 
     /* Local transforms */
     this._position = Vector3.zero();
@@ -183,6 +188,13 @@ export class Transform<T extends TransformNodeTarget> {
       },
     });
 
+    // Ensure position / rotation / scale are correct relative to parent
+    if (parent) {
+      this._absolutePosition.forceRecompute();
+      this._absoluteRotation.forceRecompute();
+      this._absoluteScale.forceRecompute();
+    }
+
     this._worldMatrix = new Computed(new Matrix4(), {
       dependencies: [
         this._absolutePosition,
@@ -207,17 +219,19 @@ export class Transform<T extends TransformNodeTarget> {
    * @param child - The child node to add
    * @throws {Error} If the child already has a different parent
    */
-  public addChild(child: Transform<T>): void {
+  public addChild(child: Transform<T>, preserveLocalTransform: boolean = false): void {
     if (this.children.some((existingChild) => existingChild === child)) {
       console.warn(`Tried to add transform '${child.node.name}' as child of transform '${this.node.name}' but it is already a child of this node`);
     } else if (child.parent !== undefined) {
       throw new Error(`Cannot add transform '${child.node.name}' as child of transform '${this.node.name}': It is already the child of another transform: '${child.parent.node.name}'`);
     } else {
-      // Ensure absolute properties are up to date, as we will immediately
-      // use them to recompute local properties after reparenting
-      child._absolutePosition.forceRecompute();
-      child._absoluteRotation.forceRecompute();
-      child._absoluteScale.forceRecompute();
+      if (!preserveLocalTransform) {
+        // Ensure absolute properties are up to date, as we will immediately
+        // use them to recompute local properties after reparenting
+        child._absolutePosition.forceRecompute();
+        child._absoluteRotation.forceRecompute();
+        child._absoluteScale.forceRecompute();
+      }
 
       // Set parent
       this.children.push(child);
@@ -236,10 +250,12 @@ export class Transform<T extends TransformNodeTarget> {
         this._absoluteScale,
       );
 
-      // Force recalculate child local position/rotation/scale
-      child._absolutePosition.forceWriteBack();
-      child._absoluteRotation.forceWriteBack();
-      child._absoluteScale.forceWriteBack();
+      if (!preserveLocalTransform) {
+        // Force recalculate child local position/rotation/scale
+        child._absolutePosition.forceWriteBack();
+        child._absoluteRotation.forceWriteBack();
+        child._absoluteScale.forceWriteBack();
+      }
     }
   }
 
@@ -251,16 +267,18 @@ export class Transform<T extends TransformNodeTarget> {
    *
    * @param child - The scene node to remove
    */
-  public removeChild(child: Transform<T>): void {
+  public removeChild(child: Transform<T>, preserveLocalTransform: boolean = false): void {
     const index = this.children.indexOf(child);
     if (index < 0) {
       console.warn(`Cannot remove transform '${child.node.name}' from children of node '${this.node.name}': it is not a child of this node`);
     } else {
-      // Ensure absolute properties are up to date, as we will immediately
-      // use them to recompute local properties after reparenting
-      child._absolutePosition.forceRecompute();
-      child._absoluteRotation.forceRecompute();
-      child._absoluteScale.forceRecompute();
+      if (!preserveLocalTransform) {
+        // Ensure absolute properties are up to date, as we will immediately
+        // use them to recompute local properties after reparenting
+        child._absolutePosition.forceRecompute();
+        child._absoluteRotation.forceRecompute();
+        child._absoluteScale.forceRecompute();
+      }
 
       // Set parent
       this.children.splice(index, 1);
@@ -279,26 +297,61 @@ export class Transform<T extends TransformNodeTarget> {
         this._absoluteScale,
       );
 
-      // Force recalculate child local position/rotation/scale
-      child._absolutePosition.forceWriteBack();
-      child._absoluteRotation.forceWriteBack();
-      child._absoluteScale.forceWriteBack();
+      if (!preserveLocalTransform) {
+        // Force recalculate child local position/rotation/scale
+        child._absolutePosition.forceWriteBack();
+        child._absoluteRotation.forceWriteBack();
+        child._absoluteScale.forceWriteBack();
+      }
     }
   }
 
   /**
    * Execute a callback function for each child node of this node.
    *
-   * @param fn - The callback function to execute for each child
+   * @param fn - The callback function to execute for each child.
+   * @param recursive - Whether to iterate recursively through the entire hierarchy or just this Transform's direct children.
    */
-  public forEachChild(fn: (child: Transform<T>) => void): void {
+  public forEachChild(fn: (child: Transform<T>) => void, recursive: boolean = false): void {
     for (const child of this.children) {
       fn(child);
-      child.forEachChild(fn);
+      if (recursive) {
+        child.forEachChild(fn, recursive);
+      }
+    }
+  }
+
+  /**
+   * Find a node within this transform's hierarchy.
+   *
+   * @param fn - The test function to execute for each child.
+   * @param recursive - Whether to iterate recursively through the entire hierarchy or just this Transform's direct children.
+   */
+  public findChild(fn: (child: Transform<T>) => boolean, recursive: boolean = false): Transform<T> | undefined {
+    for (const child of this.children) {
+      if (fn(child)) {
+        return child;
+      }
+
+      if (recursive) {
+        const result = child.findChild(fn, recursive);
+        if (result) return result;
+      }
     }
   }
 
   public get parent(): Transform<T> | undefined { return this._parent; }
+  public set parent(value: Transform<T> | undefined) {
+    // Remove self from current parent
+    if (this.parent !== undefined) {
+      this.parent.removeChild(this);
+    }
+
+    // Add self as child of new parent
+    if (value !== undefined) {
+      value.addChild(this);
+    }
+  }
 
   public get position(): Vector3 { return this._position; }
   public set position(value: Vector3) { this._position.setValue(value); }

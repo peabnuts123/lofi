@@ -11,14 +11,16 @@ export abstract class SceneNode {
 
   private transform: Transform<SceneNode>;
 
-  public constructor(scene: IScene, name: string) {
+  public constructor(scene: IScene, name: string, parent?: SceneNode) {
     this.scene = scene;
     this.name = name;
 
-    this.transform = new Transform<SceneNode>(this);
+    this.transform = new Transform<SceneNode>(this, parent?.transform);
 
-    // Add node to scene
-    this.scene.addTopLevelNode(this);
+    // Add node to scene (if top-level)
+    if (parent === undefined) {
+      this.scene.addTopLevelNode(this);
+    }
   }
 
   /**
@@ -29,8 +31,9 @@ export abstract class SceneNode {
    * @param child - The child node to add
    * @throws {Error} If the child already has a different parent
    */
-  public addChild<TNode extends SceneNode>(child: TNode): TNode {
-    this.transform.addChild(child.transform);
+  // @TODO should we remove this in favour of set parent?
+  public addChild<TNode extends SceneNode>(child: TNode, preserveLocalTransform?: boolean): TNode {
+    this.transform.addChild(child.transform, preserveLocalTransform);
     this.scene.removeTopLevelNode(child);
     return child;
   }
@@ -52,11 +55,18 @@ export abstract class SceneNode {
    * Execute a callback function for each child node of this node.
    *
    * @param fn - The callback function to execute for each child
+   * @param recursive - Whether to iterate recursively through the entire hierarchy or just this SceneNode's direct children.
    */
-  public forEachChild(fn: (child: SceneNode) => void): void {
+  public forEachChild(fn: (child: SceneNode) => void, recursive?: boolean): void {
     this.transform.forEachChild((childTransform) => {
       fn(childTransform.node);
-    });
+    }, recursive);
+  }
+
+  public findChild(fn: (child: SceneNode) => boolean, recursive?: boolean): SceneNode | undefined {
+    return this.transform.findChild((childTransform) => {
+      return fn(childTransform.node);
+    }, recursive)?.node;
   }
 
   /**
@@ -74,6 +84,7 @@ export abstract class SceneNode {
   }
 
   public get parent(): SceneNode | undefined { return this.transform.parent?.node; }
+  public set parent(value: SceneNode | undefined) { this.transform.parent = value?.transform; }
 
   public get position(): Vector3 { return this.transform.position; }
   public set position(value: Vector3) { this.transform.position = value; }

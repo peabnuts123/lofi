@@ -121,15 +121,11 @@ export abstract class Game {
     }
 
     /* Camera */
-    const camera = new CameraNode(scene, 'camera', 60, canvas.width / canvas.height);
-
-    const cameraPivot = new ObjectNode(scene, 'camera_pivot');
-    cameraPivot.addChild(camera);
+    const cameraParent = new ObjectNode(scene, 'camera_parent');
+    const cameraPivot = new ObjectNode(scene, 'camera_pivot', cameraParent);
     cameraPivot.position.z = 0.7;
     cameraPivot.rotation.euler = new Vector3(35, 0, 0);
-
-    const cameraParent = new ObjectNode(scene, 'camera_parent');
-    cameraParent.addChild(cameraPivot);
+    const camera = new CameraNode(scene, 'camera', 60, canvas.width / canvas.height, cameraPivot);
 
     let cameraDistance = 3;
     const repositionCamera = (): void => {

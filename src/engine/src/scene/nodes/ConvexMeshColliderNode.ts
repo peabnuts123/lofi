@@ -1,5 +1,5 @@
 import { Vector3 } from "@lofi/core/math/vector";
-import { type IScene } from "@lofi/engine/scene";
+import { SceneNode, type IScene } from "@lofi/engine/scene";
 import type { MeshGeometry, Model, Triangle } from "@lofi/engine/models";
 import type { IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
 
@@ -18,8 +18,8 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
   // private readonly mesh: MeshGeometry;
   private readonly model: Model;
 
-  public constructor(scene: IScene, name: string, group: CollisionGroup, model: Model) {
-    super(scene, name, group);
+  public constructor(scene: IScene, name: string, group: CollisionGroup, model: Model, parent?: SceneNode) {
+    super(scene, name, group, parent);
 
     this.model = model;
 

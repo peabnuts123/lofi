@@ -14,13 +14,15 @@ export interface ModelDefinition {
   animations: AnimationDefinition[];
 }
 
+export interface TransformDefinition {
+  position: Vector3;
+  rotation: Quaternion;
+  scale: Vector3;
+}
+
 export interface NodeDefinition {
   name: string;
-  transform: {
-    position: Vector3,
-    rotation: Quaternion,
-    scale: Vector3,
-  },
+  transform: TransformDefinition;
   // @NOTE Could also store `parent` if we want
   children: NodeDefinition[];
   mesh?: MeshDefinition;

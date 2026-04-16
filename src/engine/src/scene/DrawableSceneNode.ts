@@ -26,8 +26,8 @@ export interface TransparentDrawTask extends DrawTask {
 
 export abstract class DrawableSceneNode extends SceneNode {
 
-  public constructor(scene: IScene, name: string) {
-    super(scene, name);
+  public constructor(scene: IScene, name: string, parent?: SceneNode) {
+    super(scene, name, parent);
   }
 
   public abstract draw(engine: IEngine, drawQueues: DrawQueues): void;

@@ -3,10 +3,11 @@ import { type IScene, SceneNode } from "@lofi/engine/scene";
 import { SceneLighting } from "@lofi/engine/scene/SceneLighting";
 
 export class PointLightNode extends SceneNode {
+  // @TODO Intensity. Range?
   public color: Color3;
 
-  public constructor(scene: IScene, name: string, color: Color3) {
-    super(scene, name);
+  public constructor(scene: IScene, name: string, color: Color3, parent?: SceneNode) {
+    super(scene, name, parent);
     this.color = color;
 
     // @TODO @DEBUG This should be based on camera distance or something.

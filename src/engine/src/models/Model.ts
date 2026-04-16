@@ -34,18 +34,14 @@ export class Model {
 
     const materialOverrides = this.materialOverrides.createInstance();
 
-    function createModelPartInstance(modelPart: MeshNode): MeshNode {
-      const instance = modelPart.createInstance(materialOverrides);
+    function createModelPartInstance(modelPart: MeshNode, parentInstance?: MeshNode): MeshNode {
+      const instance = modelPart.createInstance(materialOverrides, parentInstance);
 
       newNodes.push(instance);
       oldToNewLookup.set(modelPart, instance);
 
       for (const childModelPart of modelPart.children) {
-        const childInstance = createModelPartInstance(childModelPart);
-        instance.addChild(childInstance);
-        childInstance.position = childModelPart.position;
-        childInstance.rotation.q.setValue(childModelPart.rotation.q);
-        childInstance.scale = childModelPart.scale;
+        createModelPartInstance(childModelPart, instance);
       }
 
       if (modelPart.skin) {
@@ -73,9 +69,6 @@ export class Model {
     for (const rootNode of this.rootNodes) {
       const instance = createModelPartInstance(rootNode);
       newRootNodes.push(instance);
-      instance.position = rootNode.transform.position;
-      instance.rotation.q.setValue(rootNode.transform.rotation.q);
-      instance.scale = rootNode.transform.scale;
     }
 
     tidyUpTasks.forEach((task) => task());
@@ -118,14 +111,11 @@ export class Model {
 
     for (const rootNode of definition.rootNodes) {
       const modelPart = await createModelPart(rootNode);
-      modelPart.position = rootNode.transform.position;
-      modelPart.rotation.set(rootNode.transform.rotation);
-      modelPart.scale = rootNode.transform.scale;
       rootNodes.push(modelPart);
     }
 
-    async function createModelPart(nodeDefinition: NodeDefinition): Promise<MeshNode> {
-      const modelPart = await MeshNode.fromDefinition(engine, nodeDefinition, materialOverrides);
+    async function createModelPart(nodeDefinition: NodeDefinition, parent?: MeshNode): Promise<MeshNode> {
+      const modelPart = await MeshNode.fromDefinition(engine, nodeDefinition, parent, materialOverrides);
 
       modelPartLookup.set(nodeDefinition, modelPart);
       allNodes.push(modelPart);
@@ -140,14 +130,7 @@ export class Model {
 
       // Instantiate children
       for (const childDefinition of nodeDefinition.children) {
-        const child = await createModelPart(childDefinition);
-        modelPart.addChild(child);
-        // @NOTE We have to have established the hierarchy first, otherwise
-        // position/rotation/scale will be wrong, since it is updated when you
-        // call `addChild()`
-        child.position = childDefinition.transform.position;
-        child.rotation.set(childDefinition.transform.rotation);
-        child.scale = childDefinition.transform.scale;
+        await createModelPart(childDefinition, modelPart);
       }
 
       return modelPart;

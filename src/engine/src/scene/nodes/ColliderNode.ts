@@ -28,8 +28,8 @@ interface ComputeMoveOptions {
 export abstract class ColliderNode extends DrawableSceneNode {
   public group: CollisionGroup;
 
-  public constructor(scene: IScene, name: string, group: CollisionGroup) {
-    super(scene, name);
+  public constructor(scene: IScene, name: string, group: CollisionGroup, parent?: SceneNode) {
+    super(scene, name, parent);
     if (group < 0 || group >= CollisionSystem.MaxCollisionGroups) {
       throw new Error(`Collision group must be in range 0-${CollisionSystem.MaxCollisionGroups - 1}`);
     }

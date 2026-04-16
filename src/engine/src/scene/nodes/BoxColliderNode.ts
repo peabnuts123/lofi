@@ -1,5 +1,5 @@
 import { Vector3 } from "@lofi/core/math/vector";
-import { type IScene } from "@lofi/engine/scene";
+import { SceneNode, type IScene } from "@lofi/engine/scene";
 import type { IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
 import { SATColliderNode } from "./SatColliderNode";
 import type { CollisionGroup } from "./ColliderNode";
@@ -34,8 +34,8 @@ export class BoxColliderNode extends SATColliderNode implements IWireframeDrawab
   /** Cached array to prevent allocations when recomputing vertices in world space */
   private _verticesWorldSpaceCache: Vector3[];
 
-  public constructor(scene: IScene, name: string, group: CollisionGroup, { x, y, z }: BoxColliderShapeConstructorArgs) {
-    super(scene, name, group);
+  public constructor(scene: IScene, name: string, group: CollisionGroup, { x, y, z }: BoxColliderShapeConstructorArgs, parent?: SceneNode) {
+    super(scene, name, group, parent);
     this.x = x;
     this.y = y;
     this.z = z;

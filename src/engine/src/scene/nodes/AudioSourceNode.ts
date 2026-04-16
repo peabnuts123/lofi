@@ -70,8 +70,8 @@ export class AudioSourceNode extends SceneNode {
    */
   private currentAudio: CurrentAudio | undefined = undefined;
 
-  public constructor(scene: IScene, name: string) {
-    super(scene, name);
+  public constructor(scene: IScene, name: string, parent?: SceneNode) {
+    super(scene, name, parent);
 
     // Default values
     this.global = false;

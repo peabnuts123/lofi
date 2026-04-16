@@ -1,8 +1,8 @@
 import { Matrix4 } from "@lofi/core/math/Matrix4";
-import type { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/vector";
 import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
-import type { MeshPrimitiveDefinition, NodeDefinition } from "@lofi/engine/loaders/definitions/model";
+import type { MeshPrimitiveDefinition, NodeDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
 import { Material } from "@lofi/engine/materials";
 
@@ -13,8 +13,10 @@ import type { ModelMaterialOverrides } from "./Model";
 
 export interface MeshNodeArgs {
   name: string;
+  transform: TransformDefinition;
   materialOverrides: ModelMaterialOverrides;
   meshPrimitiveCache: MeshPrimitiveCache;
+  parent?: MeshNode;
   meshPrimitiveDefinitions?: MeshPrimitiveDefinition[] | undefined;
   meshGeometry?: MeshGeometry | undefined;
 }
@@ -58,7 +60,7 @@ export class MeshPrimitiveCache {
       this.cache.set(primitive, materialCache);
     }
 
-    // If `material` is passed as undefined, we should never reach here, as ever mesh primitive
+    // If `material` is passed as undefined, we should never reach here, as every mesh primitive
     // is initialised with the a default entry through `init()`
     if (material === undefined) {
       throw new Error(`Unknown error. Mesh primitive has no instance with default material. Has 'init()' been called?`);
@@ -89,18 +91,28 @@ export class MeshNode {
   private _jointMatricesTmp: Matrix4[] | undefined;
   private _modelViewMatrixTmp: Matrix4 = new Matrix4();
 
-  private constructor({ name, meshPrimitiveCache, meshPrimitiveDefinitions, meshGeometry, materialOverrides }: MeshNodeArgs) {
+  private constructor({ name, transform, materialOverrides, meshPrimitiveCache, parent, meshPrimitiveDefinitions, meshGeometry }: MeshNodeArgs) {
     this.name = name;
     this.meshPrimitiveCache = meshPrimitiveCache;
     this.materialOverrides = materialOverrides;
     this.meshPrimitiveDefinitions = meshPrimitiveDefinitions;
     this.meshGeometry = meshGeometry;
-    this._transform = new Transform<MeshNode>(this);
+
+    this._transform = new Transform<MeshNode>(this, parent?.transform);
+    this._transform.position = transform.position;
+    this._transform.rotation.q = transform.rotation;
+    this._transform.scale = transform.scale;
   }
 
-  public createInstance(materialOverrides: ModelMaterialOverrides): MeshNode {
+  public createInstance(materialOverrides: ModelMaterialOverrides, parentInstance: MeshNode | undefined): MeshNode {
     const instance = new MeshNode({
       name: this.name,
+      transform: {
+        position: this.position,
+        rotation: this.rotation.q,
+        scale: this.scale,
+      },
+      parent: parentInstance,
       meshPrimitiveDefinitions: this.meshPrimitiveDefinitions,
       materialOverrides: materialOverrides,
       meshPrimitiveCache: this.meshPrimitiveCache,
@@ -144,11 +156,7 @@ export class MeshNode {
     }
   }
 
-  public addChild(child: MeshNode): void {
-    this.transform.addChild(child.transform);
-  }
-
-  public static async fromDefinition(engine: IEngine, definition: NodeDefinition, materialOverrides: ModelMaterialOverrides): Promise<MeshNode> {
+  public static async fromDefinition(engine: IEngine, definition: NodeDefinition, parent: MeshNode | undefined, materialOverrides: ModelMaterialOverrides): Promise<MeshNode> {
     const meshPrimitiveCache = new MeshPrimitiveCache(engine);
     let meshGeometry: MeshGeometry | undefined = undefined;
     if (definition.mesh) {
@@ -161,6 +169,8 @@ export class MeshNode {
 
     return new MeshNode({
       name: definition.name,
+      parent,
+      transform: definition.transform,
       materialOverrides,
       meshPrimitiveCache,
       meshPrimitiveDefinitions: definition.mesh?.primitives,

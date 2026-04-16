@@ -1,5 +1,5 @@
 import { Vector3 } from "@lofi/core/math/vector";
-import { DrawableSceneNode, type IScene } from "@lofi/engine/scene";
+import { DrawableSceneNode, SceneNode, type IScene } from "@lofi/engine/scene";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
 import type { Model, Triangle } from "@lofi/engine/models";
 import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
@@ -16,8 +16,8 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   private currentAnimation: Animation | undefined;
   private currentAnimationSpeed: number = 1;
 
-  public constructor(scene: IScene, name: string, model: Model) {
-    super(scene, name);
+  public constructor(scene: IScene, name: string, model: Model, parent?: SceneNode) {
+    super(scene, name, parent);
     this.model = model.createInstance(); // @TODO Probably going to need a way to "reset" this instance
     this._animationSource = model;
     this._verticesWorldSpaceTmp = model.allVertexPositions.map(() => Vector3.zero());

@@ -25,7 +25,7 @@ export const ZUpViewMatrixTransform = new Matrix4([
 
 export class CameraNode extends SceneNode {
   public fov: number;
-  public aspectRatio: number;
+  public aspectRatio: number; // @TODO remove, derive from canvas
   public near: number = 0.1;
   public far: number = 100;
 
@@ -35,8 +35,8 @@ export class CameraNode extends SceneNode {
 
   private pointAt_tmp = Vector3.zero();
 
-  public constructor(scene: IScene, name: string, fov: number, aspectRatio: number) {
-    super(scene, name);
+  public constructor(scene: IScene, name: string, fov: number, aspectRatio: number, parent?: SceneNode) {
+    super(scene, name, parent);
     this.fov = fov;
     this.aspectRatio = aspectRatio;
 
