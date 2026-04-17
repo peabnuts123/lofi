@@ -96,6 +96,7 @@ export class Computed<T> extends Observable {
     // Mark computed as dirty if additional dependencies have been added
     if (this.dependencies.length !== initialNumDependencies) {
       this.isDirty = true;
+      this.notifyOnChange();
     }
   }
 
@@ -118,6 +119,7 @@ export class Computed<T> extends Observable {
     // be different given fewer dependencies, thus we need to invalidate it.
     if (this.dependencies.length !== initialNumDependencies) {
       this.isDirty = true;
+      this.notifyOnChange();
     }
   }
 

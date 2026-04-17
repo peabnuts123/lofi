@@ -466,6 +466,99 @@ describe("Computed", () => {
     expect(isDirtyUpdated).toBe(false);
     expect(timesRecomputeCalledUpdated).toBe(1);
   });
+  test("Modifying a Computed's dependencies notifies downstream dependents, preventing stale reads", () => {
+    /*
+      Test written for a bug.
+      Scenario is: A computed whose logic depends on what kind of dependencies it has.
+      When its dependencies change, if it doesn't notify down the chain that it is dirty
+      you could cause dirty reads i.e. you might read a computed value that is dependent
+      on a dirty dependency without causing it to recompute.
+     */
+
+    // Setup
+    const source = new Widget(1, 2);
+    let extra: Widget | undefined = undefined;
+
+    /**
+     * A Computed with a dependency on `source` but also optionally
+     * a dependency on `extra`.
+     */
+    const middle = new Computed(new Widget(0, 0), {
+      debug_name: 'middle',
+      dependencies: [source],
+      recompute(value) {
+        let a = source.a + 1;
+        let b = source.b + 1;
+        if (extra) {
+          a += extra.a;
+          b += extra.b;
+        }
+        value.setValue(a, b);
+      },
+    });
+    const downstream = new Computed(new Widget(0, 0), {
+      debug_name: 'downstream',
+      dependencies: [middle],
+      recompute(value) {
+        value.setValue(middle.value.a + 2, middle.value.b + 2);
+      },
+    });
+
+    const initialMiddleValue = middle.value.clone();
+    const initialDownstreamValue = downstream.value.clone();
+
+    const beforeAddDependencyMiddleIsDirty = middle['isDirty'];
+    const beforeAddDependencyDownstreamIsDirty = downstream['isDirty'];
+
+    // Test
+    /* Define / add dependency */
+    extra = new Widget(10, 20);
+    middle.addDependency(extra);
+
+    const afterAddDependencyMiddleIsDirty = middle['isDirty'];
+    const afterAddDependencyDownstreamIsDirty = downstream['isDirty'];
+
+    const afterAddDependencyMiddleValue = middle.value.clone();
+    const afterAddDependencyDownstreamValue = downstream.value.clone();
+
+    const afterReadUpdatedValueMiddleIsDirty = middle['isDirty'];
+    const afterReadUpdatedValueDownstreamIsDirty = downstream['isDirty'];
+
+    /* Clear / remove dependency */
+    middle.removeDependency(extra);
+    extra = undefined;
+
+    const afterRemoveDependencyMiddleIsDirty = middle['isDirty'];
+    const afterRemoveDependencyDownstreamIsDirty = downstream['isDirty'];
+
+    const afterRemoveDependencyMiddleValue = middle.value.clone();
+    const afterRemoveDependencyDownstreamValue = downstream.value.clone();
+
+    const finalMiddleIsDirty = middle['isDirty'];
+    const finalDownstreamIsDirty = downstream['isDirty'];
+
+
+    // Assert
+    expect(initialMiddleValue).toEqual(new Widget(2, 3));
+    expect(initialDownstreamValue).toEqual(new Widget(4, 5));
+
+    expect(beforeAddDependencyMiddleIsDirty).toBe(false);
+    expect(beforeAddDependencyDownstreamIsDirty).toBe(false);
+
+    expect(afterAddDependencyMiddleIsDirty).toBe(true);
+    expect(afterAddDependencyDownstreamIsDirty).toBe(true);
+    expect(afterAddDependencyMiddleValue).toEqual(new Widget(12, 23));
+    expect(afterAddDependencyDownstreamValue).toEqual(new Widget(14, 25));
+    expect(afterReadUpdatedValueMiddleIsDirty).toBe(false);
+    expect(afterReadUpdatedValueDownstreamIsDirty).toBe(false);
+
+    expect(afterRemoveDependencyMiddleIsDirty).toBe(true);
+    expect(afterRemoveDependencyDownstreamIsDirty).toBe(true);
+    expect(afterRemoveDependencyMiddleValue).toEqual(new Widget(2, 3));
+    expect(afterRemoveDependencyDownstreamValue).toEqual(new Widget(4, 5));
+    expect(finalMiddleIsDirty).toBe(false);
+    expect(finalDownstreamIsDirty).toBe(false);
+  });
   test("Transitive dependencies cause correct recomputation", () => {
     // Setup
     const source = new Widget(1, 2);
