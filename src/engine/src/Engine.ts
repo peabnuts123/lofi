@@ -99,6 +99,7 @@ export class Engine implements IEngine {
   private cameraUbo: CameraUbo;
   private lightingUbo: LightingUbo;
 
+  // @TODO Expose canvas aspect ratio and also somehow a method of listening to it
   public constructor(canvas: HTMLCanvasElement, fileSystem: IFileSystem, options?: DeepPartial<EngineConfig>) {
     this.canvas = canvas;
     this.fileSystem = fileSystem;
@@ -329,7 +330,7 @@ export class Engine implements IEngine {
         if (textureSamplerUniform && task.material.diffuseTexture) {
           const textureIndex = 0; // @TODO ?
           gl.activeTexture(gl.TEXTURE0 + textureIndex);
-          gl.bindTexture(gl.TEXTURE_2D, task.material.diffuseTexture.texture);
+          gl.bindTexture(gl.TEXTURE_2D, task.material.diffuseTexture.glTexture);
           gl.uniform1i(textureSamplerUniform, textureIndex);
         } else {
           gl.bindTexture(gl.TEXTURE_2D, null);

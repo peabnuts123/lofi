@@ -1,230 +1,390 @@
-// import { ImporterObj, type Mesh, type Triangle as TriangleDefinition, type Model, type Vector2, type ImportCallbacks } from 'online-3d-viewer/source/engine/import/importerobj';
+import {
+  ImporterObj,
+  type Mesh,
+  type Triangle as TriangleObj,
+  type Model as ModelObj,
+  type ImportCallbacks,
+  type Node as NodeObj,
+  type Material as MaterialObj,
+} from 'online-3d-viewer/source/engine/import/importerobj';
 
-// // import type { Vector3Definition } from '@lofi/core/math/vector';
-// // import type { Color3Definition } from '@lofi/core/math/Color3';
-// // import type { SubMeshDefinition } from '@lofi/engine/models/SubMesh';
-// // import type { MaterialDefinition } from '@lofi/engine/materials/Material';
-// import { canonicalisePath, getFileExtension } from '@lofi/core/util/path';
-// import type { IFileSystem } from '@lofi/engine/filesystem';
-// import type { ModelDefinition } from './definitions';
-// import type { ModelLoader } from './ModelLoader';
-// // import type { ModelDefinition, TextureCoordinate, TriangleIndices } from '@lofi/engine/models';
+import { Vector3, type Vector3Definition, type Vector2Like } from '@lofi/core/math/vector';
+import { Quaternion } from '@lofi/core/math/Quaternion';
+import { Color4 } from '@lofi/core/math/Color4';
+import { canonicalisePath, getFileExtension } from '@lofi/core/util/path';
+import type { Color3Definition } from '@lofi/core/math/Color3';
+import type { IFileSystem, VirtualFile } from '@lofi/engine/filesystem';
 
-// // interface VertexInfo {
-// //   position: Vector3Definition;
-// //   normal: Vector3Definition | undefined;
-// //   color: Color3Definition | undefined;
-// //   textureCoordinate: TextureCoordinate | undefined;
-// //   materialIndex: number;
-// // }
+import type {
+  MaterialDefinition,
+  MeshPrimitiveDefinition,
+  ModelDefinition,
+  NodeDefinition,
+} from './definitions';
+import { Texture } from '../textures';
 
-// function canonicaliseDependencyPath(objPath: string, path: string): string {
-//   if (path.startsWith('/')) {
-//     // `path` is absolute
-//     return path;
-//   } else {
-//     // `path` is relative, resolve it relative to `objPath`
-//     return canonicalisePath(`${objPath}/../${path}`);
-//   }
-// }
+export class ObjLoader {
+  private readonly objPath: string;
+  private readonly filesystem: IFileSystem;
+  private readonly parsedObj: ModelObj;
 
-// function loadVertex(
-//   objMesh: Mesh,
-//   vertexData: VertexInfo[],
-//   triangle: TriangleDefinition,
-//   vertexIndex: number,
-//   materialIndex: number,
-// ): void {
-//   /**
-//    * Look up a value in `collection` based on a given property in `triangle`.
-//    * @example
-//    * ```
-//    * prefix = 'n'
-//    * vertexIndex = 0
-//    * => property = 'n0'
-//    * => index = triangle['n0']
-//    * => collection[index]
-//    * ```
-//    * e.g. prefix 'n' => `triangle.n0` => `collection[triangle.n0]`
-//    * @param collection The collection to dereference based on the index stored in the property on `triangle`
-//    * @param prefix Prefix of the property name on `triangle` e.g. `'n' => n0`
-//    */
-//   function dereference<T, TArray extends Array<T>>(collection: TArray, prefix: string): T | undefined;
-//   function dereference<T, TArray extends Array<T>, TResult>(collection: TArray, prefix: string, map: (result: T) => TResult): TResult | undefined;
-//   function dereference<T, TArray extends Array<T>, TResult = T>(collection: TArray, prefix: string, map?: (result: T) => TResult): TResult | undefined {
-//     const index = triangle[`${prefix}${vertexIndex}` as keyof TriangleDefinition];
-//     if (index === null) {
-//       return undefined;
-//     } else {
-//       const result = collection[index];
-//       if (map !== undefined) {
-//         return map(result);
-//       } else {
-//         return result as unknown as TResult; // @NOTE Type laundering
-//       }
-//     }
-//   };
+  private readonly materialCache: Map<number, Promise<MaterialDefinition | undefined>>;
 
-//   vertexData.push({
-//     position: dereference(objMesh.vertices, 'v')!, // @NOTE position is always defined
-//     normal: dereference(objMesh.normals, 'n'),
-//     color: dereference(objMesh.vertexColors, 'c'),
-//     textureCoordinate: dereference(objMesh.uvs, 'u', (uv: Vector2) => ({
-//       u: uv.x,
-//       v: uv.y,
-//     })),
-//     materialIndex,
-//   });
-// }
+  private constructor(objPath: string, filesystem: IFileSystem, parsedObj: ModelObj) {
+    this.objPath = objPath;
+    this.filesystem = filesystem;
+    this.parsedObj = parsedObj;
+    this.materialCache = new Map();
+  }
 
-// export abstract class ObjLoader {
-//   public static async loadModel(objPath: string, filesystem: IFileSystem): Promise<ModelDefinition> {
-//     const objFile = await filesystem.readFile(objPath);
+  public static async loadModel(objPath: string, filesystem: IFileSystem): Promise<ModelDefinition> {
+    const objFile = await filesystem.readFile(objPath);
 
-//     function parseObjFile(callbacks: Partial<ImportCallbacks>): Promise<Model> {
-//       return new Promise((resolve, reject) => {
-//         const importer = new ImporterObj();
-//         importer.Import("model", ".obj", objFile.bytes, {
-//           onSuccess() { },
-//           getFileBuffer(): Uint8Array | undefined { return undefined; },
-//           getDefaultLineMaterialColor() { return undefined; },
-//           getDefaultMaterialColor() { return undefined; },
-//           onComplete() {
-//             resolve(importer.model);
-//           },
-//           onError(...args: unknown[]): void {
-//             console.error(`[ObjLoader] (Importer.onError):`, args);
-//             // @TODO figure out argument types (test with a bad .obj or something)
-//             reject(new Error(`Failed to parsed obj: ${args.map(x => Object.toString.call(x)).join(', ')}`));
-//           },
-//           ...callbacks,
-//         });
-//       });
-//     }
+    const knownFiles: Record<string, Uint8Array> = {};
+    let newFilePaths: string[] = [];
+    let parsedObj: ModelObj;
 
-//     const knownFiles: Record<string, Uint8Array> = {};
-//     let newFilePaths: string[] = [];
-//     let parsedModel: Model;
+    // @NOTE `online-3d-viewer` loader is not async, so we have to work around it :/
+    // Re-parse .obj repeatedly until we've successfully parsed all dependencies (e.g. .mtl, or textures)
+    do {
+      // Read .obj, collect any new dependency file paths
+      newFilePaths = [];
+      parsedObj = await this.parseObjFile(objFile, {
+        getFileBuffer(filePath: string): Uint8Array | undefined {
+          filePath = canonicaliseDependencyPath(objPath, filePath);
 
-//     // @NOTE `online-3d-viewer` loader is not async, so we have to work around it :/
-//     // Re-parse .obj repeatedly until we've successfully parsed all dependencies (e.g. .mtl, or textures)
-//     do {
-//       // Read .obj, collect any new dependency file paths
-//       newFilePaths = [];
-//       parsedModel = await parseObjFile({
-//         getFileBuffer(filePath: string): Uint8Array | undefined {
-//           filePath = canonicaliseDependencyPath(objPath, filePath);
+          const fileExt = getFileExtension(filePath).toLocaleLowerCase();
 
-//           const fileExt = getFileExtension(filePath).toLocaleLowerCase();
+          // @NOTE Only look up .mtl files
+          // We could look up EVERY file here (including textures) and
+          //  they will be parsed, but we don't even use them in this loader
+          //  so it is a waste.
+          // @TODO texture dependencies
+          if (knownFiles[filePath] === undefined) {
+            // @DEBUG
+            console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) Encountered .obj dependency: ${filePath}`);
+          }
+          if (fileExt === '.mtl' && knownFiles[filePath] === undefined) {
+            newFilePaths.push(filePath);
+            return undefined;
+          } else {
+            return knownFiles[filePath];
+          }
+        },
+      });
 
-//           // @NOTE Only look up .mtl files
-//           // We could look up EVERY file here (including textures) and
-//           //  they will be parsed, but we don't even use them in this loader
-//           //  so it is a waste.
-//           if (fileExt === '.mtl' && knownFiles[filePath] === undefined) {
-//             newFilePaths.push(filePath);
-//             return undefined;
-//           } else {
+      // Read new dependency files
+      if (newFilePaths.length > 0) {
+        const newFiles = await Promise.all(newFilePaths.map((path) =>
+          filesystem.readFile(path)
+            .then((file) => ({
+              path,
+              bytes: file.bytes,
+            })),
+        ));
+        for (const { path, bytes } of newFiles) {
+          knownFiles[path] = bytes;
+        }
+      }
+    } while (newFilePaths.length > 0);
 
-//             return knownFiles[filePath];
-//           }
-//         },
-//       });
+    console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) parsedModel:`, parsedObj);
 
-//       // Read new dependency files
-//       if (newFilePaths.length > 0) {
-//         const newFiles = await Promise.all(newFilePaths.map((path) =>
-//           filesystem.readFile(path)
-//             .then((file) => ({
-//               path,
-//               bytes: file.bytes,
-//             })),
-//         ));
-//         for (const { path, bytes } of newFiles) {
-//           knownFiles[path] = bytes;
-//         }
-//       }
-//     } while (newFilePaths.length > 0);
+    const loader = new ObjLoader(objPath, filesystem, parsedObj);
 
-//     console.log(`[DEBUG] [ObjLoader] (loadModel) parsedModel:`, parsedModel);
+    const rootNodeDefinition = await loader.parseNode(parsedObj.root);
 
-//     // @NOTE @ASSUMPTION: objects always have exactly 1 root mesh
-//     // @TODO they probably don't. There's no harm in iterating through them, since we are just returning
-//     //  a collection of submeshes anyway.
-//     // @TODO also `root` has a tree of nodes. We might just want to iterate `meshes[]` instead.
-//     const objMesh = parsedModel.meshes[parsedModel.root.meshIndices[0]];
+    console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) rootNodeDefinition:`, rootNodeDefinition);
 
-//     // Mesh data is grouped by material
-//     const groupedVertexData: Record<string, VertexInfo[]> = {};
-//     const groupedTriangleData: Record<string, TriangleIndices[]> = {};
-//     const groupedMaterialData: Record<string, MaterialDefinition> = {};
+    // @NOTE For ease of authoring, expect .obj to be exported with +Y-up. Convert to +Z-up by rotating along X.
+    rootNodeDefinition.transform.rotation.multiplySelf(Quaternion.fromAxisAngle(Vector3.right(), 90));
 
-//     for (const triangle of objMesh.triangles) {
-//       // Triangles with no material assigned to default group `-1`
-//       const materialIndex = triangle.mat ?? -1;
+    return {
+      rootNodes: [rootNodeDefinition],
+      animations: [],
+      // @TODO Textures or whatever
+    };
+  }
 
-//       /* Vertex data */
-//       const vertexData = groupedVertexData[materialIndex] ??= [];
-//       // @NOTE Flip winding order 0 -> 2 -> 1
-//       // @TODO might need to implement this as an option
-//       loadVertex(objMesh, vertexData, triangle, 0, materialIndex);
-//       loadVertex(objMesh, vertexData, triangle, 2, materialIndex);
-//       loadVertex(objMesh, vertexData, triangle, 1, materialIndex);
+  private static parseObjFile(objFile: VirtualFile, callbacks: Partial<ImportCallbacks>): Promise<ModelObj> {
+    return new Promise((resolve, reject) => {
+      const importer = new ImporterObj();
+      importer.Import("model", ".obj", objFile.bytes, {
+        onSuccess() { },
+        getFileBuffer(): Uint8Array | undefined { return undefined; },
+        getDefaultLineMaterialColor() { return undefined; },
+        getDefaultMaterialColor() { return undefined; },
+        onComplete() {
+          resolve(importer.model);
+        },
+        onError(...args: unknown[]): void {
+          console.error(`[ObjLoader] (Importer.onError):`, args);
+          // @TODO figure out argument types (test with a bad .obj or something)
+          reject(new Error(`Failed to parsed obj: ${args.map(x => Object.toString.call(x)).join(', ')}`));
+        },
+        ...callbacks,
+      });
+    });
+  }
 
-//       /* Triangle data */
-//       const triangles = groupedTriangleData[materialIndex] ??= [];
-//       triangles.push([vertexData.length - 1, vertexData.length - 2, vertexData.length - 3]);
+  private async parseNode(node: NodeObj): Promise<NodeDefinition> {
+    const definition: NodeDefinition = {
+      name: node.name,
+      transform: {
+        position: Vector3.zero(),
+        rotation: Quaternion.identity(),
+        scale: Vector3.one(),
+      },
+      children: await Promise.all(
+        node.childNodes
+          .map((childNode) => this.parseNode(childNode)),
+      ),
+    };
 
-//       /* Material data */
-//       if (materialIndex !== -1) {
-//         // Material exists
-//         groupedMaterialData[materialIndex] ??= {
-//           name: parsedModel.materials[materialIndex].name,
-//           diffuseColor: {
-//             r: parsedModel.materials[materialIndex].color.r,
-//             g: parsedModel.materials[materialIndex].color.g,
-//             b: parsedModel.materials[materialIndex].color.b,
-//             a: 0xFF,
-//           },
-//           diffuseTexturePath: parsedModel.materials[materialIndex].diffuseMap ?
-//             canonicaliseDependencyPath(objPath, parsedModel.materials[materialIndex].diffuseMap.name) :
-//             undefined,
-//         };
-//       } else {
-//         // Default material / no material
-//         groupedMaterialData[materialIndex] ??= { name: 'default' };
-//       }
-//     }
+    const meshPrimitiveDefinitions = await Promise.all(
+      node.meshIndices
+        .map((meshIndex) => this.parseMesh(this.parsedObj.meshes[meshIndex])),
+    );
 
-//     function getVertexProperty<TProperty>(vertexData: VertexInfo[], selector: (vertex: VertexInfo) => TProperty): NonNullable<TProperty>[] | undefined {
-//       // @NOTE @ASSUMPTION Either every property is defined, or none of them are.
-//       // If the first vertex is lacking the property, it's assumed no vertices have it.
-//       // If the first vertex does have the property, it's assumed every vertex has it.
-//       if (vertexData.length === 0) {
-//         return undefined;
-//       } else if (selector(vertexData[0]) === undefined) {
-//         return undefined;
-//       } else {
-//         return vertexData.map((vertex) => selector(vertex) as NonNullable<TProperty>);
-//       }
-//     }
+    if (node.meshIndices.length > 0) {
+      definition.mesh = {
+        primitives: meshPrimitiveDefinitions.flat(),
+      };
+    }
 
-//     return {
-//       subMeshes: Object.keys(groupedVertexData).map((materialIndex) => {
-//         const vertexData = groupedVertexData[materialIndex];
-//         const triangleData = groupedTriangleData[materialIndex];
-//         const material = groupedMaterialData[materialIndex];
-//         return {
-//           geometry: {
-//             vertexPositions: getVertexProperty(vertexData, (vertex) => vertex.position)!,
-//             vertexColors: getVertexProperty(vertexData, (vertex) => vertex.color),
-//             vertexNormals: getVertexProperty(vertexData, (vertex) => vertex.normal),
-//             textureCoordinates: getVertexProperty(vertexData, (vertex) => vertex.textureCoordinate),
-//             triangles: triangleData,
-//           },
-//           material,
-//         } satisfies SubMeshDefinition;
-//       }),
-//     };
-//   };
-// }
+    return definition;
+  }
+
+  private async parseMesh(mesh: Mesh): Promise<MeshPrimitiveDefinition[]> {
+    const groupedPrimitiveData = new Map<number, {
+      positions: Vector3Definition[],
+      normals: Vector3Definition[],
+      colors: Color3Definition[],
+      texCoords: Vector2Like[],
+    }>();
+
+    for (const triangle of mesh.triangles) {
+      const materialId = triangle.mat ?? -1;
+      let primitiveData = groupedPrimitiveData.get(materialId);
+      if (!primitiveData) {
+        primitiveData = {
+          positions: [],
+          normals: [],
+          colors: [],
+          texCoords: [],
+        };
+        groupedPrimitiveData.set(materialId, primitiveData);
+      }
+
+      for (const vertexIndex of [0, 1, 2]) {
+        // @NOTE @ASSUMPTION Positions are always defined
+        const position = this.dereferenceTriangle(triangle, vertexIndex, mesh.vertices, 'v')!;
+        primitiveData.positions.push(position);
+
+        const normal = this.dereferenceTriangle(triangle, vertexIndex, mesh.normals, 'n');
+        if (normal) primitiveData.normals.push(normal);
+
+        const color = this.dereferenceTriangle(triangle, vertexIndex, mesh.vertexColors, 'c');
+        if (color) primitiveData.colors.push(color);
+
+        // @NOTE Invert texture coord since .obj seems to have inverted
+        // coordinate space compared to WebGL
+        const texCoord = this.dereferenceTriangle(triangle, vertexIndex, mesh.uvs, 'u');
+        if (texCoord) primitiveData.texCoords.push({
+          x: texCoord.x,
+          y: -texCoord.y,
+        });
+      }
+    }
+
+    const primitiveDefinitions: MeshPrimitiveDefinition[] = [];
+
+    for (const [materialId, primitiveData] of groupedPrimitiveData) {
+      /* Calculate extents */
+      let minPosition: Vector3 | undefined = undefined;
+      let maxPosition: Vector3 | undefined = undefined;
+      for (const position of primitiveData.positions) {
+        if (minPosition === undefined) minPosition = new Vector3(position.x, position.y, position.z);
+        if (maxPosition === undefined) maxPosition = new Vector3(position.x, position.y, position.z);
+
+        if (position.x < minPosition.x) minPosition.x = position.x;
+        if (position.x > maxPosition.x) maxPosition.x = position.x;
+        if (position.y < minPosition.y) minPosition.y = position.y;
+        if (position.y > maxPosition.y) maxPosition.y = position.y;
+        if (position.z < minPosition.z) minPosition.z = position.z;
+        if (position.z > maxPosition.z) maxPosition.z = position.z;
+      }
+      minPosition ??= Vector3.zero();
+      maxPosition ??= Vector3.zero();
+
+
+      /* Create primitive definition */
+      const primitiveDefinition: MeshPrimitiveDefinition = {
+        mode: WebGL2RenderingContext.TRIANGLES,
+        positionData: {
+          buffer: new Float32Array(primitiveData.positions.flatMap((vertex) => [vertex.x, vertex.y, vertex.z])),
+          componentCount: 3,
+          componentType: WebGL2RenderingContext.FLOAT,
+          componentSize: 4,
+          normalized: false,
+        },
+        extents: {
+          min: minPosition,
+          max: maxPosition,
+        },
+        material: await this.getCachedMaterial(materialId),
+      };
+
+      if (primitiveData.normals.length > 0) {
+        primitiveDefinition.normalData = {
+          buffer: new Float32Array(primitiveData.normals.flatMap((vertex) => [vertex.x, vertex.y, vertex.z])),
+          componentCount: 3,
+          componentType: WebGL2RenderingContext.FLOAT,
+          componentSize: 4,
+          normalized: false,
+        };
+      }
+      if (primitiveData.texCoords.length > 0) {
+        primitiveDefinition.texCoord0Data = {
+          buffer: new Float32Array(primitiveData.texCoords.flatMap((vertex) => [vertex.x, vertex.y])),
+          componentCount: 2,
+          componentType: WebGL2RenderingContext.FLOAT,
+          componentSize: 4,
+          normalized: false,
+        };
+      }
+      if (primitiveData.colors.length > 0) {
+        primitiveDefinition.color0Data = {
+          // @TODO will they be normalized or what?
+          buffer: new Float32Array(primitiveData.colors.flatMap((vertex) => [vertex.r, vertex.g, vertex.b])),
+          componentCount: 3,
+          componentType: WebGL2RenderingContext.FLOAT,
+          componentSize: 4,
+          normalized: false,
+        };
+      }
+
+      primitiveDefinitions.push(primitiveDefinition);
+    }
+
+    return primitiveDefinitions;
+  }
+
+  /**
+   * Look up a value in `collection` based on a given property in `triangle`.
+   * @example
+   * ```
+   * prefix = 'n'
+   * vertexIndex = 0
+   * => property = 'n0'
+   * => index = triangle['n0']
+   * => collection[index]
+   * ```
+   * e.g. prefix 'n' => `triangle.n0` => `collection[triangle.n0]`
+   * @param triangle The triangle from which to read data.
+   * @param vertexIndex Index of the specific vertex to read.
+   * @param collection The collection to dereference based on the index stored in the property on `triangle`.
+   * @param prefix Prefix of the property name on `triangle` e.g. `'n' => n0`.
+   */
+  private dereferenceTriangle<T>(triangle: TriangleObj, vertexIndex: number, collection: T[], prefix: string): T | undefined;
+  private dereferenceTriangle<T, TResult>(triangle: TriangleObj, vertexIndex: number, collection: T[], prefix: string, map: (result: T) => TResult): TResult | undefined;
+  private dereferenceTriangle<T, TResult = T>(triangle: TriangleObj, vertexIndex: number, collection: T[], prefix: string, map?: (result: T) => TResult): TResult | undefined {
+    const index = triangle[`${prefix}${vertexIndex}` as keyof TriangleObj];
+    if (index === null) {
+      return undefined;
+    } else {
+      const result = collection[index];
+      if (map !== undefined) {
+        return map(result);
+      } else {
+        return result as unknown as TResult; // @NOTE Type laundering
+      }
+    }
+  };
+
+  private async getCachedMaterial(materialId: number): Promise<MaterialDefinition | undefined> {
+    const cachedMaterial = this.materialCache.get(materialId);
+    if (cachedMaterial) {
+      return await cachedMaterial;
+    } else {
+      const materialDefinitionPromise = new Promise<MaterialDefinition | undefined>((resolve) => {
+        const materialObj = this.parsedObj.materials[materialId];
+        if (materialObj !== undefined) {
+          void this.parseMaterial(materialObj).then(resolve);
+        } else {
+          resolve(undefined);
+        }
+      });
+      this.materialCache.set(materialId, materialDefinitionPromise);
+      return materialDefinitionPromise;
+    }
+  }
+
+  private async parseMaterial(materialObj: MaterialObj): Promise<MaterialDefinition> {
+    // Binding material definition from `online-3d-viewer` library.
+    // @NOTE I wouldn't say that `online-3d-viewer` is great at parsing .mtl
+    // so there is quite a lot of workaround logic here.
+
+    const materialDefinition: MaterialDefinition = {
+      name: materialObj.name,
+      // Assume material is opaque to start with
+      alpha: { mode: 'OPAQUE' },
+      // Read diffuse color + opacity into Color4
+      diffuseColor: new Color4(materialObj.color.r, materialObj.color.g, materialObj.color.b, materialObj.opacity * 0xFF),
+    };
+
+    // If material's opacity is < 1 then `transparent` is true
+    // This doesn't acknowledge whether the texture has any alpha,
+    // or whether there's an alpha map set, etc. It's based purely
+    // on opacity (`d` property`).
+    // But if it IS specified, we'll use it.
+    if (materialObj.transparent) {
+      materialDefinition.alpha = { mode: 'BLEND' };
+    }
+
+    // Bind diffuse texture
+    if (materialObj.diffuseMap) {
+      // Read texture from filesystem, since `diffuseMap.buffer` doesn't seem to be set
+      // @NOTE @ASSUMPTION textures will always be addressed relative to .obj
+      const texturePath = canonicaliseDependencyPath(this.objPath, materialObj.diffuseMap.name);
+      const textureFile = await this.filesystem.readFile(texturePath);
+      materialDefinition.diffuseTexture = {
+        buffer: textureFile.bytes,
+        texCoord: 0,
+      };
+
+      // Decode and scan texture for transparent pixels as the ultimate check
+      // of whether this material is transparent or not
+      if (materialDefinition.alpha.mode === 'OPAQUE') {
+        const textureData = await Texture.decodeBuffer(textureFile.bytes);
+        for (let i = 0; i < textureData.data.length; i += 4) {
+          if (textureData.data[i + 3] < 0xFF) {
+            console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) Material '${materialObj.name}' is transparent because its diffuse texture has at least 1 transparent pixel.`);
+            materialDefinition.alpha = { mode: 'BLEND' };
+            break;
+          }
+        }
+      }
+    }
+
+    // Special "for fun" flag `multiplyDiffuseMap` seems to specify whether (if
+    // a diffuse texture is defined) whether it should be blended with the
+    // diffuse colour. We HAVE to honour this because the .obj library
+    // will default diffuse color black if not specified.
+    if (materialObj.diffuseMap && materialObj.multiplyDiffuseMap === false) {
+      materialDefinition.diffuseColor = Color4.white().withA(materialObj.opacity * 0xFF);
+    }
+
+    return materialDefinition;
+  }
+}
+
+function canonicaliseDependencyPath(objPath: string, path: string): string {
+  if (path.startsWith('/')) {
+    // `path` is absolute
+    return path;
+  } else {
+    // `path` is relative, resolve it relative to `objPath`
+    return canonicalisePath(`${objPath}/../${path}`);
+  }
+}

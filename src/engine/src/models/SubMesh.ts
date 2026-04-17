@@ -250,8 +250,7 @@ export class SubMesh {
         gl.drawElements(mode, elementCount, elementType, 0);
       };
     } else {
-      // @TODO How many things?
-      const count = primitive.positionData.buffer.length; // @TODO This is just a guess, untested
+      const count = primitive.positionData.buffer.length / primitive.positionData.componentCount;
       drawPrimitive = () => {
         gl.drawArrays(primitive.mode, 0, count);
       };

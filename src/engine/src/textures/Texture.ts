@@ -1,15 +1,24 @@
 import type { IEngine } from "@lofi/engine/Engine";
 
 export class Texture {
-  public readonly texture: WebGLTexture;
-  private constructor(engine: IEngine, texImage2d: () => void) {
+  public readonly glTexture: WebGLTexture;
+  private readonly bitmap: ImageBitmap;
+
+  private constructor(engine: IEngine, bitmap: ImageBitmap) {
     const { gl } = engine;
 
-    this.texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    this.bitmap = bitmap;
+    this.glTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.glTexture);
 
-    // @NOTE Callback, assumed to call gl.texImage2D()
-    texImage2d();
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      bitmap,
+    );
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -18,35 +27,31 @@ export class Texture {
   }
 
   public static async load(engine: IEngine, path: string): Promise<Texture> {
-    const { gl } = engine;
     const textureFile = await engine.fileSystem.readFile(path);
     const blob = new Blob([textureFile.bytes as Uint8Array<ArrayBuffer>]);
-    const bitmap = await window.createImageBitmap(blob, { imageOrientation: "flipY" });
-    return new Texture(engine, () => {
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        bitmap,
-      );
-    });
+    const bitmap = await window.createImageBitmap(blob);
+    return new Texture(engine, bitmap);
   }
 
   public static async loadFromBuffer(engine: IEngine, buffer: Uint8Array): Promise<Texture> {
-    const { gl } = engine;
     const blob = new Blob([buffer as Uint8Array<ArrayBuffer>]);
-    const bitmap = await window.createImageBitmap(blob, {  });
-    return new Texture(engine, () => {
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        bitmap,
-      );
-    });
+    const bitmap = await window.createImageBitmap(blob);
+    return new Texture(engine, bitmap);
+  }
+
+  public static async decodeBuffer(buffer: Uint8Array): Promise<ImageData> {
+    const blob = new Blob([buffer as Uint8Array<ArrayBuffer>]);
+    const bitmap = await window.createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(bitmap, 0, 0);
+    return ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+  }
+
+  public getRawBytes(): ImageData {
+    const canvas = new OffscreenCanvas(this.bitmap.width, this.bitmap.height);
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(this.bitmap, 0, 0);
+    return ctx.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
   }
 }

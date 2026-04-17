@@ -6,12 +6,22 @@ import type { Vector3 } from "@lofi/core/math/vector";
 
 import type { AnimationDefinition } from "./animation";
 import type { MaterialDefinition } from "./material";
+import type { VirtualFile } from "@lofi/engine/filesystem";
 
+export interface ModelDefinitionDependency {
+  path: string;
+  file: VirtualFile;
+}
 export interface ModelDefinition {
   /* @TODO Rename to `modelParts`? or `model: { parts: [] }` or something? */
   /* @TODO should it be flat? */
   rootNodes: NodeDefinition[];
-  animations: AnimationDefinition[];
+  animations: AnimationDefinition[]; // @TODO nullable
+  // @TODO Consider exposing all the materials in a flat list
+  dependencies?: {
+    textures?: ModelDefinitionDependency[];
+    // @TODO non-texture dependencies (e.g. .bin, .mtl)
+  },
 }
 
 export interface TransformDefinition {

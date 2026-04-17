@@ -18,6 +18,7 @@ import type {
   MeshDefinition,
   MeshPrimitiveDefinition,
   ModelDefinition,
+  ModelDefinitionDependency,
   NodeDefinition,
   SkinDefinition,
 } from './definitions';
@@ -71,6 +72,8 @@ export abstract class GltfLoader {
 
     const io = new WebIO({ credentials: 'include' });
 
+    const textureDependencies: ModelDefinitionDependency[] = [];
+
     let document: Document;
     if (isGlb) {
       document = await io.readBinary(fileBytes.bytes);
@@ -78,7 +81,9 @@ export abstract class GltfLoader {
       const gltfJson = JSON.parse(fileBytes.textContent) as GLTF.IGLTF;
       const resources: Record<string, Uint8Array> = {};
 
-      async function preloadGltfDependency(uri: string): Promise<void> {
+      type GltfDependencyKind = 'bin' | 'image';
+
+      async function preloadGltfDependency(uri: string, kind: GltfDependencyKind): Promise<void> {
         let path: string;
         if (uri.startsWith('/')) {
           // URI is absolute, relative to FS root (I guess)
@@ -88,6 +93,14 @@ export abstract class GltfLoader {
           path = canonicalisePath(`${gltfPath}/../${uri}`);
         }
         const file = await filesystem.readFile(path);
+
+        if (kind === 'image') {
+          textureDependencies.push({
+            path,
+            file,
+          });
+        }
+
         resources[uri] = file.bytes;
       }
 
@@ -95,7 +108,7 @@ export abstract class GltfLoader {
       if (gltfJson.images) {
         for (const image of gltfJson.images) {
           if (image.uri !== undefined && !image.uri.startsWith('data:')) {
-            dependencyPromises.push(preloadGltfDependency(image.uri));
+            dependencyPromises.push(preloadGltfDependency(image.uri, 'image'));
           }
         }
       }
@@ -103,7 +116,7 @@ export abstract class GltfLoader {
       if (gltfJson.buffers) {
         for (const buffer of gltfJson.buffers) {
           if (buffer.uri !== undefined && !buffer.uri.startsWith('data:')) {
-            dependencyPromises.push(preloadGltfDependency(buffer.uri));
+            dependencyPromises.push(preloadGltfDependency(buffer.uri, 'bin'));
           }
         }
       }
@@ -525,6 +538,9 @@ export abstract class GltfLoader {
     return {
       rootNodes: rootNodeDefinitions,
       animations: allAnimationDefinitions,
+      dependencies: {
+        textures: textureDependencies,
+      },
     };
   }
 }

@@ -5,9 +5,9 @@ import { Quaternion } from "./Quaternion";
 
 // @TODO Split into Vector2, Vector3, etc.
 
-type AnyVector = Vector3 | Vector2;
+export type AnyVector = Vector3 | Vector2;
 
-// @TODO Rename to `Vector3Like`
+// @TODO Rename to `Vector3Like`  (Or what about we rename `Vector2Like` to definition?)
 export interface Vector3Definition {
   x: number;
   y: number;
