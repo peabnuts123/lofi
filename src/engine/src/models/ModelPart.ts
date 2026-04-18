@@ -2,28 +2,28 @@ import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Vector3 } from "@lofi/core/math/vector";
 import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
-import type { MeshPrimitiveDefinition, NodeDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
+import type { MeshPrimitiveDefinition, ModelPartDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
 import { Material } from "@lofi/engine/materials";
 
-import { SubMesh } from "./SubMesh";
+import { MeshPrimitive } from "./MeshPrimitive";
 import type { MeshSkin } from "./MeshSkin";
 import { MeshGeometry, type Edge, type EdgeIndices, type Triangle, type TriangleIndices } from "./MeshGeometry";
 import type { ModelMaterialOverrides } from "./Model";
 
-export interface MeshNodeArgs {
+export interface ModelPartConstructorArgs {
   name: string;
   transform: TransformDefinition;
   materialOverrides: ModelMaterialOverrides;
   meshPrimitiveCache: MeshPrimitiveCache;
-  parent?: MeshNode;
+  parent?: ModelPart;
   meshPrimitiveDefinitions?: MeshPrimitiveDefinition[] | undefined;
   meshGeometry?: MeshGeometry | undefined;
 }
 
 export class MeshPrimitiveCache {
   private engine: IEngine;
-  private cache: Map<MeshPrimitiveDefinition, Map<Material | undefined, SubMesh>>;
+  private cache: Map<MeshPrimitiveDefinition, Map<Material | undefined, MeshPrimitive>>;
 
   public constructor(engine: IEngine) {
     this.engine = engine;
@@ -42,13 +42,13 @@ export class MeshPrimitiveCache {
       this.cache.set(primitive, materialCache);
     }
 
-    const primitiveInstance = SubMesh.fromDefinition(engine, primitive, material);
+    const primitiveInstance = MeshPrimitive.fromDefinition(engine, primitive, material);
 
     // @NOTE Bind default material to `undefined`
     materialCache.set(undefined, primitiveInstance);
   }
 
-  public getOrCreate(primitive: MeshPrimitiveDefinition, material: Material | undefined): SubMesh {
+  public getOrCreate(primitive: MeshPrimitiveDefinition, material: Material | undefined): MeshPrimitive {
     let materialCache = this.cache.get(primitive);
     if (materialCache) {
       const instance = materialCache.get(material);
@@ -66,21 +66,20 @@ export class MeshPrimitiveCache {
       throw new Error(`Unknown error. Mesh primitive has no instance with default material. Has 'init()' been called?`);
     }
 
-    const newInstance = SubMesh.fromDefinition(this.engine, primitive, material);
+    const newInstance = MeshPrimitive.fromDefinition(this.engine, primitive, material);
     materialCache.set(material, newInstance);
 
     return newInstance;
   }
 }
 
-/*
-@TODO rename
-  - ModelPart?
-  - ModelSubNode?
+/**
+ * A node in the hierarchy of a model. Can represent a mesh (with or without a skin/skeleton)
+ * or a non-visual "bone" used only in rendering calculations.
  */
-export class MeshNode {
+export class ModelPart {
   public readonly name: string;
-  private readonly _transform: Transform<MeshNode>;
+  private readonly _transform: Transform<ModelPart>;
   private _skin: MeshSkin | undefined;
   private readonly materialOverrides: ModelMaterialOverrides;
   private readonly meshPrimitiveDefinitions: MeshPrimitiveDefinition[] | undefined;
@@ -91,21 +90,21 @@ export class MeshNode {
   private _jointMatricesTmp: Matrix4[] | undefined;
   private _modelViewMatrixTmp: Matrix4 = new Matrix4();
 
-  private constructor({ name, transform, materialOverrides, meshPrimitiveCache, parent, meshPrimitiveDefinitions, meshGeometry }: MeshNodeArgs) {
+  private constructor({ name, transform, materialOverrides, meshPrimitiveCache, parent, meshPrimitiveDefinitions, meshGeometry }: ModelPartConstructorArgs) {
     this.name = name;
     this.meshPrimitiveCache = meshPrimitiveCache;
     this.materialOverrides = materialOverrides;
     this.meshPrimitiveDefinitions = meshPrimitiveDefinitions;
     this.meshGeometry = meshGeometry;
 
-    this._transform = new Transform<MeshNode>(this, parent?.transform);
+    this._transform = new Transform<ModelPart>(this, parent?.transform);
     this._transform.position = transform.position;
     this._transform.rotation.q = transform.rotation;
     this._transform.scale = transform.scale;
   }
 
-  public createInstance(materialOverrides: ModelMaterialOverrides, parentInstance: MeshNode | undefined): MeshNode {
-    const instance = new MeshNode({
+  public createInstance(materialOverrides: ModelMaterialOverrides, parentInstance: ModelPart | undefined): ModelPart {
+    const instance = new ModelPart({
       name: this.name,
       transform: {
         position: this.position,
@@ -156,7 +155,7 @@ export class MeshNode {
     }
   }
 
-  public static async fromDefinition(engine: IEngine, definition: NodeDefinition, parent: MeshNode | undefined, materialOverrides: ModelMaterialOverrides): Promise<MeshNode> {
+  public static async fromDefinition(engine: IEngine, definition: ModelPartDefinition, parent: ModelPart | undefined, materialOverrides: ModelMaterialOverrides): Promise<ModelPart> {
     const meshPrimitiveCache = new MeshPrimitiveCache(engine);
     let meshGeometry: MeshGeometry | undefined = undefined;
     if (definition.mesh) {
@@ -167,7 +166,7 @@ export class MeshNode {
       meshGeometry = new MeshGeometry(definition.mesh);
     }
 
-    return new MeshNode({
+    return new ModelPart({
       name: definition.name,
       parent,
       transform: definition.transform,
@@ -179,13 +178,13 @@ export class MeshNode {
   }
 
 
-  public get transform(): Transform<MeshNode> { return this._transform; }
+  public get transform(): Transform<ModelPart> { return this._transform; }
   public get skin(): MeshSkin | undefined { return this._skin; }
   public set skin(value: MeshSkin | undefined) {
     this._skin = value;
     this._jointMatricesTmp = value?.skeleton.map(() => new Matrix4());
   }
-  public get children(): MeshNode[] { return this.transform.children.map((childTransform) => childTransform.node); }
+  public get children(): ModelPart[] { return this.transform.children.map((childTransform) => childTransform.node); }
 
   public get position(): Vector3 { return this.transform.position; }
   public set position(value: Vector3) { this.transform.position = value; }

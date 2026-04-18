@@ -4,7 +4,7 @@ import { inverseLerp, lerp } from "@lofi/core/math/util";
 import { Vector2, Vector3 } from "@lofi/core/math/vector";
 import { Quaternion } from "@lofi/core/math/Quaternion";
 import type { AnimationChannelDefinition, AnimationChannelValues, AnimationTypeValue } from "@lofi/engine/loaders/definitions";
-import type { Model, MeshNode } from "@lofi/engine/models";
+import type { Model, ModelPart } from "@lofi/engine/models";
 
 export class AnimationChannel {
   private readonly targetNodeName: string;
@@ -14,16 +14,16 @@ export class AnimationChannel {
   private readonly targetNodeProperty: GLTF.AnimationChannelTargetPath;
 
   private currentModel: Model | undefined = undefined;
-  private currentModelTarget: MeshNode | undefined = undefined;
+  private currentModelTarget: ModelPart | undefined = undefined;
 
   public constructor(
     definition: AnimationChannelDefinition,
   ) {
-    this.targetNodeName = definition.targetNodeName;
+    this.targetNodeName = definition.targetPartName;
     this.timestamps = definition.timestamps;
     this.values = definition.values;
     this.interpolation = definition.interpolation;
-    this.targetNodeProperty = definition.targetNodeProperty;
+    this.targetNodeProperty = definition.targetPartProperty;
   }
 
   public update(currentAnimationTime: number, target: Model): void {
@@ -131,7 +131,7 @@ export class AnimationChannel {
   private setValue(model: Model, value: AnimationTypeValue): void {
     // Cache target model part so we don't have to compute it per channel per frame
     if (model !== this.currentModel) {
-      this.currentModelTarget = model.allNodes.find((node) => node.name === this.targetNodeName);
+      this.currentModelTarget = model.allParts.find((node) => node.name === this.targetNodeName);
       this.currentModel = model;
     }
     if (this.currentModelTarget === undefined) {

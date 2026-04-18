@@ -41,7 +41,7 @@ export abstract class Game {
 
     /* Models */
     const cubeModel = await Model.fromDefinition(engine, {
-      rootNodes: [debugGeometry.simpleNode({ name: 'cube' })],
+      rootParts: [debugGeometry.simplePart({ name: 'cube' })],
       animations: [],
     });
 

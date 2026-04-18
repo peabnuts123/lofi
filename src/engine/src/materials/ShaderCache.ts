@@ -55,7 +55,7 @@ export class ShaderCache {
       blendingMode: material.blendingMode,
       hasDiffuseColor: material?.diffuseColor !== undefined,
       hasDiffuseTexture: material?.diffuseTexture !== undefined,
-      // @NOTE @ASSUMPTION if skin attributes are defined then NodeDefinition has a skin defined
+      // @NOTE @ASSUMPTION if skin attributes are defined then ModelPartDefinition has a skin defined
       hasSkin: primitiveDefinition.joints0Data !== undefined && primitiveDefinition.weights0Data !== undefined,
       hasVertexColors: primitiveDefinition.color0Data !== undefined,
       unlit: material.unlit,

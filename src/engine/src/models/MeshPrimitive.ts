@@ -8,20 +8,23 @@ import { ShaderCache, ShaderVariant } from "@lofi/engine/materials";
 import type { DrawTask } from "@lofi/engine/scene/DrawableSceneNode";
 import type { AttributeDefinition, MeshPrimitiveDefinition } from "@lofi/engine/loaders/definitions";
 
-export interface SubMeshExtents {
+export interface MeshPrimitiveExtents {
   min: Vector3;
   max: Vector3;
   center: Vector3;
 }
 
-export class SubMesh {
+/**
+ * A sub-piece of a mesh that is all drawn with one material.
+ */
+export class MeshPrimitive {
   private static readonly IdPool: IdPool = new IdPool();
 
   private readonly id: number;
-  private vao: WebGLVertexArrayObject;
+  private readonly vao: WebGLVertexArrayObject;
   private readonly material: Material;
-  private shader: ShaderVariant;
-  private readonly extents: SubMeshExtents;
+  private readonly shader: ShaderVariant;
+  private readonly extents: MeshPrimitiveExtents;
   private readonly drawPrimitive: () => void;
 
   private readonly _cameraSpacePositionTmp: Vector3 = Vector3.zero();
@@ -30,10 +33,10 @@ export class SubMesh {
     vao: WebGLVertexArrayObject,
     material: Material,
     shader: ShaderVariant,
-    extents: SubMeshExtents,
+    extents: MeshPrimitiveExtents,
     drawPrimitive: () => void,
   ) {
-    this.id = SubMesh.IdPool.createNew();
+    this.id = MeshPrimitive.IdPool.createNew();
     this.vao = vao;
     this.material = material;
     this.shader = shader;
@@ -105,7 +108,7 @@ export class SubMesh {
     engine: IEngine,
     primitive: MeshPrimitiveDefinition,
     material: Material,
-  ): SubMesh {
+  ): MeshPrimitive {
     const { gl } = engine;
 
     const shader = ShaderCache.getOrCreate(engine, primitive, material);
@@ -234,7 +237,7 @@ export class SubMesh {
 
     gl.bindVertexArray(null);
 
-    const meshExtents: SubMeshExtents = {
+    const meshExtents: MeshPrimitiveExtents = {
       min: primitive.extents.min,
       max: primitive.extents.max,
       center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
@@ -256,7 +259,7 @@ export class SubMesh {
       };
     }
 
-    return new SubMesh(
+    return new MeshPrimitive(
       vao,
       material,
       shader,

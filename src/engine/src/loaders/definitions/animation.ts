@@ -10,8 +10,8 @@ export interface AnimationDefinition {
 }
 
 export interface AnimationChannelDefinition {
-  targetNodeName: string;
-  targetNodeProperty: GLTF.AnimationChannelTargetPath;
+  targetPartName: string;
+  targetPartProperty: GLTF.AnimationChannelTargetPath;
   timestamps: Float32Array;
   interpolation: GLTF.AnimationSamplerInterpolation;
   values: AnimationChannelValues;

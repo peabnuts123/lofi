@@ -1,6 +1,6 @@
 
 import { Vector3, Quaternion, Color4 } from '@lofi/core/math';
-import type { MaterialDefinition, MeshPrimitiveDefinition, NodeDefinition } from '@lofi/engine/loaders/definitions';
+import type { MaterialDefinition, MeshPrimitiveDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
 import type { IFileSystem } from '@lofi/engine/filesystem';
 
 export class DebugGeometry {
@@ -10,7 +10,7 @@ export class DebugGeometry {
     this.fileSystem = fileSystem;
   }
 
-  public simpleNode({
+  public simplePart({
     name,
     primitive,
     material,
@@ -18,7 +18,7 @@ export class DebugGeometry {
     name: string,
     primitive?: Partial<Omit<MeshPrimitiveDefinition, 'material'>>,
     material?: Partial<MaterialDefinition>,
-  }): NodeDefinition {
+  }): ModelPartDefinition {
     return {
       name,
       children: [],

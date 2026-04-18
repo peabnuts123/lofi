@@ -11,6 +11,7 @@ import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
 import { Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
+import type { ModelDefinition } from '@lofi/engine/loaders/definitions';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 
@@ -55,10 +56,10 @@ export abstract class Game {
 
     const debugGeometry = new DebugGeometry(fileSystem);
 
-    const models = [
+    const models: ModelDefinition[] = [
       /* 00 - Ground */
       {
-        rootNodes: [debugGeometry.simpleNode({
+        rootParts: [debugGeometry.simplePart({
           name: 'ground',
           primitive: debugGeometry.cubePrimitive(),
           material: await debugGeometry.material({
@@ -72,7 +73,7 @@ export abstract class Game {
       await GltfLoader.loadModel('/models/burger.glb', fileSystem),
       /* 02 - Blending sample */
       {
-        rootNodes: [debugGeometry.simpleNode({
+        rootParts: [debugGeometry.simplePart({
           name: 'blending',
           primitive: debugGeometry.cubePrimitive(),
           material: await debugGeometry.material({

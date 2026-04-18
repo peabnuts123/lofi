@@ -1,5 +1,5 @@
 
-import { Accessor, WebIO, type GLTF, Node, Document, Material } from '@gltf-transform/core';
+import { Accessor, WebIO, type GLTF, Node as GltfPart, Document, Material } from '@gltf-transform/core';
 
 import { Matrix4 } from '@lofi/core/math/Matrix4';
 import { Vector2, Vector3 } from '@lofi/core/math/vector';
@@ -19,7 +19,7 @@ import type {
   MeshPrimitiveDefinition,
   ModelDefinition,
   ModelDefinitionDependency,
-  NodeDefinition,
+  ModelPartDefinition,
   SkinDefinition,
 } from './definitions';
 import { transformDefinition } from './util';
@@ -53,7 +53,7 @@ const DEBUG_DRAW_BONES = false;
 
     - Should we support `doubleSided`?
     - Is skin `skeleton` of any use?
-    - Do we need to reuse meshnode instead of instantiating mesh every time … ?
+    - Do we need to reuse ModelPart instead of instantiating mesh every time … ?
     - Figure out how to decouple Shader from Mesh aka, how to re-use a material on different meshes
     - Animation Retargeting :think:
  */
@@ -142,19 +142,19 @@ export abstract class GltfLoader {
 
     /**
      * List of tasks that need to be executed AFTER we've finished processing everything.
-     * Usually used to establish links to other nodes and such that might not have been
+     * Usually used to establish links to other parts and such that might not have been
      * parsed yet while processing.
      */
     const tidyUpTasks: (() => void)[] = [];
-    const nodeDefinitionLookup = new Map<Node, NodeDefinition>();
+    const partDefinitionLookup = new Map<GltfPart, ModelPartDefinition>();
     const materialToDefinitionLookup = new Map<Material, MaterialDefinition>();
     const materialsToLoad = new Set<Material>();
 
     const root = document.getRoot();
     const defaultScene = root.getDefaultScene();
-    let rootNodeDefinitions: NodeDefinition[] = [];
+    let rootPartDefinitions: ModelPartDefinition[] = [];
     if (defaultScene) {
-      rootNodeDefinitions = defaultScene.listChildren().map((node) => createNodeDefinition(node));
+      rootPartDefinitions = defaultScene.listChildren().map((part) => createPartDefinition(part));
     }
 
     // Load all unique materials encountered
@@ -192,29 +192,29 @@ export abstract class GltfLoader {
       materialToDefinitionLookup.set(material, materialDefinition);
     }
 
-    function createNodeDefinition(node: Node): NodeDefinition {
-      const nodeDefinition: NodeDefinition = {
-        name: node.getName(),
+    function createPartDefinition(part: GltfPart): ModelPartDefinition {
+      const partDefinition: ModelPartDefinition = {
+        name: part.getName(),
         children: [],
         transform: {
-          position: new Vector3(...node.getTranslation()),
-          rotation: new Quaternion(...node.getRotation()),
-          scale: new Vector3(...node.getScale()),
+          position: new Vector3(...part.getTranslation()),
+          rotation: new Quaternion(...part.getRotation()),
+          scale: new Vector3(...part.getScale()),
         },
       };
 
-      nodeDefinitionLookup.set(node, nodeDefinition);
+      partDefinitionLookup.set(part, partDefinition);
 
-      const mesh = node.getMesh();
+      const mesh = part.getMesh();
       if (mesh) {
-        const meshDefinition: MeshDefinition = nodeDefinition.mesh = {
+        const meshDefinition: MeshDefinition = partDefinition.mesh = {
           primitives: [],
         };
 
         for (const primitive of mesh.listPrimitives()) {
           const positionAccessor = primitive.getAttribute('POSITION');
           if (!positionAccessor) {
-            console.warn(`Skipping mesh primitive with no POSITION attribute in node '${nodeDefinition.name}'`);
+            console.warn(`Skipping mesh primitive with no POSITION attribute in part '${partDefinition.name}'`);
             continue;
           }
 
@@ -275,7 +275,7 @@ export abstract class GltfLoader {
       } else if (DEBUG_DRAW_BONES) {
         /* @TODO @DEBUG Probably remove this. */
         const size = 0.10;
-        nodeDefinition.mesh = {
+        partDefinition.mesh = {
           primitives: [
             {
               mode: WebGL2RenderingContext.TRIANGLES,
@@ -393,23 +393,23 @@ export abstract class GltfLoader {
         };
       }
 
-      const skin = node.getSkin();
+      const skin = part.getSkin();
       if (skin) {
-        const skinDefinition: SkinDefinition = nodeDefinition.skin = {
-          jointNodes: [],
+        const skinDefinition: SkinDefinition = partDefinition.skin = {
+          jointParts: [],
           inverseBindMatrices: [],
         };
 
-        // @TODO skeleton (root node) ?
+        // @TODO skeleton (root part) ?
 
         tidyUpTasks.push(() => {
-          skinDefinition.jointNodes = skin.listJoints()
-            .map((jointNode) => {
-              const jointNodeDefinition = nodeDefinitionLookup.get(jointNode);
-              if (!jointNodeDefinition) {
-                throw new Error(`Skin references unknown node: '${jointNode.getName()}`);
+          skinDefinition.jointParts = skin.listJoints()
+            .map((jointPart) => {
+              const jointPartDefinition = partDefinitionLookup.get(jointPart);
+              if (!jointPartDefinition) {
+                throw new Error(`Skin references unknown part: '${jointPart.getName()}`);
               }
-              return jointNodeDefinition;
+              return jointPartDefinition;
             });
         });
 
@@ -426,9 +426,9 @@ export abstract class GltfLoader {
       }
 
       // Children
-      nodeDefinition.children = node.listChildren().map((childNode) => createNodeDefinition(childNode));
+      partDefinition.children = part.listChildren().map((childPart) => createPartDefinition(childPart));
 
-      return nodeDefinition;
+      return partDefinition;
     }
 
     const allAnimationDefinitions: AnimationDefinition[] = [];
@@ -439,16 +439,16 @@ export abstract class GltfLoader {
         length: 0,
       };
       for (const channel of animation.listChannels()) {
-        const targetNode = channel.getTargetNode();
-        if (!targetNode) {
+        const targetPart = channel.getTargetNode();
+        if (!targetPart) {
           // Ignore channels with no target, unsupported
-          console.warn(`GLTF animation '${animationDefinition.name}' has channel with no node target. This channel will be ignored.`);
+          console.warn(`GLTF animation '${animationDefinition.name}' has channel with no part target. This channel will be ignored.`);
           continue;
         }
-        const targetNodeName = targetNode.getName();
-        if (!targetNodeName?.trim()) {
-          // Ignore target nodes with empty / blank names as this will not be robust
-          console.warn(`GLTF animation '${animationDefinition.name}' has channel that targets node with empty/blank name. This channel will be ignored.`);
+        const targetPartName = targetPart.getName();
+        if (!targetPartName?.trim()) {
+          // Ignore target parts with empty / blank names as this will not be robust
+          console.warn(`GLTF animation '${animationDefinition.name}' has channel that targets part with empty/blank name. This channel will be ignored.`);
           continue;
         }
 
@@ -504,7 +504,7 @@ export abstract class GltfLoader {
             };
             break;
           default:
-            throw new Error(`Unsupported animation type: ${outputAccessor.getType()}, Animation target: ${targetNodeName}['${channel.getTargetPath()}']`);
+            throw new Error(`Unsupported animation type: ${outputAccessor.getType()}, Animation target: ${targetPartName}['${channel.getTargetPath()}']`);
         }
 
         // Keep track of longest samplers
@@ -514,8 +514,8 @@ export abstract class GltfLoader {
         }
 
         const channelDefinition: AnimationChannelDefinition = {
-          targetNodeName: targetNode.getName(),
-          targetNodeProperty: channel.getTargetPath()!,
+          targetPartName: targetPart.getName(),
+          targetPartProperty: channel.getTargetPath()!,
           timestamps: inputAccessor.getArray() as Float32Array,
           values: outputValues,
           interpolation: sampler.getInterpolation(),
@@ -533,8 +533,8 @@ export abstract class GltfLoader {
     return {
       // @NOTE GLTF coordinate system is +Y-up. Convert to +Z-up by rotating along X.
       // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
-      rootNodes: [
-        transformDefinition(rootNodeDefinitions, {
+      rootParts: [
+        transformDefinition(rootPartDefinitions, {
           rotation: Quaternion.fromAxisAngle(Vector3.right(), 90),
         }),
       ],

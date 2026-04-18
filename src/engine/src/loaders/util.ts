@@ -1,17 +1,17 @@
 import { Vector3 } from "@lofi/core/math/vector";
-import type { NodeDefinition, TransformDefinition } from "./definitions";
+import type { ModelPartDefinition, TransformDefinition } from "./definitions";
 import { Quaternion } from "@lofi/core/math/Quaternion";
 
 /**
- * Wrap a collection of node definitions in a parent node that applies a transform.
- * @param rootNodes Collection of node definitions to be children of the new root node.
+ * Wrap a collection of part definitions in a parent part that applies a transform.
+ * @param rootParts Collection of part definitions to be children of the new root part.
  * @param transform Transforms to apply to the collection.
- * @returns A new root node definition.
+ * @returns A new root part definition.
  */
-export function transformDefinition(rootNodes: NodeDefinition[], transform: Partial<TransformDefinition>): NodeDefinition {
+export function transformDefinition(rootParts: ModelPartDefinition[], transform: Partial<TransformDefinition>): ModelPartDefinition {
   return {
     name: '__rootTransform',
-    children: rootNodes,
+    children: rootParts,
     transform: Object.assign({
       position: Vector3.zero(),
       rotation: Quaternion.identity(),

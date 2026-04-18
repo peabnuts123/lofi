@@ -6,9 +6,11 @@ export type TriangleIndices = [number, number, number];
 export type Edge = [Vector3, Vector3];
 export type EdgeIndices = [number, number];
 
-
-// @NOTE Specific to a mesh node
-// @TODO Rename
+/**
+ * Parsed geometry for an entire mesh, initially comprised of a collection of mesh primitives.
+ * Used for e.g. collision handling and other calculations that need to reference
+ * the actual geometry of a mesh (vs. just sending it to the GPU as a raw buffer).
+ */
 export class MeshGeometry {
   public readonly vertexPositions: Vector3[] = [];
   public readonly vertexNormals: Vector3[] = [];

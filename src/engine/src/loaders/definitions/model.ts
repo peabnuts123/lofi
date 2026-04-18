@@ -13,9 +13,7 @@ export interface ModelDefinitionDependency {
   file: VirtualFile;
 }
 export interface ModelDefinition {
-  /* @TODO Rename to `modelParts`? or `model: { parts: [] }` or something? */
-  /* @TODO should it be flat? */
-  rootNodes: NodeDefinition[];
+  rootParts: ModelPartDefinition[];
   animations: AnimationDefinition[]; // @TODO nullable
   // @TODO Consider exposing all the materials in a flat list
   dependencies?: {
@@ -30,11 +28,11 @@ export interface TransformDefinition {
   scale: Vector3;
 }
 
-export interface NodeDefinition {
+export interface ModelPartDefinition {
   name: string;
   transform: TransformDefinition;
   // @NOTE Could also store `parent` if we want
-  children: NodeDefinition[];
+  children: ModelPartDefinition[];
   mesh?: MeshDefinition;
   skin?: SkinDefinition;
 }
@@ -82,5 +80,5 @@ export interface AttributeDefinition {
 
 export interface SkinDefinition {
   inverseBindMatrices: Matrix4[];
-  jointNodes: NodeDefinition[];
+  jointParts: ModelPartDefinition[];
 }

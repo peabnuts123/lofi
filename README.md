@@ -21,7 +21,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~3D Animation including bones~~
     - [ ] Ability to reset / stop animation
     - [ ] Config e.g. animation looping
-    - [ ] Rename a bunch of model stuff (such as? oh, like `MeshNode` and `SubMesh`)
+    - [x] ~~Rename a bunch of model stuff (such as? oh, like `MeshNode` and `SubMesh`)~~
   - [x] ~~Turning on Test objects now produces a performance problem! (at least with wireframe enabled / ray casting)~~
   - [x] ~~DrawDebug - what's the future here?~~
   - [ ] ? POSSIBLE BUG?: `addChild` recomputes transforms. What happens to transitive children e.g. `c.addChild(b); a.addChild(b);` - Does C update correctly?

@@ -102,13 +102,13 @@ export abstract class Game {
 
     /* Model definitions */
     const cubeModel = await Model.fromDefinition(engine, {
-      rootNodes: [debugGeometry.simpleNode({ name: 'cube' })],
+      rootParts: [debugGeometry.simplePart({ name: 'cube' })],
       animations: [],
     });
     const rigDefinition = await GltfLoader.loadModel('/models/Rig_Medium_MovementBasic.glb', fileSystem);
     const playerModelDefinition = await GltfLoader.loadModel('/models/rig_mage.glb', fileSystem);
-    console.log(playerModelDefinition.rootNodes);
-    playerModelDefinition.rootNodes.forEach((node) => node.transform.scale.multiplySelf(0.75));
+    console.log(playerModelDefinition.rootParts);
+    playerModelDefinition.rootParts.forEach((modelPart) => modelPart.transform.scale.multiplySelf(0.75));
 
     /* Models */
     const playerModel = await Model.fromDefinition(engine, playerModelDefinition);

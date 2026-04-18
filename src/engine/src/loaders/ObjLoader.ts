@@ -4,7 +4,7 @@ import {
   type Triangle as TriangleObj,
   type Model as ModelObj,
   type ImportCallbacks,
-  type Node as NodeObj,
+  type Node as PartObj,
   type Material as MaterialObj,
 } from 'online-3d-viewer/source/engine/import/importerobj';
 
@@ -19,7 +19,7 @@ import type {
   MaterialDefinition,
   MeshPrimitiveDefinition,
   ModelDefinition,
-  NodeDefinition,
+  ModelPartDefinition,
 } from './definitions';
 import { Texture } from '../textures';
 import { transformDefinition } from './util';
@@ -93,14 +93,12 @@ export class ObjLoader {
 
     const loader = new ObjLoader(objPath, filesystem, parsedObj);
 
-    const rootNodeDefinition = await loader.parseNode(parsedObj.root);
-
-    console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) rootNodeDefinition:`, rootNodeDefinition);
+    const rootPartDefinition = await loader.parsePart(parsedObj.root);
 
     return {
       // @NOTE For ease of authoring, expect .obj to be exported with +Y-up. Convert to +Z-up by rotating along X.
-      rootNodes: [
-        transformDefinition([rootNodeDefinition], {
+      rootParts: [
+        transformDefinition([rootPartDefinition], {
           rotation: Quaternion.fromAxisAngle(Vector3.right(), 90),
         }),
       ],
@@ -130,26 +128,26 @@ export class ObjLoader {
     });
   }
 
-  private async parseNode(node: NodeObj): Promise<NodeDefinition> {
-    const definition: NodeDefinition = {
-      name: node.name,
+  private async parsePart(part: PartObj): Promise<ModelPartDefinition> {
+    const definition: ModelPartDefinition = {
+      name: part.name,
       transform: {
         position: Vector3.zero(),
         rotation: Quaternion.identity(),
         scale: Vector3.one(),
       },
       children: await Promise.all(
-        node.childNodes
-          .map((childNode) => this.parseNode(childNode)),
+        part.childNodes
+          .map((childPart) => this.parsePart(childPart)),
       ),
     };
 
     const meshPrimitiveDefinitions = await Promise.all(
-      node.meshIndices
+      part.meshIndices
         .map((meshIndex) => this.parseMesh(this.parsedObj.meshes[meshIndex])),
     );
 
-    if (node.meshIndices.length > 0) {
+    if (part.meshIndices.length > 0) {
       definition.mesh = {
         primitives: meshPrimitiveDefinitions.flat(),
       };

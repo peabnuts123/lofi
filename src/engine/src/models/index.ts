@@ -1,5 +1,5 @@
 export * from './MeshGeometry';
-export * from './MeshNode';
+export * from './MeshPrimitive';
 export * from './MeshSkin';
 export * from './Model';
-export * from './SubMesh';
+export * from './ModelPart';
