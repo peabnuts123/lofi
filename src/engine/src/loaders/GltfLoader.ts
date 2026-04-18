@@ -22,6 +22,7 @@ import type {
   NodeDefinition,
   SkinDefinition,
 } from './definitions';
+import { transformDefinition } from './util';
 
 const GlbMagic = [0x67, 0x6C, 0x54, 0x46];
 const DEBUG_DRAW_BONES = false;
@@ -529,14 +530,14 @@ export abstract class GltfLoader {
     // Execute all tidy-up tasks
     tidyUpTasks.forEach((task) => task());
 
-    // @NOTE GLTF coordinate system is +Y-up. Convert to +Z-up by rotating along X.
-    // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
-    rootNodeDefinitions.forEach((nodeDefinition) => {
-      nodeDefinition.transform.rotation.multiplySelf(Quaternion.fromAxisAngle(Vector3.right(), 90));
-    });
-
     return {
-      rootNodes: rootNodeDefinitions,
+      // @NOTE GLTF coordinate system is +Y-up. Convert to +Z-up by rotating along X.
+      // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
+      rootNodes: [
+        transformDefinition(rootNodeDefinitions, {
+          rotation: Quaternion.fromAxisAngle(Vector3.right(), 90),
+        }),
+      ],
       animations: allAnimationDefinitions,
       dependencies: {
         textures: textureDependencies,

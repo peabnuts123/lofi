@@ -22,6 +22,7 @@ import type {
   NodeDefinition,
 } from './definitions';
 import { Texture } from '../textures';
+import { transformDefinition } from './util';
 
 export class ObjLoader {
   private readonly objPath: string;
@@ -96,11 +97,13 @@ export class ObjLoader {
 
     console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) rootNodeDefinition:`, rootNodeDefinition);
 
-    // @NOTE For ease of authoring, expect .obj to be exported with +Y-up. Convert to +Z-up by rotating along X.
-    rootNodeDefinition.transform.rotation.multiplySelf(Quaternion.fromAxisAngle(Vector3.right(), 90));
-
     return {
-      rootNodes: [rootNodeDefinition],
+      // @NOTE For ease of authoring, expect .obj to be exported with +Y-up. Convert to +Z-up by rotating along X.
+      rootNodes: [
+        transformDefinition([rootNodeDefinition], {
+          rotation: Quaternion.fromAxisAngle(Vector3.right(), 90),
+        }),
+      ],
       animations: [],
       // @TODO Textures or whatever
     };
