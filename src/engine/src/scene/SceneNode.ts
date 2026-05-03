@@ -83,6 +83,14 @@ export abstract class SceneNode {
     void dt;
   }
 
+  public destroy(): void {
+    if (this.parent === undefined) {
+      this.scene.removeTopLevelNode(this);
+    } else {
+      this.parent.transform.removeChild(this.transform);
+    }
+  }
+
   public get parent(): SceneNode | undefined { return this.transform.parent?.node; }
   public set parent(value: SceneNode | undefined) { this.transform.parent = value?.transform; }
 
