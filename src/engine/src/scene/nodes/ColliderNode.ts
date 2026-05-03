@@ -27,6 +27,7 @@ interface ComputeMoveOptions {
 
 export abstract class ColliderNode extends DrawableSceneNode {
   public group: CollisionGroup;
+  public drawWireframe: boolean = false;
 
   public constructor(scene: IScene, name: string, group: CollisionGroup, parent?: SceneNode) {
     super(scene, name, parent);
@@ -140,7 +141,7 @@ export abstract class ColliderNode extends DrawableSceneNode {
   }
 
   public override draw(engine: IEngine, drawQueues: DrawQueues): void {
-    if (isWireframeDrawable(this)) {
+    if (this.drawWireframe && isWireframeDrawable(this)) {
       drawQueues.opaque.push(
         DrawDebug.drawWireframe(engine, this, { overlay: true }),
       );
