@@ -1,8 +1,8 @@
 import { createBuffer } from "@lofi/engine/util/createBuffer";
 import type { IEngine } from "@lofi/engine/Engine";
 
-import VertexShaderSource from '@lofi/engine/materials/shaders/newShader.vert';
-import FragmentShaderSource from '@lofi/engine/materials/shaders/newShader.frag';
+import VertexShaderSource from '@lofi/engine/materials/shaders/shader.vert';
+import FragmentShaderSource from '@lofi/engine/materials/shaders/shader.frag';
 import { DefaultShader, ShaderVariant } from "./ShaderVariant";
 
 

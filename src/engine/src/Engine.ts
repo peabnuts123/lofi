@@ -53,7 +53,8 @@ export interface EngineConfig {
     readonly numChannels: number;
   },
   readonly lighting: {
-    readonly maxLights: number;
+    readonly maxPointLights: number;
+    readonly maxDirectionalLights: number;
   },
   readonly models: {
     readonly maxBones: number;
@@ -64,7 +65,8 @@ export const DefaultEngineConfig = {
     numChannels: 24,
   },
   lighting: {
-    maxLights: 4, // @TODO implement
+    maxPointLights: 4,
+    maxDirectionalLights: 2,
   },
   models: {
     maxBones: 64,
@@ -118,7 +120,8 @@ export class Engine implements IEngine {
         numChannels: options?.audio?.numChannels ?? DefaultEngineConfig.audio.numChannels,
       },
       lighting: {
-        maxLights: options?.lighting?.maxLights ?? DefaultEngineConfig.lighting.maxLights,
+        maxPointLights: options?.lighting?.maxPointLights ?? DefaultEngineConfig.lighting.maxPointLights,
+        maxDirectionalLights: options?.lighting?.maxDirectionalLights ?? DefaultEngineConfig.lighting.maxDirectionalLights,
       },
       models: {
         maxBones: options?.models?.maxBones ?? DefaultEngineConfig.models.maxBones,
@@ -209,7 +212,7 @@ export class Engine implements IEngine {
         }
 
         /* Lighting UBO */
-        this.activeScene.lighting.bindToUbo(this.gl, this.lightingUbo);
+        this.activeScene.lighting.bindToUbo(this.gl, this.lightingUbo, this.config.lighting);
       }
 
       /* Audio system */

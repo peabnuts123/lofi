@@ -43,11 +43,19 @@ export class ShaderVariant {
     function inject(name: string, injected: string, src: string): string {
       return src.replace(new RegExp(`#pragma\\s+inject\\s*\\(\\s*${name}\\s*\\)\\s*$`, "m"), injected);
     }
-    const definesBlock = `#define _ShaderId ${id}\n` + shader.getDefines(engine, {
+    const DefaultDefines = ([
+      ['_ShaderId', `${id}`],
+      [`MAX_POINT_LIGHTS`, `${engine.config.lighting.maxPointLights}`],
+      [`MAX_DIRECTIONAL_LIGHTS`, `${engine.config.lighting.maxDirectionalLights}`],
+    ] satisfies Array<[key: string, value: string]>)
+      .map(([key, value]) => `#define ${key} ${value}`)
+      .join('\n') + '\n';
+    const definesBlock = DefaultDefines + shader.getDefines(engine, {
       ...DefaultShaderVariantOptions,
       ...options,
     })
       .map((define) => `#define ${define}`).join('\n') + '\n';
+
     const vertexShaderSource = inject('defines', definesBlock, shader.vertexShaderSource);
     gl.shaderSource(vertexShader, vertexShaderSource);
     const fragmentShaderSource = inject('defines', definesBlock, shader.fragmentShaderSource);

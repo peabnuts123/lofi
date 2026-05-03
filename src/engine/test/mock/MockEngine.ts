@@ -28,7 +28,8 @@ export class MockEngine implements IEngine {
         numChannels: 2,
       },
       lighting: {
-        maxLights: 2,
+        maxPointLights: 2,
+        maxDirectionalLights: 1,
       },
       models: {
         maxBones: 64,

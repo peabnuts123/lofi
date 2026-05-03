@@ -3,8 +3,8 @@ import { Color4 } from '@lofi/core/math/Color4';
 import type { Color3 } from '@lofi/core/math/Color3';
 import { Texture } from '@lofi/engine/textures/Texture';
 
-import VertexShaderSource from '@lofi/engine/materials/shaders/newShader.vert';
-import FragmentShaderSource from '@lofi/engine/materials/shaders/newShader.frag';
+import VertexShaderSource from '@lofi/engine/materials/shaders/shader.vert';
+import FragmentShaderSource from '@lofi/engine/materials/shaders/shader.frag';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
 import { DefaultShader, type IShader } from './ShaderVariant';

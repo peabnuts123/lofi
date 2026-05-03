@@ -1,7 +1,7 @@
 import type { Color3 } from "@lofi/core/math/Color3";
 import { type IScene, SceneNode } from "@lofi/engine/scene";
 
-export class PointLightNode extends SceneNode {
+export class DirectionalLightNode extends SceneNode {
   // @TODO Intensity. Range?
   public color: Color3;
 
@@ -10,8 +10,8 @@ export class PointLightNode extends SceneNode {
     this.color = color;
 
     // @TODO @DEBUG This should be based on camera distance or something.
-    if (scene.lighting.pointLights.length < this.scene.engine.config.lighting.maxPointLights) {
-      scene.lighting.pointLights.push(this);
+    if (scene.lighting.directionalLights.length < this.scene.engine.config.lighting.maxDirectionalLights) {
+      scene.lighting.directionalLights.push(this);
     }
   }
 }

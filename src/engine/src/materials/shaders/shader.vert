@@ -2,6 +2,14 @@
 
 #pragma inject(defines)
 
+/* Defaults */
+#ifndef MAX_POINT_LIGHTS
+  #define MAX_POINT_LIGHTS 1 // @NOTE Zero-length arrays not valid
+#endif
+#ifndef MAX_DIRECTIONAL_LIGHTS
+  #define MAX_DIRECTIONAL_LIGHTS 1 // @NOTE Zero-length arrays not valid
+#endif
+
 /* Vertex attributes */
 // Required
 in vec3 vertexPosition;
@@ -44,14 +52,11 @@ layout(std140) uniform Camera {
 };
 layout(std140) uniform Lighting {
   vec3 ambientLightColor;
-  vec3 pointLight0Position;
-  vec3 pointLight0Color;
-  vec3 pointLight1Position;
-  vec3 pointLight1Color;
-  vec3 pointLight2Position;
-  vec3 pointLight2Color;
-  vec3 pointLight3Position;
-  vec3 pointLight3Color;
+  // @NOTE Arrays are padded to vec4 under std140
+  vec4 pointLightPositions[MAX_POINT_LIGHTS];
+  vec4 pointLightColors[MAX_POINT_LIGHTS];
+  vec4 directionalLightOrientations[MAX_DIRECTIONAL_LIGHTS];
+  vec4 directionalLightColors[MAX_DIRECTIONAL_LIGHTS];
 };
 
 void main() {
@@ -86,18 +91,22 @@ void main() {
   fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
 #else
   vec3 worldNormal = normalize(normalMatrix * vertexNormal);
-  /* - Light 0 */
-  vec3 light0Dir = normalize(pointLight0Position - worldPosition.xyz);
-  float light0Intensity = max(dot(worldNormal, light0Dir), 0.0f);
-  /* - Light 1 */
-  vec3 light1Dir = normalize(pointLight1Position - worldPosition.xyz);
-  float light1Intensity = max(dot(worldNormal, light1Dir), 0.0f);
-  /* - Light 2 */
-  vec3 light2Dir = normalize(pointLight2Position - worldPosition.xyz);
-  float light2Intensity = max(dot(worldNormal, light2Dir), 0.0f);
-  /* - Light 3 */
-  vec3 light3Dir = normalize(pointLight3Position - worldPosition.xyz);
-  float light3Intensity = max(dot(worldNormal, light3Dir), 0.0f);
-  fragmentLighting = ambientLightColor + (light0Intensity * pointLight0Color) + (light1Intensity * pointLight1Color) + (light2Intensity * pointLight2Color) + (light3Intensity * pointLight3Color);
+
+  // Ambient lighting
+  fragmentLighting = ambientLightColor.rgb;
+
+  // Point lights
+  for(int i = 0; i < MAX_POINT_LIGHTS; i++) {
+    vec3 lightDir = normalize(pointLightPositions[i].xyz - worldPosition.xyz);
+    float intensity = max(dot(worldNormal, lightDir), 0.0f);
+    fragmentLighting += intensity * pointLightColors[i].rgb;
+  }
+
+  // Directional lights
+  for(int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
+    vec3 lightDir = normalize(-directionalLightOrientations[i].xyz);
+    float intensity = max(dot(worldNormal, lightDir), 0.0f);
+    fragmentLighting += intensity * directionalLightColors[i].rgb;
+  }
 #endif
 }
