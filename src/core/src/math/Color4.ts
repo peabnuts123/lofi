@@ -83,6 +83,10 @@ export class Color4 {
     return new Color4(this.r, this.g, this.b, value);
   }
 
+  public toString(): string {
+    return `${Color4.name}(${this.r}, ${this.g}, ${this.b}, ${this.a})`;
+  }
+
   public get r(): number { return this._r; }
   public set r(value: number) {
     // Validate

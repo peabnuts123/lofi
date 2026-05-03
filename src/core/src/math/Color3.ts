@@ -59,7 +59,7 @@ export class Color3 {
   }
 
   public toString(): string {
-    return `Color3(${this.r}, ${this.g}, ${this.b})`;
+    return `${Color3.name}(${this.r}, ${this.g}, ${this.b})`;
   }
 
   public get r(): number { return this._r; }

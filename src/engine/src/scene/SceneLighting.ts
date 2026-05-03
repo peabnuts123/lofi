@@ -25,6 +25,14 @@ export class SceneLighting {
   public ambientColor: Color3;
   public pointLights: PointLightNode[];
 
+  /*
+    @TODO Lighting system
+    Once we add DirectionalLight we need to shuffle this around
+     - Don't leave `pointLights` as a public property, add some kind of `registerLight()` function
+     - Probably lights need some kind of AnyLight abstraction or interface that they implement
+     - What're we doing about Max Lights?
+   */
+
   public constructor() {
     this.pointLights = [];
     this.ambientColor = new Color3(0, 0, 0);
@@ -42,6 +50,7 @@ export class SceneLighting {
     /* Truncate list of lights */
     if (this.pointLights.length > SceneLighting.MaxPointLights) {
       console.error(`More than ${SceneLighting.MaxPointLights} active in renderer. This is an error. Pruning...`);
+      // @TODO I don't reckon we should do this, we should just throw or something.
       this.pointLights.splice(SceneLighting.MaxPointLights);
     }
     /* Bind light data */
