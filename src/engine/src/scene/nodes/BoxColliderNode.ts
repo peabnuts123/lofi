@@ -77,15 +77,20 @@ export class BoxColliderNode extends SATColliderNode implements IWireframeDrawab
   }
 
   // @TODO If we could observe worldMatrixDirty we could cache this
-  protected getVerticesWorldSpace(offset: Vector3 = Vector3.zero()): Vector3[] {
-    const halfDimensions = new Vector3(this.x / 2, this.y / 2, this.z / 2);
+  private _getVerticesWorldSpace__HalfDimensionsTmp = Vector3.zero();
+  protected getVerticesWorldSpace(offset?: Vector3): Vector3[] {
+    this._getVerticesWorldSpace__HalfDimensionsTmp.setValue(this.x / 2, this.y / 2, this.z / 2);
 
     BoxColliderNode.NormalisedVerticesLocalSpace.forEach((normalizedLocalVertex, i) => {
       this._verticesWorldSpaceCache[i]
         .setValue(normalizedLocalVertex)
-        .multiplySelf(halfDimensions)
-        .multiplySelf(this.worldMatrix)
-        .addSelf(offset);
+        .multiplySelf(this._getVerticesWorldSpace__HalfDimensionsTmp)
+        .multiplySelf(this.worldMatrix);
+
+      if (offset) {
+        this._verticesWorldSpaceCache[i]
+          .addSelf(offset);
+      }
     });
 
     return this._verticesWorldSpaceCache;

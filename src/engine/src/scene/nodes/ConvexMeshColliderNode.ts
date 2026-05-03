@@ -54,12 +54,16 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
   }
 
   // @TODO If we could observe worldMatrixDirty we could cache this
-  protected getVerticesWorldSpace(offset: Vector3 = Vector3.zero()): Vector3[] {
+  protected getVerticesWorldSpace(offset?: Vector3): Vector3[] {
     this.model.allVertexPositions.forEach((vertexPosition, i) => {
       this._verticesWorldSpaceCache[i]
         .setValue(vertexPosition)
-        .multiplySelf(this.worldMatrix)
-        .addSelf(offset);
+        .multiplySelf(this.worldMatrix);
+
+      if (offset) {
+        this._verticesWorldSpaceCache[i]
+          .addSelf(offset);
+      }
     });
 
     return this._verticesWorldSpaceCache;
