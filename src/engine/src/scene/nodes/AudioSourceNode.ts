@@ -1,6 +1,5 @@
 import { type IAudioContext, GainNode, PannerNode, AudioBufferSourceNode } from 'standardized-audio-context';
 
-import { clamp01 } from "@lofi/core/math/util";
 import { Vector3 } from "@lofi/core/math/vector";
 import type { AudioClip } from "@lofi/engine/audio/AudioClip";
 import type { IAudioSystem } from "@lofi/engine/audio/AudioSystem";
@@ -97,37 +96,9 @@ export class AudioSourceNode extends SceneNode {
   }
 
   public override onUpdate(_dt: number): void {
-    // Bind Audio API Panner Node to position
-    // @NOTE AudioSourceNodes are omnidirectional, so no need to set orientation vector.
-    this.pannerNode.positionX.value = this.absolutePosition.x;
-    this.pannerNode.positionY.value = this.absolutePosition.y;
-    this.pannerNode.positionZ.value = this.absolutePosition.z;
-
-    let gain: number;
-    const listener = this.scene.engine.activeScene?.activeCamera;
-    if (listener) {
-      // @NOTE Calculate attenuation using a custom formula with a min/max distance
-      const audioSourceDistance = this._positionListenerSpaceTmp
-        .setValue(this.absolutePosition)
-        .subtractSelf(listener.absolutePosition)
-        .length();
-
-      if (audioSourceDistance <= this.minRange) {
-        gain = 1;
-      } else if (audioSourceDistance > this.maxRange) {
-        gain = 0;
-      } else {
-        // @NOTE Based on formula for formula from `exponential` PannerNode.distanceModel
-        // Except dynamically calculate rolloffFactor based on max range
-        const AudioLevelAtMaxRange = 0.005;
-        const k = Math.log(AudioLevelAtMaxRange) / Math.log(this.minRange / this.maxRange);
-        gain = Math.pow(Math.max(audioSourceDistance, this.minRange) / this.minRange, -k);
-      }
-    } else {
-      gain = 0;
+    if (this.isPlaying) {
+      this.recalculateSpatialAudio();
     }
-
-    this.spatialVolumeNode.gain.setValueAtTime(gain, this.audioSystem.context.currentTime);
   }
 
   public playClip(audioClip: AudioClip, options?: PlayClipOptions): void {
@@ -167,7 +138,6 @@ export class AudioSourceNode extends SceneNode {
      * due to channel exhaustion.
      */
     const onAudioClipEnd = (): void => {
-      console.log(`[DEBUG] Clip ended.`);
       this.stopPlaying();
     };
 
@@ -187,6 +157,8 @@ export class AudioSourceNode extends SceneNode {
           audioSourceNode.removeEventListener('ended', onAudioClipEnd);
         },
       };
+
+      this.recalculateSpatialAudio();
     }
   }
 
@@ -200,6 +172,41 @@ export class AudioSourceNode extends SceneNode {
     }
   }
 
+  private recalculateSpatialAudio(): void {
+    if (!this.global) {
+      // Bind Audio API Panner Node to position
+      // @NOTE AudioSourceNodes are omnidirectional, so no need to set orientation vector.
+      const absolutePosition = this.absolutePosition;
+      this.pannerNode.positionX.value = absolutePosition.x;
+      this.pannerNode.positionY.value = absolutePosition.y;
+      this.pannerNode.positionZ.value = absolutePosition.z;
+
+      const listener = this.scene.engine.activeScene?.activeCamera;
+      if (listener === undefined) return; // @NOTE Listener position required to calculate spatial audio
+
+      let gain: number;
+      // @NOTE Calculate attenuation using a custom formula with a min/max distance
+      const audioSourceDistance = this._positionListenerSpaceTmp
+        .setValue(absolutePosition)
+        .subtractSelf(listener.absolutePosition)
+        .length();
+
+      if (audioSourceDistance <= this.minRange) {
+        gain = 1;
+      } else if (audioSourceDistance > this.maxRange) {
+        gain = 0;
+      } else {
+        // @NOTE Based on formula for formula from `exponential` PannerNode.distanceModel
+        // Except dynamically calculate rolloffFactor based on max range
+        const AudioLevelAtMaxRange = 0.005;
+        const k = Math.log(AudioLevelAtMaxRange) / Math.log(this.minRange / this.maxRange);
+        gain = Math.pow(Math.max(audioSourceDistance, this.minRange) / this.minRange, -k);
+      }
+
+      this.spatialVolumeNode.gain.value = gain;
+    }
+  }
+
   private get audioSystem(): IAudioSystem {
     return this.scene.engine.audioSystem;
   }
@@ -210,6 +217,6 @@ export class AudioSourceNode extends SceneNode {
 
   public get volume(): number { return this.volumeNode.gain.value; }
   public set volume(value: number) {
-    this.volumeNode.gain.value = clamp01(value);
+    this.volumeNode.gain.value = Math.max(value, 0);
   }
 }

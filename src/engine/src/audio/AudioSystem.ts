@@ -141,26 +141,11 @@ export class AudioSystem implements IAudioSystem {
     // Connect audioNode to audio system
     audioNode.connect(this.master);
 
-    const debug_countChannels = (): void => {
-      let freeChannels = 0;
-      let populatedChannels = 0;
-      for (const channel of this.channels) {
-        if (channel === undefined) {
-          freeChannels++;
-        } else {
-          populatedChannels++;
-        }
-      }
-
-      console.log(`[DEBUG] (AudioSystem) ${this.channels.length} total channels: (free='${freeChannels}') (in-use='${populatedChannels}')`);
-    };
-
     /**
      * Cleanup function fired whenever audio finishes or is stopped
      */
     const onAudioStopFn = (): void => {
       this.channels[targetChannelIndex] = undefined;
-      debug_countChannels();
     };
 
     // Populate channel
@@ -169,8 +154,6 @@ export class AudioSystem implements IAudioSystem {
       priority,
       startTime: performance.now() / 1000,
     };
-
-    debug_countChannels();
 
     return [true, onAudioStopFn];
   }
