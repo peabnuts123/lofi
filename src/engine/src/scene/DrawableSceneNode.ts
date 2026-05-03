@@ -1,6 +1,6 @@
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
-import type { Material, ShaderVariant } from "@lofi/engine/materials";
+import type { MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
 
 import { SceneNode } from "./SceneNode";
 import type { IScene } from "./Scene";
@@ -8,7 +8,7 @@ import type { IScene } from "./Scene";
 export interface DrawTask {
   renderPass: number; // @TODO how is this actually used?
   shaderVariant: ShaderVariant
-  material: Material;
+  material: MaterialInstance;
   uniforms: {
     worldMatrix: Matrix4;
     skinWeights?: Float32Array;

@@ -2,7 +2,7 @@ import { Vector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color4 } from "@lofi/core/math/Color4";
 import type { IEngine } from "@lofi/engine/Engine";
-import { DefaultShader, Material, ShaderVariant } from "@lofi/engine/materials";
+import { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
 
 import type { DrawTask } from "../scene";
 
@@ -101,7 +101,7 @@ export class DrawDebug {
     return {
       renderPass: 10,
       shaderVariant: this.shader,
-      material: Material.DefaultMaterial,
+      material: MaterialInstance.fromMaterial(Material.DefaultMaterial),
       uniforms: {
         worldMatrix: drawOptions.worldMatrix,
       },

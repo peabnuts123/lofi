@@ -4,12 +4,11 @@ import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
 import type { MeshPrimitiveDefinition, ModelPartDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
-import { Material } from "@lofi/engine/materials";
 
-import { MeshPrimitive } from "./MeshPrimitive";
 import type { MeshSkin } from "./MeshSkin";
 import { MeshGeometry, type Edge, type EdgeIndices, type Triangle, type TriangleIndices } from "./MeshGeometry";
-import type { ModelMaterialOverrides } from "./Model";
+import type { MaterialOverride, ModelMaterialOverrides } from "./ModelMaterialOverrides";
+import { MeshPrimitiveCache } from "./MeshPrimitiveCache";
 
 export interface ModelPartConstructorArgs {
   name: string;
@@ -19,58 +18,6 @@ export interface ModelPartConstructorArgs {
   parent?: ModelPart;
   meshPrimitiveDefinitions?: MeshPrimitiveDefinition[] | undefined;
   meshGeometry?: MeshGeometry | undefined;
-}
-
-export class MeshPrimitiveCache {
-  private engine: IEngine;
-  private cache: Map<MeshPrimitiveDefinition, Map<Material | undefined, MeshPrimitive>>;
-
-  public constructor(engine: IEngine) {
-    this.engine = engine;
-    this.cache = new Map();
-  }
-
-  public async init(engine: IEngine, primitive: MeshPrimitiveDefinition): Promise<void> {
-    let material: Material = Material.DefaultMaterial;
-    if (primitive.material) {
-      material = await Material.fromDefinition(engine, primitive.material);
-    }
-
-    let materialCache = this.cache.get(primitive);
-    if (materialCache === undefined) {
-      materialCache = new Map();
-      this.cache.set(primitive, materialCache);
-    }
-
-    const primitiveInstance = MeshPrimitive.fromDefinition(engine, primitive, material);
-
-    // @NOTE Bind default material to `undefined`
-    materialCache.set(undefined, primitiveInstance);
-  }
-
-  public getOrCreate(primitive: MeshPrimitiveDefinition, material: Material | undefined): MeshPrimitive {
-    let materialCache = this.cache.get(primitive);
-    if (materialCache) {
-      const instance = materialCache.get(material);
-      if (instance) {
-        return instance;
-      }
-    } else {
-      materialCache = new Map();
-      this.cache.set(primitive, materialCache);
-    }
-
-    // If `material` is passed as undefined, we should never reach here, as every mesh primitive
-    // is initialised with the a default entry through `init()`
-    if (material === undefined) {
-      throw new Error(`Unknown error. Mesh primitive has no instance with default material. Has 'init()' been called?`);
-    }
-
-    const newInstance = MeshPrimitive.fromDefinition(this.engine, primitive, material);
-    materialCache.set(material, newInstance);
-
-    return newInstance;
-  }
 }
 
 /**
@@ -146,12 +93,12 @@ export class ModelPart {
       .multiplySelf(this._worldMatrixTmp);
 
     for (const primitive of this.meshPrimitiveDefinitions) {
-      let material: Material | undefined = undefined;
+      let materialOverrides: MaterialOverride[] | undefined = undefined;
       if (primitive.material) {
-        material = this.materialOverrides.getOverride(primitive.material.name);
+        materialOverrides = this.materialOverrides.getOverrides(primitive.material.name);
       }
-      const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
-      primitiveInstance.draw(engine, drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp);
+      const [primitiveInstance, materialInstance] = this.meshPrimitiveCache.getOrCreate(primitive, materialOverrides);
+      primitiveInstance.draw(engine, drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, materialInstance);
     }
   }
 

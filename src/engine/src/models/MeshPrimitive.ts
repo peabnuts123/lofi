@@ -1,10 +1,9 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { IdPool } from "@lofi/core/util/IdPool";
-import { Material } from "@lofi/engine/materials/Material";
 import { createBuffer } from "@lofi/engine/util/createBuffer";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
-import { ShaderCache, ShaderVariant } from "@lofi/engine/materials";
+import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
 import type { DrawTask } from "@lofi/engine/scene/DrawableSceneNode";
 import type { AttributeDefinition, MeshPrimitiveDefinition } from "@lofi/engine/loaders/definitions";
 
@@ -22,7 +21,6 @@ export class MeshPrimitive {
 
   private readonly id: number;
   private readonly vao: WebGLVertexArrayObject;
-  private readonly material: Material;
   private readonly shader: ShaderVariant;
   private readonly extents: MeshPrimitiveExtents;
   private readonly drawPrimitive: () => void;
@@ -31,14 +29,12 @@ export class MeshPrimitive {
 
   private constructor(
     vao: WebGLVertexArrayObject,
-    material: Material,
     shader: ShaderVariant,
     extents: MeshPrimitiveExtents,
     drawPrimitive: () => void,
   ) {
     this.id = MeshPrimitive.IdPool.createNew();
     this.vao = vao;
-    this.material = material;
     this.shader = shader;
     this.extents = extents;
     this.drawPrimitive = drawPrimitive;
@@ -50,6 +46,7 @@ export class MeshPrimitive {
     modelViewMatrix: Matrix4,
     worldMatrix: Matrix4,
     jointMatrices: Matrix4[] | undefined,
+    material: MaterialInstance,
   ): void {
     // Joint matrices
     let jointMatricesBytes: Float32Array | undefined = undefined;
@@ -68,7 +65,7 @@ export class MeshPrimitive {
     const drawTask: DrawTask = {
       renderPass: 0, // @TODO (?)
       shaderVariant: this.shader,
-      material: this.material,
+      material,
       uniforms: {
         worldMatrix: worldMatrix.clone(), // @NOTE We can't hold reference to a tmp value
         skinWeights: jointMatricesBytes,
@@ -82,7 +79,7 @@ export class MeshPrimitive {
       },
     };
 
-    const materialBlendingMode = this.material.blendingMode.type;
+    const materialBlendingMode = material.blendingMode.type;
     const isMaterialTransparent = materialBlendingMode === 'Additive' ||
       materialBlendingMode === 'AlphaBlend' ||
       materialBlendingMode === 'Average' ||
@@ -107,7 +104,7 @@ export class MeshPrimitive {
   public static fromDefinition(
     engine: IEngine,
     primitive: MeshPrimitiveDefinition,
-    material: Material,
+    material: MaterialInstance,
   ): MeshPrimitive {
     const { gl } = engine;
 
@@ -261,7 +258,6 @@ export class MeshPrimitive {
 
     return new MeshPrimitive(
       vao,
-      material,
       shader,
       meshExtents,
       drawPrimitive,

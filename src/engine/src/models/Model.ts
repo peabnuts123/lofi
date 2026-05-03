@@ -8,6 +8,7 @@ import type { Material } from "@lofi/engine/materials";
 import type { Edge, EdgeIndices, Triangle, TriangleIndices } from "./MeshGeometry";
 import { ModelPart } from "./ModelPart";
 import { MeshSkin } from "./MeshSkin";
+import { ModelMaterialOverrides, type MaterialOverrideType } from "./ModelMaterialOverrides";
 
 /**
  * A 3D model, comprised of a hierarchy of `ModelPart`s, which are comprised
@@ -90,12 +91,12 @@ export class Model {
     return instance;
   }
 
-  public setMaterialOverride(materialName: string, material: Material | undefined): void {
-    if (material !== undefined) {
-      this.materialOverrides.setOverride(materialName, material, this.isInstance);
-    } else {
-      this.materialOverrides.removeOverride(materialName, this.isInstance);
-    }
+  public setMaterialOverride(materialName: string, material: Material, type: MaterialOverrideType = 'override'): void {
+    this.materialOverrides.setOverride(materialName, material, type, this.isInstance);
+  }
+
+  public removeMaterialOverride(materialName: string): void {
+    this.materialOverrides.removeOverride(materialName, this.isInstance);
   }
 
   public draw(engine: IEngine, drawQueues: DrawQueues, viewMatrix: Matrix4, worldMatrix: Matrix4): void {
@@ -188,42 +189,4 @@ export class Model {
       return result ?? [];
     });
   };
-}
-
-export class ModelMaterialOverrides {
-  private sharedOverrides: Map<string, Material>;
-  private instanceOverrides: Map<string, Material>;
-
-  public constructor() {
-    this.sharedOverrides = new Map();
-    this.instanceOverrides = new Map();
-  }
-
-  public createInstance(): ModelMaterialOverrides {
-    const instance = new ModelMaterialOverrides();
-    instance.sharedOverrides = this.sharedOverrides;
-    return instance;
-  }
-
-  public getOverride(materialName: string): Material | undefined {
-    const instanceOverride = this.instanceOverrides.get(materialName);
-    const sharedOverride = this.sharedOverrides.get(materialName);
-    return instanceOverride ?? sharedOverride;
-  }
-
-  public setOverride(materialName: string, material: Material, isInstance: boolean): void {
-    if (isInstance) {
-      this.instanceOverrides.set(materialName, material);
-    } else {
-      this.sharedOverrides.set(materialName, material);
-    }
-  }
-
-  public removeOverride(materialName: string, isInstance: boolean): void {
-    if (isInstance) {
-      this.instanceOverrides.delete(materialName);
-    } else {
-      this.sharedOverrides.delete(materialName);
-    }
-  }
 }

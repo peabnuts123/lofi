@@ -6,6 +6,7 @@ import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 import { Animation } from "@lofi/engine/animation";
 import type { Material } from "@lofi/engine/materials";
 import { type IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
+import type { MaterialOverrideType } from "@lofi/engine/models/ModelMaterialOverrides";
 
 export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   public model: Model;
@@ -23,8 +24,12 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
     this._verticesWorldSpaceTmp = model.allVertexPositions.map(() => Vector3.zero());
   }
 
-  public setMaterialOverride(materialName: string, material: Material | undefined): void {
-    this.model.setMaterialOverride(materialName, material);
+  public setMaterialOverride(materialName: string, material: Material, type?: MaterialOverrideType): void {
+    this.model.setMaterialOverride(materialName, material, type);
+  }
+
+  public removeMaterialOverride(materialName: string): void {
+    this.model.removeMaterialOverride(materialName);
   }
 
   public playAnimation(animationName: string, speed: number = 1): void {

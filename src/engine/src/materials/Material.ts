@@ -1,64 +1,72 @@
-import { IdPool } from '@lofi/core/util/IdPool';
-import type { Color4 } from '@lofi/core/math/Color4';
+import { Color4 } from '@lofi/core/math/Color4';
 import type { Color3 } from '@lofi/core/math/Color3';
 import { Texture } from '@lofi/engine/textures/Texture';
 import type { IEngine } from '@lofi/engine/Engine';
 import type { MaterialDefinition } from '@lofi/engine/loaders/definitions';
 
-import VertexShaderSource from '@lofi/engine/materials/shaders/newShader.vert';
-import FragmentShaderSource from '@lofi/engine/materials/shaders/newShader.frag';
-
 import { ShaderBlendingMode } from './ShaderBlendingMode';
-import { DefaultShader, type IShader } from './ShaderVariant';
 
 export interface MaterialConstructorOptions {
-  diffuseColor?: Color4;
-  diffuseTexture?: Texture;
-  emissionColor?: Color3;
-  unlit?: boolean;
-  blendingMode?: ShaderBlendingMode;
+  diffuseColor?: Color4 | undefined | 'unset';
+  diffuseTexture?: Texture | undefined | 'unset';
+  emissionColor?: Color3 | undefined | 'unset';
+  unlit?: boolean | undefined | 'unset';
+  blendingMode?: ShaderBlendingMode | undefined | 'unset';
 }
 
 export class Material {
-  private static readonly IdPool: IdPool = new IdPool();
+  public static readonly DefaultMaterial = new Material();
 
-  public static readonly DefaultMaterial = new Material('default');
+  public diffuseColor: Color4 | undefined | 'unset';
+  public diffuseTexture: Texture | undefined | 'unset';
+  public emissionColor: Color3 | undefined | 'unset';
+  public unlit: boolean | undefined | 'unset';
+  public blendingMode: ShaderBlendingMode | undefined | 'unset';
 
-  public readonly id: number;
-  public readonly name: string;
+  /**
+   *
+   * @param options Material options. Use `"unset"` to specify a property should be empty.
+   * @example
+   * ```typescript
+   * const redUntextured = new Material({
+   *   diffuseColor: Color4.red(), // Override diffuse color.
+   *   diffuseTexture: "unset",    // No texture, even if applying in "override" mode.
+   * });
+   * ```
+   */
+  public constructor(options?: MaterialConstructorOptions) {
+    options ??= {};
 
-  public shader: IShader;
-  public diffuseColor: Color4 | undefined;
-  public diffuseTexture: Texture | undefined;
-  public emissionColor: Color3 | undefined; // @TODO ... LOL
-  public unlit: boolean;
-  public blendingMode: ShaderBlendingMode;
+    const {
+      diffuseColor,
+      diffuseTexture,
+      emissionColor,
+      unlit,
+      blendingMode,
+    } = options;
 
-  public constructor(name: string, options?: MaterialConstructorOptions) {
-    this.id = Material.IdPool.createNew();
-    this.name = name;
 
-    this.shader = new DefaultShader(
-      VertexShaderSource,
-      FragmentShaderSource,
-    );
-
-    this.diffuseColor = options?.diffuseColor;
-    this.diffuseTexture = options?.diffuseTexture;
-    this.emissionColor = options?.emissionColor;
-    this.unlit = options?.unlit ?? false;
-    this.blendingMode = options?.blendingMode ?? ShaderBlendingMode.None();
+    this.diffuseColor = diffuseColor;
+    this.diffuseTexture = diffuseTexture;
+    this.emissionColor = emissionColor;
+    this.unlit = unlit;
+    this.blendingMode = blendingMode;
   }
 
   public static async fromDefinition(engine: IEngine, definition: MaterialDefinition): Promise<Material> {
-    const material = new Material(definition.name);
+    const material = new Material();
+
+    /* Diffuse color */
     if (definition.diffuseColor !== undefined) {
       material.diffuseColor = definition.diffuseColor;
     }
+
+    /* Diffuse texture */
     if (definition.diffuseTexture !== undefined) {
       material.diffuseTexture = await Texture.loadFromBuffer(engine, definition.diffuseTexture.buffer);
     }
 
+    /* Blending mode */
     switch (definition.alpha.mode) {
       case 'OPAQUE':
         material.blendingMode = ShaderBlendingMode.None();

@@ -4,7 +4,7 @@ import type { MeshPrimitiveDefinition } from '@lofi/engine/loaders/definitions';
 
 
 import { ShaderVariant, type ShaderVariantOptions } from './ShaderVariant';
-import type { Material } from './Material';
+import type { MaterialInstance } from './MaterialInstance';
 
 export class ShaderCache {
   private static readonly IdPool: IdPool = new IdPool();
@@ -50,11 +50,11 @@ export class ShaderCache {
     ].join('|');
   }
 
-  public static getOrCreate(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: Material): ShaderVariant {
+  public static getOrCreate(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: MaterialInstance): ShaderVariant {
     const options: ShaderVariantOptions = {
       blendingMode: material.blendingMode,
-      hasDiffuseColor: material?.diffuseColor !== undefined,
-      hasDiffuseTexture: material?.diffuseTexture !== undefined,
+      hasDiffuseColor: material.diffuseColor !== undefined,
+      hasDiffuseTexture: material.diffuseTexture !== undefined,
       // @NOTE @ASSUMPTION if skin attributes are defined then ModelPartDefinition has a skin defined
       hasSkin: primitiveDefinition.joints0Data !== undefined && primitiveDefinition.weights0Data !== undefined,
       hasVertexColors: primitiveDefinition.color0Data !== undefined,

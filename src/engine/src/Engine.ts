@@ -4,7 +4,7 @@ import type { DeepPartial } from "@lofi/core/util/types";
 import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo } from "./scene/nodes/CameraNode";
 import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
-import { Material, ShaderVariant, Ubo } from "./materials";
+import { MaterialInstance, ShaderVariant, Ubo } from "./materials";
 import type { DrawTask, IScene, TransparentDrawTask } from "./scene";
 import { rateCounter } from "./util/debug";
 import { CollisionSystem } from "./collision";
@@ -245,7 +245,7 @@ export class Engine implements IEngine {
     const { gl } = this;
 
     let currentShaderVariant: ShaderVariant = undefined!;
-    let currentMaterial: Material = undefined!;
+    let currentMaterial: MaterialInstance = undefined!;
     let currentDraw: DrawTask['draw'] = undefined!;
 
     for (const task of drawQueue) {
