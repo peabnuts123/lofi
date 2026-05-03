@@ -98,6 +98,7 @@ export class Engine implements IEngine {
   private _activeScene: IScene | undefined;
   private cameraUbo: CameraUbo;
   private lightingUbo: LightingUbo;
+  private fpsLimit: number | undefined;
 
   // @TODO Expose canvas aspect ratio and also somehow a method of listening to it
   public constructor(canvas: HTMLCanvasElement, fileSystem: IFileSystem, options?: DeepPartial<EngineConfig>) {
@@ -143,8 +144,16 @@ export class Engine implements IEngine {
     this.activeScene = scene;
   }
 
+  /**
+   * Set or clear the FPS limit for the render loop.
+   * @param fps The target FPS, or undefined to disable limiting.
+   */
+  public setFpsLimit(fps: number | undefined): void {
+    this.fpsLimit = fps;
+  }
+
   public run(onUpdate: (dt: number, stop: () => void) => void): void {
-    let lastFrameTime = performance.now();
+    let lastFrameTime: DOMHighResTimeStamp | null = null;
     let isStopped = false;
 
     const debug_runStart = performance.now();
@@ -152,11 +161,27 @@ export class Engine implements IEngine {
 
     // Count number of frames drawn per second
     const fps = rateCounter('FPS');
-    const tick = (): void => {
+    const tick = (timestamp: DOMHighResTimeStamp): void => {
+      if (lastFrameTime === null) {
+        lastFrameTime = timestamp;
+      }
+
+      if (this.fpsLimit !== undefined) {
+        const framePeriod = 1000 / this.fpsLimit;
+        if (timestamp < lastFrameTime + framePeriod) {
+          requestAnimationFrame(tick);
+          return;
+        }
+      }
+
       fps.count();
-      const startFrameTime = performance.now();
+      const startFrameTime = timestamp;
       const dt = (startFrameTime - lastFrameTime) / 1000;
-      lastFrameTime = startFrameTime;
+      if (this.fpsLimit !== undefined) {
+        lastFrameTime = lastFrameTime + (1000 / this.fpsLimit);
+      } else {
+        lastFrameTime = startFrameTime;
+      }
 
       const gl = this.gl;
 
@@ -217,15 +242,7 @@ export class Engine implements IEngine {
       debug_frameTimes.push(debug_frameTime);
 
       if (!isStopped) {
-        const debug_fpsLimit = undefined; // @TODO @DEBUG REMOVE
-        // const debug_fpsLimit = 3; // @TODO @DEBUG REMOVE
-        if (debug_fpsLimit !== undefined) {
-          setTimeout(() => {
-            tick();
-          }, 1000 / debug_fpsLimit);
-        } else {
-          requestAnimationFrame(tick);
-        }
+        requestAnimationFrame(tick);
       } else {
         this.audioSystem.destroy();
         const debug_runStop = performance.now();
