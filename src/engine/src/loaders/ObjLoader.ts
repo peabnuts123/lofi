@@ -7,6 +7,7 @@ import {
   type Node as PartObj,
   type Material as MaterialObj,
 } from 'online-3d-viewer/source/engine/import/importerobj';
+import { MaterialSource } from 'online-3d-viewer';
 
 import { Vector3, type Vector3Definition, type Vector2Like } from '@lofi/core/math/vector';
 import { Quaternion } from '@lofi/core/math/Quaternion';
@@ -165,7 +166,18 @@ export class ObjLoader {
     }>();
 
     for (const triangle of mesh.triangles) {
-      const materialId = triangle.mat ?? -1;
+      let materialId = triangle.mat ?? -1;
+
+      // `online-3d-viewer` assigns default materials (that are BLACK lol WHY)
+      // but specifies when it is doing this. Detect this and assign our
+      // own default materials.
+      if (materialId !== -1) {
+        const material = this.parsedObj.materials[materialId];
+        if (material.source !== MaterialSource.Model) {
+          materialId = -1;
+        }
+      }
+
       let primitiveData = groupedPrimitiveData.get(materialId);
       if (!primitiveData) {
         primitiveData = {
