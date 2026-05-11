@@ -1,51 +1,39 @@
 import { IdPool } from '@lofi/core/util/IdPool';
 import { Color4 } from '@lofi/core/math/Color4';
-import type { Color3 } from '@lofi/core/math/Color3';
-import { Texture } from '@lofi/engine/textures/Texture';
+import { Texture, Cubemap } from '@lofi/engine/textures';
 
 import VertexShaderSource from '@lofi/engine/materials/shaders/shader.vert';
 import FragmentShaderSource from '@lofi/engine/materials/shaders/shader.frag';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
 import { DefaultShader, type IShader } from './ShaderVariant';
-import type { Material } from './Material';
+import { Material } from './Material';
+import { clamp01 } from '@lofi/core/math/util';
 
-
-export interface MaterialInstanceConstructorOptions {
-  diffuseColor: Color4 | undefined;
-  diffuseTexture: Texture | undefined;
-  emissionColor: Color3 | undefined;
-  unlit: boolean;
-  blendingMode: ShaderBlendingMode;
-}
-
-export const MaterialDefaults: MaterialInstanceConstructorOptions = {
-  diffuseColor: undefined,
-  diffuseTexture: undefined,
-  emissionColor: undefined,
+export const MaterialDefaults = {
   unlit: false,
   blendingMode: ShaderBlendingMode.None(),
+  diffuseColor: undefined,
+  diffuseTexture: undefined,
+  reflectionCubemap: undefined,
+  reflectionIntensity: 0.5,
 };
 
 export class MaterialInstance {
   private static readonly IdPool: IdPool = new IdPool();
+  public static readonly DefaultMaterial = MaterialInstance.fromMaterial(Material.DefaultMaterial);
   public readonly id: number;
 
   public shader: IShader;
 
-  public _diffuseColor: Color4 | undefined;
-  public _diffuseTexture: Texture | undefined;
-  public _emissionColor: Color3 | undefined;
-  public _unlit: boolean;
-  public _blendingMode: ShaderBlendingMode;
+  private _diffuseColor: Color4 | undefined;
+  private _diffuseTexture: Texture | undefined;
+  private _unlit: boolean;
+  private _blendingMode: ShaderBlendingMode;
+  private _reflectionCubemap: Cubemap | undefined;
+  private _reflectionIntensity: number;
 
-  public constructor({
-    diffuseColor,
-    diffuseTexture,
-    emissionColor,
-    unlit,
-    blendingMode,
-  }: MaterialInstanceConstructorOptions) {
+  private constructor() {
     this.id = MaterialInstance.IdPool.createNew();
 
     this.shader = new DefaultShader(
@@ -53,53 +41,83 @@ export class MaterialInstance {
       FragmentShaderSource,
     );
 
-    this._diffuseColor = diffuseColor;
-    this._diffuseTexture = diffuseTexture;
-    this._emissionColor = emissionColor;
-    this._unlit = unlit;
-    this._blendingMode = blendingMode;
+    this._diffuseColor = MaterialDefaults.diffuseColor;
+    this._diffuseTexture = MaterialDefaults.diffuseTexture;
+    this._unlit = MaterialDefaults.unlit;
+    this._blendingMode = MaterialDefaults.blendingMode;
+    this._reflectionCubemap = MaterialDefaults.reflectionCubemap;
+    this._reflectionIntensity = MaterialDefaults.reflectionIntensity;
   }
 
   public static fromMaterial(material: Material): MaterialInstance {
-    const instance = new MaterialInstance(MaterialDefaults);
-    instance.applyOverride(material);
+    const instance = new MaterialInstance();
+    instance.overrideWith(material);
     return instance;
   }
 
-  public applyOverride(overrides: Material): void {
+  /**
+   * Replace all material properties on this material instance
+   * with the material properties on {@linkcode material}, including unspecified
+   * or unset properties.
+   * @param material
+   */
+  public replaceWith(material: Material): void {
+    this.diffuseColor = MaterialDefaults.diffuseColor;
+    this.diffuseTexture = MaterialDefaults.diffuseTexture;
+    this.unlit = MaterialDefaults.unlit;
+    this.blendingMode = MaterialDefaults.blendingMode;
+    this.reflectionCubemap = MaterialDefaults.reflectionCubemap;
+    this.reflectionIntensity = MaterialDefaults.reflectionIntensity;
+    this.overrideWith(material);
+  }
+
+  /**
+   * Override material properties on this material instance
+   * with any material properties specified in {@linkcode material}.
+   * Any properties not specified on {@linkcode material} are ignored.
+   * @param material
+   */
+  public overrideWith(material: Material): void {
     /* Diffuse color */
-    if (overrides.diffuseColor === 'unset') {
+    if (material.diffuseColor === 'unset') {
       this.diffuseColor = MaterialDefaults.diffuseColor;
-    } else if (overrides.diffuseColor !== undefined) {
-      this.diffuseColor = overrides.diffuseColor;
+    } else if (material.diffuseColor !== undefined) {
+      this.diffuseColor = material.diffuseColor;
     }
 
     /* Diffuse texture */
-    if (overrides.diffuseTexture === 'unset') {
+    if (material.diffuseTexture === 'unset') {
       this.diffuseTexture = MaterialDefaults.diffuseTexture;
-    } else if (overrides.diffuseTexture !== undefined) {
-      this.diffuseTexture = overrides.diffuseTexture;
-    }
-
-    /* Emission color */
-    if (overrides.emissionColor === 'unset') {
-      this.emissionColor = MaterialDefaults.emissionColor;
-    } else if (overrides.emissionColor !== undefined) {
-      this.emissionColor = overrides.emissionColor;
+    } else if (material.diffuseTexture !== undefined) {
+      this.diffuseTexture = material.diffuseTexture;
     }
 
     /* Unlit */
-    if (overrides.unlit === 'unset') {
+    if (material.unlit === 'unset') {
       this.unlit = MaterialDefaults.unlit;
-    } else if (overrides.unlit !== undefined) {
-      this.unlit = overrides.unlit;
+    } else if (material.unlit !== undefined) {
+      this.unlit = material.unlit;
     }
 
     /* Blending mode */
-    if (overrides.blendingMode === 'unset') {
+    if (material.blendingMode === 'unset') {
       this.blendingMode = MaterialDefaults.blendingMode;
-    } else if (overrides.blendingMode !== undefined) {
-      this.blendingMode = overrides.blendingMode;
+    } else if (material.blendingMode !== undefined) {
+      this.blendingMode = material.blendingMode;
+    }
+
+    /* Reflection - cubemap */
+    if (material.reflectionCubemap === 'unset') {
+      this.reflectionCubemap = MaterialDefaults.reflectionCubemap;
+    } else if (material.reflectionCubemap !== undefined) {
+      this.reflectionCubemap = material.reflectionCubemap;
+    }
+
+    /* Reflection - intensity */
+    if (material.reflectionIntensity === 'unset') {
+      this.reflectionIntensity = MaterialDefaults.reflectionIntensity;
+    } else if (material.reflectionIntensity !== undefined) {
+      this.reflectionIntensity = material.reflectionIntensity;
     }
   }
 
@@ -107,10 +125,12 @@ export class MaterialInstance {
   private set diffuseColor(value: Color4 | undefined) { this._diffuseColor = value; }
   public get diffuseTexture(): Texture | undefined { return this._diffuseTexture; }
   private set diffuseTexture(value: Texture | undefined) { this._diffuseTexture = value; }
-  public get emissionColor(): Color3 | undefined { return this._emissionColor; }
-  private set emissionColor(value: Color3 | undefined) { this._emissionColor = value; }
   public get unlit(): boolean { return this._unlit; }
   private set unlit(value: boolean) { this._unlit = value; }
   public get blendingMode(): ShaderBlendingMode { return this._blendingMode; }
   private set blendingMode(value: ShaderBlendingMode) { this._blendingMode = value; }
+  public get reflectionCubemap(): Cubemap | undefined { return this._reflectionCubemap; }
+  public set reflectionCubemap(value: Cubemap | undefined) { this._reflectionCubemap = value; }
+  public get reflectionIntensity(): number { return this._reflectionIntensity; }
+  public set reflectionIntensity(value: number) { this._reflectionIntensity = clamp01(value); }
 }

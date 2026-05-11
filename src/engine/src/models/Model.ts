@@ -115,7 +115,7 @@ export class Model {
     const modelPartLookup = new Map<ModelPartDefinition, ModelPart>();
     const rootParts: ModelPart[] = [];
     const allParts: ModelPart[] = [];
-    const materialOverrides = new ModelMaterialOverrides();
+    const materialOverrides = ModelMaterialOverrides.createNew();
 
     for (const rootPart of definition.rootParts) {
       const modelPart = await createModelPart(rootPart);

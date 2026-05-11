@@ -11,6 +11,7 @@ export interface ShaderVariantOptions {
   blendingMode: ShaderBlendingMode;
   unlit: boolean;
   hasSkin: boolean;
+  hasReflection: boolean;
 }
 export const DefaultShaderVariantOptions: ShaderVariantOptions = {
   hasDiffuseColor: false,
@@ -19,6 +20,7 @@ export const DefaultShaderVariantOptions: ShaderVariantOptions = {
   blendingMode: ShaderBlendingMode.None(),
   unlit: false,
   hasSkin: false,
+  hasReflection: false,
 };
 
 export class ShaderVariant {
@@ -181,6 +183,10 @@ export class DefaultShader implements IShader {
 
     if (options.unlit) {
       defines.push("UNLIT");
+    }
+
+    if (options.hasReflection) {
+      defines.push(`REFLECTION`);
     }
 
     return defines;

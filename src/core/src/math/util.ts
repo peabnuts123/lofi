@@ -67,3 +67,23 @@ export function tanDegrees(value: number): number {
 export function tan(value: number, period: number): number {
   return Math.tan(value / period * Tau);
 }
+
+
+/**
+ * Utility similar to `Number.toFixed()` except integer values
+ * are left as-is.
+ * @param value Value to stringify.
+ * @param decimals Number of decimals to use if `value` is non-integer.
+ * @example
+ * ```typescript
+ * toFixed(2, 1); // Returns `"2"`
+ * toFixed(Math.PI, 1); // Returns `"3.1"`
+ * ```
+ */
+export function toFixed(value: number, decimals: number): string {
+  if (Number.isInteger(value)) {
+    return value.toString();
+  } else {
+    return value.toFixed(decimals);
+  }
+}

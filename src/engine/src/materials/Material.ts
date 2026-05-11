@@ -1,27 +1,31 @@
 import { Color4 } from '@lofi/core/math/Color4';
-import type { Color3 } from '@lofi/core/math/Color3';
-import { Texture } from '@lofi/engine/textures/Texture';
+import { Texture, Cubemap } from '@lofi/engine/textures';
 import type { IEngine } from '@lofi/engine/Engine';
 import type { MaterialDefinition } from '@lofi/engine/loaders/definitions';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
+import { Observable } from '@lofi/core/util/observable';
+
+export type Unset = 'unset';
 
 export interface MaterialConstructorOptions {
-  diffuseColor?: Color4 | undefined | 'unset';
-  diffuseTexture?: Texture | undefined | 'unset';
-  emissionColor?: Color3 | undefined | 'unset';
-  unlit?: boolean | undefined | 'unset';
-  blendingMode?: ShaderBlendingMode | undefined | 'unset';
+  diffuseColor?: Color4 | undefined | Unset;
+  diffuseTexture?: Texture | undefined | Unset;
+  unlit?: boolean | undefined | Unset;
+  blendingMode?: ShaderBlendingMode | undefined | Unset;
+  reflectionCubemap?: Cubemap | undefined | Unset;
+  reflectionIntensity?: number | undefined | Unset;
 }
 
-export class Material {
+export class Material extends Observable {
   public static readonly DefaultMaterial = new Material();
 
-  public diffuseColor: Color4 | undefined | 'unset';
-  public diffuseTexture: Texture | undefined | 'unset';
-  public emissionColor: Color3 | undefined | 'unset';
-  public unlit: boolean | undefined | 'unset';
-  public blendingMode: ShaderBlendingMode | undefined | 'unset';
+  public _diffuseColor: Color4 | undefined | Unset;
+  public _diffuseTexture: Texture | undefined | Unset;
+  public _unlit: boolean | undefined | Unset;
+  public _blendingMode: ShaderBlendingMode | undefined | Unset;
+  public _reflectionCubemap: Cubemap | undefined | Unset;
+  public _reflectionIntensity: number | undefined | Unset;
 
   /**
    *
@@ -35,22 +39,25 @@ export class Material {
    * ```
    */
   public constructor(options?: MaterialConstructorOptions) {
+    super();
     options ??= {};
 
     const {
       diffuseColor,
       diffuseTexture,
-      emissionColor,
       unlit,
       blendingMode,
+      reflectionCubemap,
+      reflectionIntensity,
     } = options;
 
 
     this.diffuseColor = diffuseColor;
     this.diffuseTexture = diffuseTexture;
-    this.emissionColor = emissionColor;
     this.unlit = unlit;
     this.blendingMode = blendingMode;
+    this.reflectionCubemap = reflectionCubemap;
+    this.reflectionIntensity = reflectionIntensity;
   }
 
   public static async fromDefinition(engine: IEngine, definition: MaterialDefinition): Promise<Material> {
@@ -58,29 +65,67 @@ export class Material {
 
     /* Diffuse color */
     if (definition.diffuseColor !== undefined) {
-      material.diffuseColor = definition.diffuseColor;
+      material._diffuseColor = definition.diffuseColor;
     }
 
     /* Diffuse texture */
     if (definition.diffuseTexture !== undefined) {
-      material.diffuseTexture = await Texture.loadFromBuffer(engine, definition.diffuseTexture.buffer);
+      material._diffuseTexture = await Texture.loadFromBuffer(engine, definition.diffuseTexture.buffer);
     }
 
     /* Blending mode */
     switch (definition.alpha.mode) {
       case 'OPAQUE':
-        material.blendingMode = ShaderBlendingMode.None();
+        material._blendingMode = ShaderBlendingMode.None();
         break;
       case 'BLEND':
-        material.blendingMode = ShaderBlendingMode.AlphaBlend();
+        material._blendingMode = ShaderBlendingMode.AlphaBlend();
         break;
       case 'MASK':
-        material.blendingMode = ShaderBlendingMode.AlphaClip(definition.alpha.cutoff);
+        material._blendingMode = ShaderBlendingMode.AlphaClip(definition.alpha.cutoff);
         break;
       default:
         throw new Error(`Unimplemented alpha mode: ${(definition.alpha as { mode: unknown }).mode}`);
     }
 
     return material;
+  }
+
+
+  public get diffuseColor(): Color4 | undefined | Unset { return this._diffuseColor; }
+  public set diffuseColor(value: Color4 | undefined | Unset) {
+    this.mutate(() => {
+      this._diffuseColor = value;
+    });
+  }
+  public get diffuseTexture(): Texture | undefined | Unset { return this._diffuseTexture; }
+  public set diffuseTexture(value: Texture | undefined | Unset) {
+    this.mutate(() => {
+      this._diffuseTexture = value;
+    });
+  }
+  public get unlit(): boolean | undefined | Unset { return this._unlit; }
+  public set unlit(value: boolean | undefined | Unset) {
+    this.mutate(() => {
+      this._unlit = value;
+    });
+  }
+  public get blendingMode(): ShaderBlendingMode | undefined | Unset { return this._blendingMode; }
+  public set blendingMode(value: ShaderBlendingMode | undefined | Unset) {
+    this.mutate(() => {
+      this._blendingMode = value;
+    });
+  }
+  public get reflectionCubemap(): Cubemap | undefined | Unset { return this._reflectionCubemap; }
+  public set reflectionCubemap(value: Cubemap | undefined | Unset) {
+    this.mutate(() => {
+      this._reflectionCubemap = value;
+    });
+  }
+  public get reflectionIntensity(): number | undefined | Unset { return this._reflectionIntensity; }
+  public set reflectionIntensity(value: number | undefined | Unset) {
+    this.mutate(() => {
+      this._reflectionIntensity = value;
+    });
   }
 }

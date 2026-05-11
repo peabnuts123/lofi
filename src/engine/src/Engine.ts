@@ -6,10 +6,9 @@ import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { MaterialInstance, ShaderVariant, Ubo } from "./materials";
 import type { DrawTask, IScene, TransparentDrawTask } from "./scene";
-import { rateCounter } from "./util/debug";
+import { RateCounter } from "./util/RateCounter";
 import { CollisionSystem } from "./collision";
 import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
-
 import { DebugModule } from "./util/DebugModule";
 import { InputSystem, type IInputSystem } from "./input";
 
@@ -163,7 +162,36 @@ export class Engine implements IEngine {
     const debug_frameTimes: number[] = [];
 
     // Count number of frames drawn per second
-    const fps = rateCounter('FPS');
+    const fps = new RateCounter('FPS');
+
+    const Debug_ResourceCountersEnabled = false;
+    const debug_resourceCounters = {
+      shader: {
+        new: new RateCounter('shader:new', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+        shared: new RateCounter('shader:shared', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+      },
+      material: {
+        new: new RateCounter('material:new', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+        shared: new RateCounter('material:shared', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+      },
+      mesh: {
+        new: new RateCounter('mesh:new', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+        shared: new RateCounter('mesh:shared', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+      },
+      drawCalls: new RateCounter('draw calls', fps, { startDisabled: !Debug_ResourceCountersEnabled }),
+    };
+    const forEachResourceCounter = (callbackFn: (rateCounter: RateCounter) => void, __target?: object): void => {
+      const target = __target ?? debug_resourceCounters;
+      for (const key of Object.values(target)) {
+        if (key instanceof RateCounter) {
+          callbackFn(key);
+        } else {
+          forEachResourceCounter(callbackFn, key as object);
+        }
+      }
+    };
+
+
     const tick = (timestamp: DOMHighResTimeStamp): void => {
       if (lastFrameTime === null) {
         lastFrameTime = timestamp;
@@ -237,8 +265,16 @@ export class Engine implements IEngine {
       });
       drawQueues.transparent.sort((drawTaskA, drawTaskB) => drawTaskA.depth - drawTaskB.depth);
 
-      this.drawQueue(drawQueues.opaque);
-      this.drawQueue(drawQueues.transparent);
+      const opaqueResources = this.drawQueue(drawQueues.opaque);
+      const transparentResources = this.drawQueue(drawQueues.transparent);
+
+      debug_resourceCounters.shader.new.count(opaqueResources.shader.new + transparentResources.shader.new);
+      debug_resourceCounters.shader.shared.count(opaqueResources.shader.shared + transparentResources.shader.shared);
+      debug_resourceCounters.material.new.count(opaqueResources.material.new + transparentResources.material.new);
+      debug_resourceCounters.material.shared.count(opaqueResources.material.shared + transparentResources.material.shared);
+      debug_resourceCounters.mesh.new.count(opaqueResources.mesh.new + transparentResources.mesh.new);
+      debug_resourceCounters.mesh.shared.count(opaqueResources.mesh.shared + transparentResources.mesh.shared);
+      debug_resourceCounters.drawCalls.count(opaqueResources.drawCalls + transparentResources.drawCalls);
 
       const debug_endFrame = performance.now();
       const debug_frameTime = debug_endFrame - debug_startFrame;
@@ -247,6 +283,8 @@ export class Engine implements IEngine {
       if (!isStopped) {
         requestAnimationFrame(tick);
       } else {
+        fps.stop();
+        forEachResourceCounter((rateCounter) => rateCounter.stop());
         this.audioSystem.destroy();
         const debug_runStop = performance.now();
         const averageFrameTime = debug_frameTimes.reduce((sum, frameTime) => {
@@ -261,24 +299,37 @@ export class Engine implements IEngine {
     requestAnimationFrame(tick);
   }
 
-  private drawQueue(drawQueue: DrawTask[]): void {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  private drawQueue(drawQueue: DrawTask[]) {
     const { gl } = this;
 
     let currentShaderVariant: ShaderVariant = undefined!;
     let currentMaterial: MaterialInstance = undefined!;
     let currentDraw: DrawTask['draw'] = undefined!;
 
+    const ResourceCount = {
+      shader: { new: 0, shared: 0 },
+      material: { new: 0, shared: 0 },
+      mesh: { new: 0, shared: 0 },
+      drawCalls: 0,
+    };
+
     for (const task of drawQueue) {
 
       /* GL Program */
       if (task.shaderVariant.id !== currentShaderVariant?.id) {
+        ResourceCount.shader.new++;
         currentShaderVariant = task.shaderVariant;
         gl.useProgram(task.shaderVariant.program);
+      } else {
+        ResourceCount.shader.shared++;
       }
 
       /* Material */
       if (task.material.id !== currentMaterial?.id) {
+        ResourceCount.material.new++;
         currentMaterial = task.material;
+        // Diffuse color
         const diffuseColorUniform = currentShaderVariant.getUniform('diffuseColor');
         if (task.material.diffuseColor !== undefined && diffuseColorUniform) {
           gl.uniform4fv(diffuseColorUniform, new Float32Array([
@@ -345,16 +396,33 @@ export class Engine implements IEngine {
             throw new Error(`Unimplemented blending mode: ${(task.material.blendingMode as { type: unknown }).type}`);
         }
 
-        // Texture
-        const textureSamplerUniform = currentShaderVariant.getUniform('sampler');
-        if (textureSamplerUniform && task.material.diffuseTexture) {
-          const textureIndex = 0; // @TODO ?
-          gl.activeTexture(gl.TEXTURE0 + textureIndex);
+        // Diffuse texture
+        const diffuseTextureSamplerUniform = currentShaderVariant.getUniform('diffuseTextureSampler');
+        if (diffuseTextureSamplerUniform && task.material.diffuseTexture) {
+          const textureSlot = 0;
+          gl.activeTexture(gl.TEXTURE0 + textureSlot);
           gl.bindTexture(gl.TEXTURE_2D, task.material.diffuseTexture.glTexture);
-          gl.uniform1i(textureSamplerUniform, textureIndex);
+          gl.uniform1i(diffuseTextureSamplerUniform, textureSlot);
         } else {
           gl.bindTexture(gl.TEXTURE_2D, null);
         }
+
+        /* Reflection - cubemap */
+        const cubemapSamplerUniform = currentShaderVariant.getUniform('cubemapSampler');
+        if (cubemapSamplerUniform && task.material.reflectionCubemap) {
+          const textureSlot = 1;
+          gl.activeTexture(gl.TEXTURE0 + textureSlot);
+          gl.bindTexture(gl.TEXTURE_CUBE_MAP, task.material.reflectionCubemap.glTexture);
+          gl.uniform1i(cubemapSamplerUniform, textureSlot);
+        }
+
+        /* Reflection - intensity */
+        const cubemapIntensityUniform = currentShaderVariant.getUniform('cubemapIntensity');
+        if (cubemapIntensityUniform && task.material.reflectionIntensity) {
+          gl.uniform1f(cubemapIntensityUniform, task.material.reflectionIntensity);
+        }
+      } else {
+        ResourceCount.material.shared++;
       }
 
       /* Uniforms */
@@ -371,7 +439,7 @@ export class Engine implements IEngine {
           this._normalTmp.normalSelf(task.uniforms.worldMatrix);
         } catch (e) {
           // @NOTE Don't render if matrix cannot invert (e.g. scale=0)
-          if (e instanceof CannotInvertMatrixError) return;
+          if (e instanceof CannotInvertMatrixError) continue;
           else throw e;
         }
         gl.uniformMatrix3fv(normalMatrixUniform, false, this._normalTmp.toArray());
@@ -385,10 +453,14 @@ export class Engine implements IEngine {
 
       /* Mesh */
       if (task.draw.id !== currentDraw?.id) {
+        ResourceCount.mesh.new++;
         currentDraw = task.draw;
         task.draw.init(this);
+      } else {
+        ResourceCount.mesh.shared++;
       }
 
+      ResourceCount.drawCalls++;
       currentDraw.exec(this);
     }
 
@@ -396,6 +468,8 @@ export class Engine implements IEngine {
     gl.disable(gl.BLEND);
     gl.blendEquation(gl.FUNC_ADD);
     gl.depthMask(true);
+
+    return ResourceCount;
   }
 
   public get activeScene(): IScene | undefined {

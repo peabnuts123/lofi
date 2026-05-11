@@ -61,7 +61,7 @@ export class Computed<T> extends Observable {
   protected readonly _value: T;
   private readonly recompute: (currentValue: T) => void;
 
-  private dependencies: ComputedDependency[];
+  private readonly dependencies: ComputedDependency[];
   protected ignoreDependencies: boolean = false;
 
   protected debug_name: string;
@@ -98,6 +98,15 @@ export class Computed<T> extends Observable {
       this.isDirty = true;
       this.notifyOnChange();
     }
+  }
+
+  public removeAllDependencies(): void {
+    for (const dependency of this.dependencies) {
+      dependency.stopObservingFn();
+    }
+    this.dependencies.splice(0, this.dependencies.length);
+    this.isDirty = true;
+    this.notifyOnChange();
   }
 
   public removeDependency(...dependencies: IObservable[]): void {

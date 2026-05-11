@@ -351,7 +351,7 @@ describe("Computed", () => {
 
 
     // Test
-    /* Add dependency and clear `isDirty` */
+    /* Remove dependency and clear `isDirty` */
     computedPlusOne.removeDependency(observableB);
     computedPlusOne.forceRecompute();
 
@@ -369,6 +369,88 @@ describe("Computed", () => {
     expect(isDirtyAfterFirstMutatingObservableB).toBe(true);
     expect(isDirtyAfterFirstMutatingObservableA).toBe(true);
     expect(isDirtyAfterSecondMutatingObservableA).toBe(true);
+    expect(isDirtyAfterSecondMutatingObservableB).toBe(false);
+  });
+  test("Calling `removeAllDependencies()` marks the computed as dirty", () => {
+    // Setup
+    const observable = new Widget(5, 2);
+    let timesRecomputeCalled = 0;
+    const computedPlusOne = new Computed(new Widget(0, 0), {
+      dependencies: [observable],
+      recompute: (value) => {
+        timesRecomputeCalled++;
+        value.setValue(
+          observable.a + 1,
+          observable.b + 1,
+        );
+      },
+    });
+
+    // @NOTE Force computed to recompute to clear `isDirty`
+    computedPlusOne.forceRecompute();
+
+    const initialIsDirty = computedPlusOne['isDirty'];
+    const initialTimesRecomputeCalled = timesRecomputeCalled;
+
+    // Test
+    computedPlusOne.removeAllDependencies();
+
+    const updatedIsDirty = computedPlusOne['isDirty'];
+    const updatedTimesRecomputeCalled = timesRecomputeCalled;
+
+    // Assert
+    expect(initialIsDirty).toBe(false);
+    expect(updatedIsDirty).toBe(true);
+    expect(initialTimesRecomputeCalled).toBe(1);
+    expect(updatedTimesRecomputeCalled).toBe(1);
+  });
+  test("Calling `removeAllDependencies()` causes the computed to stop listening to all dependencies' changes", () => {
+    // Setup
+    const observableA = new Widget(1, 2);
+    const observableB = new Widget(3, 4);
+    const computedPlusOne = new Computed(new Widget(0, 0), {
+      dependencies: [observableA, observableB],
+      recompute: (value) => {
+        value.setValue(
+          observableA.a + 1,
+          observableA.b + 1,
+        );
+      },
+    });
+
+    // @NOTE Force computed to recompute to clear `isDirty`
+    computedPlusOne.forceRecompute();
+
+    const isDirtyInitial = computedPlusOne['isDirty'];
+
+    /* Update observableB to prove it affects computed */
+    observableB.setValue(13, 14);
+    const isDirtyAfterFirstMutatingObservableB = computedPlusOne['isDirty'];
+    computedPlusOne.forceRecompute();
+
+    /* Update observableA to prove it affects computed */
+    observableA.setValue(11, 12);
+    const isDirtyAfterFirstMutatingObservableA = computedPlusOne['isDirty'];
+
+
+    // Test
+    /* Remove dependency and clear `isDirty` */
+    computedPlusOne.removeAllDependencies();
+    computedPlusOne.forceRecompute();
+
+    /* Update observableA to prove it does not affect computed */
+    observableA.setValue(21, 22);
+    const isDirtyAfterSecondMutatingObservableA = computedPlusOne['isDirty'];
+
+    /* Update observableB to prove it does not affect computed */
+    observableB.setValue(23, 24);
+    const isDirtyAfterSecondMutatingObservableB = computedPlusOne['isDirty'];
+
+    // Assert
+    expect(isDirtyInitial).toBe(false);
+    expect(isDirtyAfterFirstMutatingObservableB).toBe(true);
+    expect(isDirtyAfterFirstMutatingObservableA).toBe(true);
+    expect(isDirtyAfterSecondMutatingObservableA).toBe(false);
     expect(isDirtyAfterSecondMutatingObservableB).toBe(false);
   });
   test("Calling `forceRecompute()` calls `recompute()` and marks the computed as not dirty", () => {

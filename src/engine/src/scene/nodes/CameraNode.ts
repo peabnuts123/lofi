@@ -6,7 +6,10 @@ import type { Ubo } from "@lofi/engine/materials/Ubo";
 import { SceneNode } from "@lofi/engine/scene/SceneNode";
 import type { IScene } from "@lofi/engine/scene/Scene";
 
-export const CameraUboPropertyNames = ['viewProjectionMatrix'] as const;
+export const CameraUboPropertyNames = [
+  'viewProjectionMatrix',
+  'cameraPosition',
+] as const;
 export type CameraUboPropertyName = (typeof CameraUboPropertyNames)[number];
 export type CameraUbo = Ubo<CameraUboPropertyName>;
 export const CameraUboName = 'Camera';
@@ -34,6 +37,7 @@ export class CameraNode extends SceneNode {
   public readonly projectionMatrix = new Matrix4();
 
   private pointAt_tmp = Vector3.zero();
+  private uboCameraPositionData_tmp = new Float32Array(3);
 
   public constructor(scene: IScene, name: string, fov: number, aspectRatio: number, parent?: SceneNode) {
     super(scene, name, parent);
@@ -46,6 +50,12 @@ export class CameraNode extends SceneNode {
 
   public bindToUbo(gl: WebGL2RenderingContext, ubo: CameraUbo): void {
     ubo.setProperty(gl, 'viewProjectionMatrix', this.viewProjectionMatrix.toArray());
+
+    const absolutePosition = this.absolutePosition;
+    this.uboCameraPositionData_tmp[0] = absolutePosition.x;
+    this.uboCameraPositionData_tmp[1] = absolutePosition.y;
+    this.uboCameraPositionData_tmp[2] = absolutePosition.z;
+    ubo.setProperty(gl, 'cameraPosition', this.uboCameraPositionData_tmp);
   }
 
   public override onUpdate(dt: number): void {

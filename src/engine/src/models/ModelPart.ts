@@ -4,10 +4,11 @@ import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
 import type { MeshPrimitiveDefinition, ModelPartDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
 import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
+import { MaterialInstance } from "@lofi/engine/materials";
 
 import type { MeshSkin } from "./MeshSkin";
 import { MeshGeometry, type Edge, type EdgeIndices, type Triangle, type TriangleIndices } from "./MeshGeometry";
-import type { MaterialOverride, ModelMaterialOverrides } from "./ModelMaterialOverrides";
+import type { ModelMaterialOverrides } from "./ModelMaterialOverrides";
 import { MeshPrimitiveCache } from "./MeshPrimitiveCache";
 
 export interface ModelPartConstructorArgs {
@@ -93,12 +94,12 @@ export class ModelPart {
       .multiplySelf(this._worldMatrixTmp);
 
     for (const primitive of this.meshPrimitiveDefinitions) {
-      let materialOverrides: MaterialOverride[] | undefined = undefined;
+      let material = MaterialInstance.DefaultMaterial;
       if (primitive.material) {
-        materialOverrides = this.materialOverrides.getOverrides(primitive.material.name);
+        material = this.materialOverrides.getResult(primitive.material.name);
       }
-      const [primitiveInstance, materialInstance] = this.meshPrimitiveCache.getOrCreate(primitive, materialOverrides);
-      primitiveInstance.draw(engine, drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, materialInstance);
+      const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
+      primitiveInstance.draw(engine, drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, material);
     }
   }
 
@@ -107,7 +108,9 @@ export class ModelPart {
     let meshGeometry: MeshGeometry | undefined = undefined;
     if (definition.mesh) {
       for (const meshPrimitiveDefinition of definition.mesh.primitives) {
-        await meshPrimitiveCache.init(engine, meshPrimitiveDefinition);
+        if (meshPrimitiveDefinition.material) {
+          await materialOverrides.initDefaultMaterial(engine, meshPrimitiveDefinition.material);
+        }
       }
 
       meshGeometry = new MeshGeometry(definition.mesh);

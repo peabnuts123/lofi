@@ -41,6 +41,8 @@ uniform mat4 jointMatrix[MAX_BONES];
 /* Shader outputs */
 out vec4 fragmentColor;
 out vec3 fragmentLighting;
+out vec3 worldNormal;
+out vec3 worldPosition;
 #ifdef DIFFUSE_TEXTURE
 out vec2 fragmentTextureCoord;
 #endif
@@ -49,6 +51,7 @@ out vec2 fragmentTextureCoord;
 // @TODO use an #include for this
 layout(std140) uniform Camera {
   mat4 viewProjectionMatrix;
+  vec3 cameraPosition;
 };
 layout(std140) uniform Lighting {
   vec3 ambientLightColor;
@@ -66,11 +69,12 @@ void main() {
     vertexWeights.y * jointMatrix[int(vertexJoints.y)] +
     vertexWeights.z * jointMatrix[int(vertexJoints.z)] +
     vertexWeights.w * jointMatrix[int(vertexJoints.w)];
-  vec4 worldPosition = worldMatrix * skinMatrix * vec4(vertexPosition, 1.0f);
+  vec4 worldPositionVec4 = worldMatrix * skinMatrix * vec4(vertexPosition, 1.0f);
 #else
-  vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0f);
+  vec4 worldPositionVec4 = worldMatrix * vec4(vertexPosition, 1.0f);
 #endif
-  gl_Position = viewProjectionMatrix * worldPosition;
+  worldPosition = vec3(worldPositionVec4);
+  gl_Position = viewProjectionMatrix * worldPositionVec4;
 
   // Color
   fragmentColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -87,17 +91,16 @@ void main() {
 #endif
 
   // Lighting
+  worldNormal = normalize(normalMatrix * vertexNormal);
 #ifdef UNLIT
   fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
 #else
-  vec3 worldNormal = normalize(normalMatrix * vertexNormal);
-
   // Ambient lighting
   fragmentLighting = ambientLightColor.rgb;
 
   // Point lights
   for(int i = 0; i < MAX_POINT_LIGHTS; i++) {
-    vec3 lightDir = normalize(pointLightPositions[i].xyz - worldPosition.xyz);
+    vec3 lightDir = normalize(pointLightPositions[i].xyz - worldPosition);
     float intensity = max(dot(worldNormal, lightDir), 0.0f);
     fragmentLighting += intensity * pointLightColors[i].rgb;
   }

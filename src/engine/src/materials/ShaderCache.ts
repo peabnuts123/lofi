@@ -9,37 +9,9 @@ import type { MaterialInstance } from './MaterialInstance';
 export class ShaderCache {
   private static readonly IdPool: IdPool = new IdPool();
   private static readonly cache: Record<string, ShaderVariant> = {};
-  /**
-   * List of properties we know we are referencing in the generation of a cache key.
-   */
-  private static readonly KnownCacheProperties: (keyof ShaderVariantOptions)[] = [
-    'blendingMode',
-    'hasDiffuseColor',
-    'hasDiffuseTexture',
-    'hasSkin',
-    'hasVertexColors',
-    'unlit',
-  ];
 
   private static createCacheKey(options: ShaderVariantOptions): string {
-    /*
-     * @NOTE
-     * Simple fail-safe to make sure we never cache a shader without referencing a property.
-     * We just maintain a list of properties that we "know" we are using in the generation
-     * of the cache key, and validate that against all keys on the options object.
-     * If somebody adds a new key to `ShaderVariantOptions` without updating this logic,
-     * this will produce a warning.
-     */
-    const missingKeys: (keyof ShaderVariantOptions)[] = [];
-    for (const optionsKey of Object.keys(options) as (keyof ShaderVariantOptions)[]) {
-      if (!ShaderCache.KnownCacheProperties.includes(optionsKey)) {
-        missingKeys.push(optionsKey);
-      }
-    }
-    if (missingKeys.length > 0) {
-      console.warn(`[${ShaderCache.name}] (${this.createCacheKey.name}) WARNING: Unused properties from 'options' object: `, missingKeys);
-    }
-
+    // @TODO make this more performant. Can blendingmode type be a numeric enum value?
     return [
       options.blendingMode.type,
       options.hasDiffuseColor,
@@ -47,6 +19,7 @@ export class ShaderCache {
       options.hasSkin,
       options.hasVertexColors,
       options.unlit,
+      options.hasReflection,
     ].join('|');
   }
 
@@ -59,6 +32,7 @@ export class ShaderCache {
       hasSkin: primitiveDefinition.joints0Data !== undefined && primitiveDefinition.weights0Data !== undefined,
       hasVertexColors: primitiveDefinition.color0Data !== undefined,
       unlit: material.unlit,
+      hasReflection: material.reflectionCubemap !== undefined,
     };
 
     const cacheKey = ShaderCache.createCacheKey(options);

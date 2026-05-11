@@ -33,14 +33,14 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
     - [ ] Some way to render on a different "layer" (not to mention, UI?)
     - [ ] Calculate bounding box of node/hierarchy
   - [ ] Remaining material properties needed by PolyZone
-    - [ ] Emission
-    - [ ] Reflection
-  - [ ] Directional light
+    - [x] Reflection
+  - [x] ~~Directional light~~
+  - [ ] Lights have range or intensity or colour or something.
   - [ ] Config for Clear color on scene, or camera?
   - [ ] Move AABB + others into `util/maths` or something
-  - [ ] Redo ObjLoader
-  - [ ] Configurable number of max lights
-  - [ ] Remove old shaders
+  - [x] ~~Redo ObjLoader~~
+  - [x] ~~Configurable number of max lights (not DYNAMIC but CONFIGURABLE)~~
+  - [x] ~~Remove old shaders~~
   - [ ] Fix DebugModule
   - [ ] Build pipeline and CD
 
@@ -82,14 +82,17 @@ These items are roughly in priority order.
   - Split screen multiplayer / multiple activate cameras (gl.viewport, gl.scissor)
   - Support for 2 players 1 keyboard (etc) (basically just assign the same device to multiple players)
   - Callbacks for input devices disconnecting / connecting (what do we care about?)
-  - Tidy up and commit the coco scene
   - Virtual input devices (on screen)
   - [ ] `Color3` observable
   - [ ] `Vector2` tests
   - Still a bunch of stuff @TODO left in GltfLoader
   - Dreaded ArrayBuffer / Uint8Array refactor / audit. WHAT IS THE CORRECT THING
   - Do not import GLTF stuff outside GltfLoader
-  - Make examples reference `npm`
+  - Make examples reference npm instead of local package aliases
+  - BUG: Shader blending modes (or just Subtractive?) not quite interacting properly with non-transparent stuff. Subtractive = black.
+  - BUG: Holding arrow keys still scrolls the page
+  - Overhaul / tidy up Recording
+    - Dump raw WAV audio even if it's silent. Webm is screwing me.
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.
