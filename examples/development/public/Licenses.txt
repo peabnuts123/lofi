@@ -92,3 +92,9 @@
   Audio SFX by Chequered Ink: https://ci.itch.io/400-sounds-pack
   You may use these game assets for ANY and ALL uses including commercial use, with or without giving credit, except that you may not sell or redistribute the unaltered assets as your own game assets.
 
+
+
+
+
+  Skyboxes by Emil Persson: https://www.humus.name/index.php?page=Textures
+  Licensed under a Creative Commons Attribution 3.0 Unported License: https://creativecommons.org/licenses/by/3.0/

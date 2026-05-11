@@ -1,6 +1,6 @@
 import { Vector2, Vector3, Color3, Quaternion, DegreesToRadians } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
-import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
+import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model, type Triangle } from '@lofi/engine/models';
 import { Engine } from '@lofi/engine/Engine';
 import { Scene, SceneNode } from '@lofi/engine/scene';
@@ -8,7 +8,7 @@ import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
 import { rayAABBIntersection, rayTriangleIntersection } from '@lofi/engine/collision/ray';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
-import { Texture } from '@lofi/engine/textures';
+import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import type { ModelDefinition } from '@lofi/engine/loaders/definitions';
@@ -44,7 +44,7 @@ const Flags = {
   AnimationTestEnabled: true,
 };
 
-const CollidingMaterial = new Material('colliding', {
+const CollidingMaterial = new Material({
   blendingMode: ShaderBlendingMode.Additive(),
   diffuseColor: Color4.red().withA(0),
   unlit: true,
@@ -79,7 +79,6 @@ export abstract class Game {
           material: await debugGeometry.material({
             name: 'blending',
             diffuseTexturePath: '/textures/stones.png',
-            diffuseColor: Color4.white().withA(0),
           }),
         })],
         animations: [],
@@ -92,7 +91,7 @@ export abstract class Game {
       await GltfLoader.loadModel('/models/rig_mage.glb', fileSystem),
     ];
 
-    const runLoopHooks: Array<(dt: number) => void> = [];
+    const runLoopHooks: Array<(dt: number, time: number) => void> = [];
 
     // Get debug canvas
     const debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
@@ -106,13 +105,13 @@ export abstract class Game {
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
     const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
-    camera.position = new Vector3(-3.5, 2, 3.5);
+    camera.position = new Vector3(-3.5, -3.5, 2);
     camera.pointAt(Vector3.zero());
     cameraOrigin.addChild(camera);
     runLoopHooks.push((dt) => {
       const CameraRotationSpeedDegreesPerSecond = 15;
       cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
-      camera.position.y = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
+      camera.position.z = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
       camera.pointAt(new Vector3(0, 0, 0));
     });
 
@@ -120,7 +119,7 @@ export abstract class Game {
     if (Flags.AudioDemoEnabled) {
       const testAudio = await AudioClip.load(engine, 'audio/Titlescreen_1.mp3', { loop: true });
       const audioBox = new ModelNode(scene, 'test', boxModel);
-      audioBox.setMaterialOverride('ground', new Material('red', {
+      audioBox.setMaterialOverride('ground', new Material({
         diffuseColor: Color4.red(),
       }));
       audioBox.scale.multiplySelf(0.2);
@@ -129,12 +128,10 @@ export abstract class Game {
 
       audioBox.absolutePosition = camera.absolutePosition;
       audioSource.playClip(testAudio);
-      {
-        const debug_audioLoop = setInterval(() => {
-          audioBox.position.z -= 1 / 30;
-        }, 30);
-        setTimeout(() => clearInterval(debug_audioLoop), MaxRuntimeSeconds * 1000);
-      }
+
+      runLoopHooks.push((dt) => {
+        audioBox.position.y += dt;
+      });
     }
 
 
@@ -223,27 +220,21 @@ export abstract class Game {
     if (Flags.LightingEnabled) {
       const LightDistance = 5;
       const lightOrigin = new ObjectNode(scene, 'light_origin');
-      const light0 = new PointLightNode(scene, 'light0', Color3.red());
+      const light0 = new PointLightNode(scene, 'light0', Color3.red(), lightOrigin);
       light0.position = new Vector3(
         LightDistance * Math.sin(2 * Math.PI * 0.2 / 3),
-        LightDistance,
         LightDistance * Math.cos(2 * Math.PI * 1 / 3),
+        LightDistance,
       );
-      lightOrigin.addChild(light0);
-      const light1 = new PointLightNode(scene, 'light1', Color3.green());
+      const light1 = new PointLightNode(scene, 'light1', Color3.green(), lightOrigin);
       light1.position = new Vector3(
         LightDistance * Math.sin(2 * Math.PI * 2 / 3),
-        LightDistance,
         LightDistance * Math.cos(2 * Math.PI * 2 / 3),
-      );
-      lightOrigin.addChild(light1);
-      const light2 = new PointLightNode(scene, 'light2', Color3.blue());
-      light2.position = new Vector3(
-        LightDistance * Math.sin(2 * Math.PI * 3 / 3),
         LightDistance,
-        LightDistance * Math.cos(2 * Math.PI * 3 / 3),
       );
-      lightOrigin.addChild(light2);
+
+      const sunLight = new DirectionalLightNode(scene, 'sun', new Color3(0, 0x50, 0xFF));
+      sunLight.absoluteRotation.x = 30;
 
       runLoopHooks.push((dt) => {
         const LightRotationSpeedDegreesPerSecond = 25;
@@ -251,12 +242,19 @@ export abstract class Game {
       });
     }
 
+    const cubemap = await Cubemap.loadBoxNet(engine, '/textures/cubemaps/box-net.png');
+
     /* Ground */
     if (Flags.GroundEnabled) {
       const ground = new ModelNode(scene, 'ground', boxModel);
-      ground.position.y = -0.5;
+      ground.position.z = -0.5;
       ground.scale.x = 4;
-      ground.scale.z = 4;
+      ground.scale.y = 4;
+
+      const groundMaterial = new Material({
+        reflectionCubemap: cubemap,
+      });
+      ground.setMaterialOverride('ground', groundMaterial);
     }
 
     /* Burger */
@@ -264,7 +262,7 @@ export abstract class Game {
       const burger = new ModelNode(scene, 'burger', burgerModel);
       burger.scale.multiplySelf(2);
       const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-      miniBurger.position = new Vector3(0, 0, 0.35);
+      miniBurger.position = new Vector3(0, 0.35, 0);
       miniBurger.scale.multiplySelf(0.5);
       burger.addChild(miniBurger);
 
@@ -278,12 +276,12 @@ export abstract class Game {
           burger.rotation.set(originalBurgerRotation);
           burger.scale = originalBurgerScale;
         }, [
-          () => burger.rotation.y = time * 360 / 8,
-          () => burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2)),
+          () => burger.rotation.z = time * 360 / 8,
+          () => burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, Math.cos(time) * 2, burger.position.y)),
           () => burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5),
           () => {
-            burger.rotation.y = time * 360 / 8;
-            burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, burger.position.y, Math.cos(time) * 2));
+            burger.rotation.z = time * 360 / 8;
+            burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, Math.cos(time) * 2, burger.position.y));
             burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5);
           },
         ]);
@@ -299,12 +297,12 @@ export abstract class Game {
           const burger = new ModelNode(scene, 'burger', burgerModel);
           testObjects[i].push(burger);
 
-          burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, -0.5, (j - GridH / 2) * GridSpacing + 0.5);
+          burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, (j - GridH / 2) * GridSpacing + 0.5, -0.5);
           burger.scale.multiplySelf(1.7);
 
           const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
           burger.addChild(miniBurger);
-          miniBurger.position = new Vector3(0.2, 0, 0.2);
+          miniBurger.position = new Vector3(0.2, 0.2, 0);
           miniBurger.scale.multiplySelf(0.5);
         }
       }
@@ -318,8 +316,8 @@ export abstract class Game {
             testObject.rotation.set(Quaternion.fromAxisAngle(Vector3.up(), (uniqueParam * 360 / 8) % 360));
             testObject.position = new Vector3(
               (i - testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
-              0,
               (j - testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
+              0,
             );
             testObject.scale = Vector3.one().multiplySelf(Math.sin(uniqueParam) / 3 + 1);
             n++;
@@ -333,18 +331,18 @@ export abstract class Game {
       const blendingModel = await Model.fromDefinition(engine, models[2]);
       const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
       blendingAverage.position.x = 1.5;
-      blendingAverage.position.y = 0.5;
-      blendingAverage.position.z = 1.5;
-      blendingAverage.setMaterialOverride('blending', new Material('blending-average', {
+      blendingAverage.position.y = 1.5;
+      blendingAverage.position.z = 0.5;
+      blendingAverage.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Average(),
         diffuseColor: Color4.white().withA(0),
         diffuseTexture: blendingTexture,
       }));
       const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel);
       blendingAdditive.position.x = -1.5;
-      blendingAdditive.position.y = 0.5;
-      blendingAdditive.position.z = 1.5;
-      blendingAdditive.setMaterialOverride('blending', new Material('blending-additive', {
+      blendingAdditive.position.y = 1.5;
+      blendingAdditive.position.z = 0.5;
+      blendingAdditive.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Additive(),
         diffuseColor: Color4.green().withA(0),
         diffuseTexture: blendingTexture,
@@ -352,9 +350,9 @@ export abstract class Game {
       }));
       const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel);
       blendingSubtractive.position.x = 1.5;
-      blendingSubtractive.position.y = 0.5;
-      blendingSubtractive.position.z = -1.5;
-      blendingSubtractive.setMaterialOverride('blending', new Material('blending-subtractive', {
+      blendingSubtractive.position.y = -1.5;
+      blendingSubtractive.position.z = 0.5;
+      blendingSubtractive.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Subtractive(),
         diffuseColor: Color4.white().withA(0),
         diffuseTexture: blendingTexture,
@@ -362,9 +360,9 @@ export abstract class Game {
       }));
       const blendingAlphaBlend = new ModelNode(scene, 'blending_alphaBlend', blendingModel);
       blendingAlphaBlend.position.x = -1.5;
-      blendingAlphaBlend.position.y = 0.5;
-      blendingAlphaBlend.position.z = -1.5;
-      blendingAlphaBlend.setMaterialOverride('blending', new Material('blending-alphaBlend', {
+      blendingAlphaBlend.position.y = -1.5;
+      blendingAlphaBlend.position.z = 0.5;
+      blendingAlphaBlend.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.AlphaClip(),
         diffuseTexture: await Texture.load(engine, '/textures/bars.png'),
       }));
@@ -378,26 +376,26 @@ export abstract class Game {
         x: 1, y: 1, z: 1,
       });
       staticColliderParent.addChild(staticCollider);
-      staticColliderParent.position.y = 2.5;
+      staticColliderParent.position.z = 2.5;
       const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
       const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
         x: 1, y: 1, z: 1,
       }));
       rotatingColliderParent.position.x = 1.2;
-      rotatingColliderParent.position.y = 2.5;
+      rotatingColliderParent.position.z = 2.5;
 
       runLoopHooks.push(() => {
         if (rotatingColliderParent) {
           rotatingColliderParent.rotation.x = time * 360 / 7;
-          rotatingColliderParent.rotation.y = time * 360 / 8;
-          rotatingColliderParent.rotation.z = time * 360 / 6;
+          rotatingColliderParent.rotation.y = time * 360 / 6;
+          rotatingColliderParent.rotation.z = time * 360 / 8;
 
           if (rotatingCollider && staticCollider) {
             const collisionResult = rotatingCollider.intersects(staticCollider);
             if (collisionResult) {
               rotatingColliderParent.setMaterialOverride('ground', CollidingMaterial);
             } else {
-              rotatingColliderParent.setMaterialOverride('ground', undefined);
+              rotatingColliderParent.removeMaterialOverride('ground');
             }
           }
         }
@@ -428,7 +426,7 @@ export abstract class Game {
         new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
       );
       convexColliderNode.scale.multiplySelf(2);
-      const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 1.3, 0));
+      const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 0, 1.3,));
 
       runLoopHooks.push(() => {
         // Cruel test, make two dynamic colliders both move into each other
@@ -479,7 +477,7 @@ export abstract class Game {
     const CyclePeriod = 4;
     function cycleBehaviours(reset: () => void, behaviours: Array<() => void>): void {
       reset();
-      const behaviourIndex = ~~(time / CyclePeriod) % (behaviours.length + 1);
+      const behaviourIndex = ~~(time / CyclePeriod) % (behaviours.length);
       if (behaviourIndex < behaviours.length) {
         behaviours[behaviourIndex]();
       }
@@ -488,7 +486,7 @@ export abstract class Game {
     /* Run loop */
     engine.run((dt, stop): void => {
       // Invoke hooks
-      runLoopHooks.forEach((hook) => hook(dt));
+      runLoopHooks.forEach((hook) => hook(dt, time));
 
       time += dt;
       if (time > MaxRuntimeSeconds) {
@@ -502,7 +500,7 @@ export abstract class Game {
 function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, normalizedY: number): ModelNode | undefined {
   const rayTarget = new Vector3(
     normalizedX * 2 - 1,
-    1 - normalizedY * 2, // @NOTE Invert y
+    1 - normalizedY * 2, // @NOTE Invert Y
     1, // @NOTE Near plane in NDC
   ).multiplySelf(
     camera.viewProjectionMatrix.invert(),

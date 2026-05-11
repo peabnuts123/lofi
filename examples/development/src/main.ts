@@ -1,7 +1,7 @@
 import './style.css';
 
-// import { Game } from './scenes/testfield';
-import { Game } from './scenes/character';
+import { Game } from './scenes/testfield';
+// import { Game } from './scenes/character';
 
 import { DebugModule } from '@lofi/engine/util/DebugModule';
 
