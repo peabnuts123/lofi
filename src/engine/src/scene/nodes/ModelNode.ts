@@ -59,7 +59,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
     }
   }
 
-  public override onUpdate(dt: number): void {
+  public override onUpdate(dt: number, _time: number): void {
     if (this.currentAnimation) {
       for (const channel of this.currentAnimation.channels) {
         channel.update(this.currentAnimationTime, this.model);

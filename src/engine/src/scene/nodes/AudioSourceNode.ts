@@ -95,7 +95,7 @@ export class AudioSourceNode extends SceneNode {
     this.spatialVolumeNode.connect(this.pannerNode);
   }
 
-  public override onUpdate(_dt: number): void {
+  public override onUpdate(_dt: number, _time: number): void {
     if (this.isPlaying) {
       this.recalculateSpatialAudio();
     }

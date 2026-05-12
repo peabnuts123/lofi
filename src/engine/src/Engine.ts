@@ -72,9 +72,11 @@ export const DefaultEngineConfig = {
   },
 } satisfies EngineConfig;
 
+export type OnUpdateFn = (dt: number, time: number, stop: () => void) => void
+
 export interface IEngine {
   loadScene(scene: IScene): void;
-  run(onUpdate: (dt: number, stop: () => void) => void): void;
+  run(onUpdate: OnUpdateFn): void;
 
   get config(): EngineConfig;
   get gl(): WebGL2RenderingContext;
@@ -154,7 +156,7 @@ export class Engine implements IEngine {
     this.fpsLimit = fps;
   }
 
-  public run(onUpdate: (dt: number, stop: () => void) => void): void {
+  public run(onUpdate?: OnUpdateFn): void {
     let lastFrameTime: DOMHighResTimeStamp | null = null;
     let isStopped = false;
 
@@ -194,7 +196,7 @@ export class Engine implements IEngine {
 
     const tick = (timestamp: DOMHighResTimeStamp): void => {
       if (lastFrameTime === null) {
-        lastFrameTime = timestamp;
+        lastFrameTime = timestamp - (1000 / 60); // @NOTE First frame defaults to 60fps
       }
 
       if (this.fpsLimit !== undefined) {
@@ -227,10 +229,10 @@ export class Engine implements IEngine {
       const debug_startFrame = performance.now();
 
       /* Update internal state first */
-      this.activeScene?.onUpdate(dt);
+      this.activeScene?.onUpdate(dt, timestamp / 1000);
 
       /* Update external (user-controlled) state second */
-      onUpdate(dt, () => isStopped = true);
+      onUpdate?.(dt, timestamp / 1000, () => isStopped = true);
 
       /* Update global UBOs */
       if (this.activeScene) {

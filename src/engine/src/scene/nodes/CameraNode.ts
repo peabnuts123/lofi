@@ -58,8 +58,8 @@ export class CameraNode extends SceneNode {
     ubo.setProperty(gl, 'cameraPosition', this.uboCameraPositionData_tmp);
   }
 
-  public override onUpdate(dt: number): void {
-    super.onUpdate(dt);
+  public override onUpdate(dt: number, time: number): void {
+    super.onUpdate(dt, time);
     this.recalculateViewProjectionMatrix();
   }
 

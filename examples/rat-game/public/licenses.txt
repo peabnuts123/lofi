@@ -1,0 +1,33 @@
+Brick, stone, and metal textures.
+Created/distributed by Kenney (www.kenney.nl)
+
+    ------------------------------
+
+License: (Creative Commons Zero, CC0)
+http://creativecommons.org/publicdomain/zero/1.0/
+
+This content is free to use in personal, educational and commercial projects.
+
+Support us by crediting Kenney or www.kenney.nl (this is not mandatory)
+
+    ------------------------------
+
+Donate:   http://support.kenney.nl
+Patreon:  http://patreon.com/kenney/
+
+Follow on Twitter for updates:
+http://twitter.com/KenneyNL
+
+##############################
+
+"PS1 Rat" (https://skfb.ly/oJFSy) by Neisium is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+##############################
+
+Audio SFX by Chequered Ink: https://ci.itch.io/400-sounds-pack
+You may use these game assets for ANY and ALL uses including commercial use, with or without giving credit, except that you may not sell or redistribute the unaltered assets as your own game assets.
+
+##############################
+
+Skyboxes by Emil Persson: https://www.humus.name/index.php?page=Textures
+Licensed under a Creative Commons Attribution 3.0 Unported License: https://creativecommons.org/licenses/by/3.0/

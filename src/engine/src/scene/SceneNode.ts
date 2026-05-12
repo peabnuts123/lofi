@@ -75,12 +75,13 @@ export abstract class SceneNode {
    *
    * @param dt - The time elapsed since the last frame, in seconds
    */
-  public onUpdate(dt: number): void {
+  public onUpdate(dt: number, time: number): void {
     /* No-op */
     // @NOTE Just shushing the linter about `dt` being unused.
     // eslint-disable doesn't work great because `ts` also
     // complains about it.
     void dt;
+    void time;
   }
 
   public destroy(): void {

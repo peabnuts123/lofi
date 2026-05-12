@@ -9,7 +9,7 @@ export interface IScene {
 
   addTopLevelNode(node: SceneNode): SceneNode;
   removeTopLevelNode(node: SceneNode): void;
-  onUpdate(dt: number): void;
+  onUpdate(dt: number, time: number): void;
   draw(drawQueues: DrawQueues): void;
   forEachNodeInHierarchy(fn: (node: SceneNode) => void): void;
 
@@ -57,9 +57,9 @@ export class Scene implements IScene {
     }
   }
 
-  public onUpdate(dt: number): void {
+  public onUpdate(dt: number, time: number): void {
     this.forEachNodeInHierarchy((node) => {
-      node.onUpdate(dt);
+      node.onUpdate(dt, time);
     });
   }
 
