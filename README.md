@@ -28,12 +28,11 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Sound and audio (PoC)~~
   - [x] ~~Basic Input system~~
   - [x] ~~Materials can be reused~~
-  - [ ] Fix errors introduced by `exactOptionalPropertyTypes` / make the project compile
   - [ ] POC for gizmos
     - [ ] Some way to render on a different "layer" (not to mention, UI?)
     - [ ] Calculate bounding box of node/hierarchy
-  - [ ] Remaining material properties needed by PolyZone
-    - [x] Reflection
+  - [x] ~~Remaining material properties needed by PolyZone~~
+    - [x] ~~Reflection~~
   - [x] ~~Directional light~~
   - [ ] Lights have range or intensity or colour or something.
   - [ ] Config for Clear color on scene, or camera?
@@ -93,6 +92,10 @@ These items are roughly in priority order.
   - BUG: Holding arrow keys still scrolls the page
   - Overhaul / tidy up Recording
     - Dump raw WAV audio even if it's silent. Webm is screwing me.
+  - [ ] Fix errors introduced by `exactOptionalPropertyTypes` / make the project compile
+  - Trigger type colliders
+  - Ability to change scene
+
 
 ## Ideas
   - Built-in 3d primitives e.g. cube, sphere, etc.
