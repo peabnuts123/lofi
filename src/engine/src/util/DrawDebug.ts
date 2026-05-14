@@ -1,10 +1,8 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color4 } from "@lofi/core/math/Color4";
-import type { IEngine } from "@lofi/engine/Engine";
+import type { IEngine, OpaqueDrawTask } from "@lofi/engine/Engine";
 import { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
-
-import type { DrawTask } from "../scene";
 
 const DebugVertexShaderSource = `#version 300 es
   // @TODO use an #include for this
@@ -57,7 +55,7 @@ export class DrawDebug {
   private static vertexBuffer: WebGLBuffer;
   private static vao: WebGLVertexArrayObject;
 
-  public static drawPolyLine(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions> = {}): DrawTask {
+  public static drawPolyLine(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions> = {}): OpaqueDrawTask {
     // Map linePoints into (0,1)(1,2),(2,3), etc.
     const vertexPointData = linePoints
       .slice(0, linePoints.length - 1)
@@ -71,7 +69,7 @@ export class DrawDebug {
     return DrawDebug.drawLines(engine, vertexPointData, options);
   }
 
-  public static drawWireframe(engine: IEngine, wireframe: IWireframeDrawable, options: Partial<DrawOptions> = {}): DrawTask {
+  public static drawWireframe(engine: IEngine, wireframe: IWireframeDrawable, options: Partial<DrawOptions> = {}): OpaqueDrawTask {
     // Map faces into closed-loop polylines
     const vertexPointData = wireframe.getWireframeFaces().flatMap((face: Vector3[]) => {
       return face
@@ -86,7 +84,7 @@ export class DrawDebug {
     return DrawDebug.drawLines(engine, vertexPointData, options);
   }
 
-  private static drawLines(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions>): DrawTask {
+  private static drawLines(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions>): OpaqueDrawTask {
     const drawOptions = {
       ...DefaultDrawOptions,
       ...options,
@@ -99,7 +97,8 @@ export class DrawDebug {
     const vertices = new Float32Array(linePoints.flatMap((vertex) => [vertex.x, vertex.y, vertex.z]));
 
     return {
-      renderPass: 10,
+      renderLayer: 10,
+      isTransparent: false,
       shaderVariant: this.shader,
       material: MaterialInstance.fromMaterial(Material.DefaultMaterial),
       uniforms: {

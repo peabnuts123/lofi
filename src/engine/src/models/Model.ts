@@ -1,6 +1,6 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
-import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import type { ModelDefinition, ModelPartDefinition } from "@lofi/engine/loaders/definitions";
 import { Animation } from "@lofi/engine/animation";
 import type { Material } from "@lofi/engine/materials";
@@ -99,11 +99,11 @@ export class Model {
     this.materialOverrides.removeOverride(materialName, this.isInstance);
   }
 
-  public draw(engine: IEngine, drawQueues: DrawQueues, viewMatrix: Matrix4, worldMatrix: Matrix4): void {
+  public draw(engine: IEngine, drawQueue: DrawTask[], viewMatrix: Matrix4, worldMatrix: Matrix4): void {
     for (const modelPart of this.allParts) {
       modelPart.draw(
         engine,
-        drawQueues,
+        drawQueue,
         viewMatrix,
         worldMatrix,
       );

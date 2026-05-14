@@ -1,4 +1,4 @@
-import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 
 import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";
@@ -10,7 +10,7 @@ export interface IScene {
   addTopLevelNode(node: SceneNode): SceneNode;
   removeTopLevelNode(node: SceneNode): void;
   onUpdate(dt: number, time: number): void;
-  draw(drawQueues: DrawQueues): void;
+  draw(drawQueue: DrawTask[]): void;
   forEachNodeInHierarchy(fn: (node: SceneNode) => void): void;
 
   get activeCamera(): CameraNode | undefined;
@@ -63,10 +63,10 @@ export class Scene implements IScene {
     });
   }
 
-  public draw(drawQueues: DrawQueues): void {
+  public draw(drawQueue: DrawTask[]): void {
     this.forEachNodeInHierarchy((node) => {
       if (node instanceof DrawableSceneNode) {
-        node.draw(this.engine, drawQueues);
+        node.draw(this.engine, drawQueue);
       }
     });
   }

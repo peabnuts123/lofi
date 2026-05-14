@@ -2,9 +2,8 @@ import { Vector3 } from "@lofi/core/math/vector";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { IdPool } from "@lofi/core/util/IdPool";
 import { createBuffer } from "@lofi/engine/util/createBuffer";
-import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine, OpaqueDrawTask, TransparentDrawTask } from "@lofi/engine/Engine";
 import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
-import type { DrawTask } from "@lofi/engine/scene/DrawableSceneNode";
 import type { AttributeDefinition, MeshPrimitiveDefinition } from "@lofi/engine/loaders/definitions";
 
 export interface MeshPrimitiveExtents {
@@ -42,7 +41,7 @@ export class MeshPrimitive {
 
   public draw(
     engine: IEngine,
-    drawQueues: DrawQueues,
+    drawQueue: DrawTask[],
     modelViewMatrix: Matrix4,
     worldMatrix: Matrix4,
     jointMatrices: Matrix4[] | undefined,
@@ -62,28 +61,23 @@ export class MeshPrimitive {
       });
     }
 
-    const drawTask: DrawTask = {
-      renderPass: 0, // @TODO (?)
-      shaderVariant: this.shader,
-      material,
-      uniforms: {
-        worldMatrix: worldMatrix.clone(), // @NOTE We can't hold reference to a tmp value
-        skinWeights: jointMatricesBytes,
-      },
-      draw: {
-        id: this.id,
-        init: ({ gl }) => {
-          gl.bindVertexArray(this.vao);
-        },
-        exec: this.drawPrimitive,
-      },
-    };
-
     const materialBlendingMode = material.blendingMode.type;
     const isMaterialTransparent = materialBlendingMode === 'Additive' ||
       materialBlendingMode === 'AlphaBlend' ||
       materialBlendingMode === 'Average' ||
       materialBlendingMode === 'Subtractive';
+
+    const drawTaskUniforms: DrawTask['uniforms'] = {
+      worldMatrix: worldMatrix.clone(), // @NOTE We can't hold reference to a tmp value
+      skinWeights: jointMatricesBytes,
+    };
+    const drawTaskDrawFn: DrawTask['draw'] = {
+      id: this.id,
+      init: ({ gl }) => {
+        gl.bindVertexArray(this.vao);
+      },
+      exec: this.drawPrimitive,
+    };
 
     if (isMaterialTransparent) {
       // Transform local-space extents to world camera space
@@ -92,12 +86,24 @@ export class MeshPrimitive {
         .setValue(this.extents.center)
         .multiplySelf(modelViewMatrix);
 
-      drawQueues.transparent.push({
-        ...drawTask,
+      drawQueue.push({
+        renderLayer: 0, // @TODO (?)
+        isTransparent: true,
         depth: this._cameraSpacePositionTmp.z,
-      });
+        shaderVariant: this.shader,
+        material,
+        uniforms: drawTaskUniforms,
+        draw: drawTaskDrawFn,
+      } satisfies TransparentDrawTask);
     } else {
-      drawQueues.opaque.push(drawTask);
+      drawQueue.push({
+        renderLayer: 0, // @TODO (?)
+        isTransparent: false,
+        shaderVariant: this.shader,
+        material,
+        uniforms: drawTaskUniforms,
+        draw: drawTaskDrawFn,
+      } satisfies OpaqueDrawTask);
     }
   }
 

@@ -1,6 +1,6 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import { DrawableSceneNode, SceneNode, type IScene } from "@lofi/engine/scene";
-import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import type { Model, Triangle } from "@lofi/engine/models";
 import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 import { Animation } from "@lofi/engine/animation";
@@ -50,12 +50,12 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
     this.currentAnimationSpeed = 1;
   }
 
-  public draw(engine: IEngine, drawQueues: DrawQueues): void {
+  public draw(engine: IEngine, drawQueue: DrawTask[]): void {
     const viewMatrix = engine.activeScene?.activeCamera?.viewMatrix;
 
     // No scene or no camera = no draw tasks
     if (viewMatrix !== undefined) {
-      this.model.draw(engine, drawQueues, viewMatrix, this.worldMatrix);
+      this.model.draw(engine, drawQueue, viewMatrix, this.worldMatrix);
     }
   }
 

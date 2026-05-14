@@ -1,50 +1,42 @@
 import { CannotInvertMatrixError, Matrix3 } from "@lofi/core/math/Matrix3";
 import type { DeepPartial } from "@lofi/core/util/types";
+import type { Matrix4 } from "@lofi/core/math";
 
 import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo } from "./scene/nodes/CameraNode";
 import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { MaterialInstance, ShaderVariant, Ubo } from "./materials";
-import type { DrawTask, IScene, TransparentDrawTask } from "./scene";
+import type { IScene } from "./scene";
 import { RateCounter } from "./util/RateCounter";
 import { CollisionSystem } from "./collision";
 import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
 import { DebugModule } from "./util/DebugModule";
 import { InputSystem, type IInputSystem } from "./input";
 
-/*
-  @TODO Not sure when I'll be back to think about Gizmo / layering poc.
-  - Thought deeply, pretty confident we can just collapse the draw queue into one queue.
-  - Transparent tasks will have a flag / a different interface and the draw queue will be a union of the different draw tasks
-  - Then we can just do a "mega-sort" on the queue such that things are first sorted by render layer and then by whether they are transparent (with transparent being rendered second), and then different logic for sorting therein (based on whether task is opaque or transparent).
-  - So i.e. megasort would sort draw queue like this:
-    ```
-      // RENDER LAYER 0
-      // - OPAQUE TASKS (sorted by texture, model, material, etc.)
-      { renderLayer: 0, isTransparent: false, (unique vao, texture, etc.) }
-      { renderLayer: 0, isTransparent: false, (unique vao, texture, etc.) }
-      { renderLayer: 0, isTransparent: false, (unique vao, texture, etc.) }
-      // - TRANSPARENT TASKS (sorted by depth)
-      // - OPAQUE TASKS (sorted by texture, model, material, etc.)
-      { renderLayer: 0, isTransparent: true, (depth) }
-      { renderLayer: 0, isTransparent: true, (depth) }
-      { renderLayer: 0, isTransparent: true, (depth) }
-      // RENDER LAYER 1
-      // - OPAQUE TASKS (sorted by texture, model, material, etc.)
-      { … }
-      { … }
-      { … }
-      // - TRANSPARENT TASKS (sorted by depth)
-      { … }
-      { … }
-      { … }
-    ```
-  - Then while we are iterating we just need to detect when `renderLayer` changes and clear the depth mask.
-  - THEN THEORETICALLY tasks can define a custom layer to just draw on top of everything else (e.g. Editor gizmos)
- */
-export interface DrawQueues {
-  opaque: DrawTask[];
-  transparent: TransparentDrawTask[];
+export type DrawTask = OpaqueDrawTask | TransparentDrawTask;
+
+export interface DrawTaskCommon {
+  renderLayer: number;
+  shaderVariant: ShaderVariant;
+  material: MaterialInstance;
+  uniforms: {
+    worldMatrix: Matrix4;
+    skinWeights?: Float32Array;
+  },
+  draw: {
+    id: number;
+    init: (engine: IEngine) => void;
+    exec: (engine: IEngine) => void;
+  },
+}
+
+export interface OpaqueDrawTask extends DrawTaskCommon {
+  isTransparent: false;
+}
+
+export interface TransparentDrawTask extends DrawTaskCommon {
+  isTransparent: true;
+  depth: number;
 }
 
 export interface EngineConfig {
@@ -193,7 +185,7 @@ export class Engine implements IEngine {
       }
     };
 
-
+    const drawQueue: DrawTask[] = [];
     const tick = (timestamp: DOMHighResTimeStamp): void => {
       if (lastFrameTime === null) {
         lastFrameTime = timestamp - (1000 / 60); // @NOTE First frame defaults to 60fps
@@ -215,16 +207,6 @@ export class Engine implements IEngine {
       } else {
         lastFrameTime = startFrameTime;
       }
-
-      const gl = this.gl;
-
-      gl.clearColor(0.05, 0.05, 0.2, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      gl.enable(gl.DEPTH_TEST);
-      gl.enable(gl.CULL_FACE);
-      // gl.cullFace(gl.BACK);
-      // gl.frontFace(gl.CCW);
-      // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
       const debug_startFrame = performance.now();
 
@@ -252,31 +234,18 @@ export class Engine implements IEngine {
       this.inputSystem.onUpdate();
 
       /* Draw scene */
-      // @TODO Is there a way we can efficiently clear this memory?
-      const drawQueues: DrawQueues = {
-        opaque: [],
-        transparent: [],
-      };
-      this.activeScene?.draw(drawQueues);
-
-      drawQueues.opaque.sort((taskA, taskB) => {
-        return taskA.renderPass - taskB.renderPass ||
-          taskA.shaderVariant.id - taskB.shaderVariant.id ||
-          taskA.material.id - taskB.material.id ||
-          taskA.draw.id - taskB.draw.id;
-      });
-      drawQueues.transparent.sort((drawTaskA, drawTaskB) => drawTaskA.depth - drawTaskB.depth);
-
-      const opaqueResources = this.drawQueue(drawQueues.opaque);
-      const transparentResources = this.drawQueue(drawQueues.transparent);
-
-      debug_resourceCounters.shader.new.count(opaqueResources.shader.new + transparentResources.shader.new);
-      debug_resourceCounters.shader.shared.count(opaqueResources.shader.shared + transparentResources.shader.shared);
-      debug_resourceCounters.material.new.count(opaqueResources.material.new + transparentResources.material.new);
-      debug_resourceCounters.material.shared.count(opaqueResources.material.shared + transparentResources.material.shared);
-      debug_resourceCounters.mesh.new.count(opaqueResources.mesh.new + transparentResources.mesh.new);
-      debug_resourceCounters.mesh.shared.count(opaqueResources.mesh.shared + transparentResources.mesh.shared);
-      debug_resourceCounters.drawCalls.count(opaqueResources.drawCalls + transparentResources.drawCalls);
+      drawQueue.length = 0; // @NOTE Overwrite memory instead of reallocating every frame
+      this.activeScene?.draw(drawQueue);
+      this.sortDrawQueue(drawQueue);
+      // @TODO probably formalise the debug counters into a concrete type
+      const resources = this.draw(drawQueue);
+      debug_resourceCounters.shader.new.count(resources.shader.new);
+      debug_resourceCounters.shader.shared.count(resources.shader.shared);
+      debug_resourceCounters.material.new.count(resources.material.new);
+      debug_resourceCounters.material.shared.count(resources.material.shared);
+      debug_resourceCounters.mesh.new.count(resources.mesh.new);
+      debug_resourceCounters.mesh.shared.count(resources.mesh.shared);
+      debug_resourceCounters.drawCalls.count(resources.drawCalls);
 
       const debug_endFrame = performance.now();
       const debug_frameTime = debug_endFrame - debug_startFrame;
@@ -302,12 +271,20 @@ export class Engine implements IEngine {
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  private drawQueue(drawQueue: DrawTask[]) {
+  private draw(drawQueue: DrawTask[]) {
     const { gl } = this;
+
+    gl.clearColor(0.05, 0.05, 0.2, 1); // @TODO configurable lol
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    // gl.cullFace(gl.BACK);
+    // gl.frontFace(gl.CCW);
+    // gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
     let currentShaderVariant: ShaderVariant = undefined!;
     let currentMaterial: MaterialInstance = undefined!;
-    let currentDraw: DrawTask['draw'] = undefined!;
+    let currentDraw: OpaqueDrawTask['draw'] = undefined!;
 
     const ResourceCount = {
       shader: { new: 0, shared: 0 },
@@ -316,7 +293,19 @@ export class Engine implements IEngine {
       drawCalls: 0,
     };
 
+    // Early exit if we don't need to draw anything
+    if (drawQueue.length === 0) {
+      return ResourceCount;
+    }
+
+    let currentRenderLayer = drawQueue[0].renderLayer;
+
     for (const task of drawQueue) {
+      /* Render layer */
+      if (task.renderLayer !== currentRenderLayer) {
+        currentRenderLayer = task.renderLayer;
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+      }
 
       /* GL Program */
       if (task.shaderVariant.id !== currentShaderVariant?.id) {
@@ -472,6 +461,23 @@ export class Engine implements IEngine {
     gl.depthMask(true);
 
     return ResourceCount;
+  }
+
+  private sortDrawQueue(drawQueue: DrawTask[]): void {
+    drawQueue.sort((taskA, taskB) => {
+      return (taskA.renderLayer - taskB.renderLayer) ||
+        // @ts-expect-error bools CAN be subtracted it's FINE
+        (taskA.isTransparent - taskB.isTransparent) ||
+        (taskA.isTransparent ? (
+          /* Transparent */
+          taskA.depth - (taskB as TransparentDrawTask).depth
+        ) : (
+          /* Opaque */
+          (taskA.shaderVariant.id - taskB.shaderVariant.id) ||
+          (taskA.material.id - taskB.material.id) ||
+          (taskA.draw.id - taskB.draw.id)
+        ));
+    });
   }
 
   public get activeScene(): IScene | undefined {

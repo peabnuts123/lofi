@@ -3,7 +3,7 @@ import { Vector3 } from "@lofi/core/math/vector";
 import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
 import type { MeshPrimitiveDefinition, ModelPartDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
-import type { DrawQueues, IEngine } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import { MaterialInstance } from "@lofi/engine/materials";
 
 import type { MeshSkin } from "./MeshSkin";
@@ -71,7 +71,7 @@ export class ModelPart {
 
   public draw(
     engine: IEngine,
-    drawQueues: DrawQueues,
+    drawQueue: DrawTask[],
     viewMatrix: Matrix4,
     worldMatrix: Matrix4,
   ): void {
@@ -99,7 +99,7 @@ export class ModelPart {
         material = this.materialOverrides.getResult(primitive.material.name);
       }
       const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
-      primitiveInstance.draw(engine, drawQueues, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, material);
+      primitiveInstance.draw(engine, drawQueue, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, material);
     }
   }
 

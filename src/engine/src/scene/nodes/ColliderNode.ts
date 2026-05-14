@@ -1,6 +1,6 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import { AxisAlignedBoundingBox, CollisionSystem } from "@lofi/engine/collision";
-import type { IEngine, DrawQueues } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import { DrawableSceneNode, type IScene, SceneNode } from "@lofi/engine/scene";
 import { DrawDebug, isWireframeDrawable } from "@lofi/engine/util/DrawDebug";
 
@@ -140,9 +140,9 @@ export abstract class ColliderNode extends DrawableSceneNode {
     }
   }
 
-  public override draw(engine: IEngine, drawQueues: DrawQueues): void {
+  public override draw(engine: IEngine, drawQueue: DrawTask[]): void {
     if (this.drawWireframe && isWireframeDrawable(this)) {
-      drawQueues.opaque.push(
+      drawQueue.push(
         DrawDebug.drawWireframe(engine, this, { overlay: true }),
       );
     }

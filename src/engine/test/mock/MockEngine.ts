@@ -1,5 +1,5 @@
 import { CollisionSystem } from "@lofi/engine/collision";
-import type { EngineConfig, IEngine } from "@lofi/engine/Engine";
+import type { EngineConfig, IEngine, OnUpdateFn } from "@lofi/engine/Engine";
 import type { IFileSystem } from "@lofi/engine/filesystem";
 import type { IScene } from "@lofi/engine/scene";
 import { type IAudioSystem } from "@lofi/engine/audio/AudioSystem";
@@ -43,7 +43,7 @@ export class MockEngine implements IEngine {
     this.activeScene = scene;
   }
 
-  public run(_onUpdate: (dt: number, stop: () => void) => void): void {
+  public run(_onUpdate: OnUpdateFn): void {
     throw new Error(`run() is not mocked in MockEngine`);
   }
 
