@@ -14,7 +14,6 @@ import { MeshPrimitiveCache } from "./MeshPrimitiveCache";
 export interface ModelPartConstructorArgs {
   name: string;
   transform: TransformDefinition;
-  materialOverrides: ModelMaterialOverrides;
   meshPrimitiveCache: MeshPrimitiveCache;
   parent?: ModelPart;
   meshPrimitiveDefinitions?: MeshPrimitiveDefinition[] | undefined;
@@ -29,7 +28,6 @@ export class ModelPart {
   public readonly name: string;
   private readonly _transform: Transform<ModelPart>;
   private _skin: MeshSkin | undefined;
-  private readonly materialOverrides: ModelMaterialOverrides;
   private readonly meshPrimitiveDefinitions: MeshPrimitiveDefinition[] | undefined;
   private readonly meshGeometry: MeshGeometry | undefined;
   private readonly meshPrimitiveCache: MeshPrimitiveCache;
@@ -38,10 +36,9 @@ export class ModelPart {
   private _jointMatricesTmp: Matrix4[] | undefined;
   private _modelViewMatrixTmp: Matrix4 = new Matrix4();
 
-  private constructor({ name, transform, materialOverrides, meshPrimitiveCache, parent, meshPrimitiveDefinitions, meshGeometry }: ModelPartConstructorArgs) {
+  private constructor({ name, transform, meshPrimitiveCache, parent, meshPrimitiveDefinitions, meshGeometry }: ModelPartConstructorArgs) {
     this.name = name;
     this.meshPrimitiveCache = meshPrimitiveCache;
-    this.materialOverrides = materialOverrides;
     this.meshPrimitiveDefinitions = meshPrimitiveDefinitions;
     this.meshGeometry = meshGeometry;
 
@@ -51,7 +48,7 @@ export class ModelPart {
     this._transform.scale = transform.scale;
   }
 
-  public createInstance(materialOverrides: ModelMaterialOverrides, parentInstance: ModelPart | undefined): ModelPart {
+  public createInstance(parentInstance: ModelPart | undefined): ModelPart {
     const instance = new ModelPart({
       name: this.name,
       transform: {
@@ -61,7 +58,6 @@ export class ModelPart {
       },
       parent: parentInstance,
       meshPrimitiveDefinitions: this.meshPrimitiveDefinitions,
-      materialOverrides: materialOverrides,
       meshPrimitiveCache: this.meshPrimitiveCache,
       meshGeometry: this.meshGeometry,
     });
@@ -74,6 +70,7 @@ export class ModelPart {
     drawQueue: DrawTask[],
     viewMatrix: Matrix4,
     worldMatrix: Matrix4,
+    materialOverrides: ModelMaterialOverrides,
   ): void {
     if (!this.meshPrimitiveDefinitions?.length) return; // @NOTE Don't bother doing math unless we need it
 
@@ -96,23 +93,17 @@ export class ModelPart {
     for (const primitive of this.meshPrimitiveDefinitions) {
       let material = MaterialInstance.DefaultMaterial;
       if (primitive.material) {
-        material = this.materialOverrides.getResult(primitive.material.name);
+        material = materialOverrides.getResult(primitive.material.name);
       }
       const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
       primitiveInstance.draw(engine, drawQueue, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, material);
     }
   }
 
-  public static async fromDefinition(engine: IEngine, definition: ModelPartDefinition, parent: ModelPart | undefined, materialOverrides: ModelMaterialOverrides): Promise<ModelPart> {
+  public static fromDefinition(engine: IEngine, definition: ModelPartDefinition, parent: ModelPart | undefined): ModelPart {
     const meshPrimitiveCache = new MeshPrimitiveCache(engine);
     let meshGeometry: MeshGeometry | undefined = undefined;
     if (definition.mesh) {
-      for (const meshPrimitiveDefinition of definition.mesh.primitives) {
-        if (meshPrimitiveDefinition.material) {
-          await materialOverrides.initDefaultMaterial(engine, meshPrimitiveDefinition.material);
-        }
-      }
-
       meshGeometry = new MeshGeometry(definition.mesh);
     }
 
@@ -120,7 +111,6 @@ export class ModelPart {
       name: definition.name,
       parent,
       transform: definition.transform,
-      materialOverrides,
       meshPrimitiveCache,
       meshPrimitiveDefinitions: definition.mesh?.primitives,
       meshGeometry,

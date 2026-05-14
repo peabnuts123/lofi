@@ -1,7 +1,5 @@
-import { Computed } from "@lofi/core/util/observable";
+import { Computed, Observable, type StopObservingFn } from "@lofi/core/util/observable";
 import { Material, MaterialInstance } from "@lofi/engine/materials";
-import type { IEngine } from "@lofi/engine/Engine";
-import type { MaterialDefinition } from "@lofi/engine/loaders/definitions";
 
 export type MaterialOverrideType = 'override' | 'replace';
 export interface MaterialOverride {
@@ -9,92 +7,42 @@ export interface MaterialOverride {
   type: MaterialOverrideType;
 }
 
-export class ModelMaterialOverrides {
-  /**
-   * Default materials as defined on the model when it was loaded initially.
-   * Keyed by material name.
-   *
-   * Shared across all instances of the {@linkcode ModelMaterialOverrides}.
-   */
-  private defaultMaterialCache: Map<string, Material>;
+export type ModelMaterialOverridesParent = Map<string, Material> | ModelMaterialOverrides;
 
-  /* Overrides */
+export class ModelMaterialOverrides extends Observable {
+  // "Parent" is a another instance of ModelMaterialOverrides or
+  // a map of default materials that this instance will override.
+  /** Function to disconnect from the current parent's observable */
+  private stopObservingParent: StopObservingFn | undefined;
   /**
-   * Material overrides shared across all instances of the model.
-   * Keyed by material name.
+   * Current parent instance. Parent is either another instance of
+   * {@linkcode ModelMaterialOverrides} or a set of default materials
+   * in the form of {@linkcode Map<string, Material>}.
    */
-  private sharedOverrides: Map<string, MaterialOverride>;
-  /**
-   * Material overrides unique to this instance of the model.
-   * Keyed by material name.
-   */
-  private readonly instanceOverrides: Map<string, MaterialOverride>;
+  private _parent: ModelMaterialOverridesParent;
 
-  /* Material instances */
+  /** Overrides in this layer, keyed by material name. */
+  private readonly overrides: Map<string, MaterialOverride>;
   /**
-   * Material instances that are the product of applying shared material overrides
-   * to the default material.
-   * Keyed by material name.
+   * Computed material instances, keyed by material name.
+   * Each material instance is the result of applying all layers
+   * of material overrides in order.
    */
-  private sharedOverrideMaterialInstances: Map<string, Computed<MaterialInstance>>;
-  /**
-   * Material instances that are the product of applying both shared AND instance material overrides
-   * to the default material.
-   * Keyed by material name.
-   */
-  private readonly instanceOverrideMaterialInstances: Map<string, Computed<MaterialInstance>>;
+  private readonly computedMaterialInstances: Map<string, Computed<MaterialInstance>>;
 
-  private constructor(
-    defaultMaterialCache: Map<string, Material>,
-    sharedOverrides: Map<string, MaterialOverride>,
-    sharedOverrideMaterialInstances: Map<string, Computed<MaterialInstance>>,
-  ) {
-    // Properties shared across all instances
-    this.defaultMaterialCache = defaultMaterialCache;
-    this.sharedOverrides = sharedOverrides;
-    this.sharedOverrideMaterialInstances = sharedOverrideMaterialInstances;
-
-    // Properties unique to each instance
-    this.instanceOverrides = new Map();
-    this.instanceOverrideMaterialInstances = new Map();
-  }
-
-  /**
-   * Load a default material from its definition, if it has not yet been loaded.
-   */
-  public async initDefaultMaterial(engine: IEngine, materialDefinition: MaterialDefinition): Promise<void> {
-    if (!this.defaultMaterialCache.has(materialDefinition.name)) {
-      const material = await Material.fromDefinition(engine, materialDefinition);
-      this.defaultMaterialCache.set(materialDefinition.name, material);
+  public constructor(parent: ModelMaterialOverridesParent) {
+    super();
+    this._parent = parent;
+    if (parent instanceof ModelMaterialOverrides) {
+      this.stopObservingParent = parent.onChange(() => this.onParentChange());
     }
-  }
-
-  /**
-   * Create a blank new {@linkcode ModelMaterialOverrides} object.
-   */
-  public static createNew(): ModelMaterialOverrides {
-    return new ModelMaterialOverrides(
-      new Map(),
-      new Map(),
-      new Map(),
-    );
-  }
-
-  /**
-   * Create a new {@linkcode ModelMaterialOverrides} instance from this instance,
-   * preserving shared overrides and default materials.
-   */
-  public createInstance(): ModelMaterialOverrides {
-    return new ModelMaterialOverrides(
-      this.defaultMaterialCache,
-      this.sharedOverrides,
-      this.sharedOverrideMaterialInstances,
-    );
+    this.overrides = new Map();
+    this.computedMaterialInstances = new Map();
   }
 
   /**
    * Get the resulting {@linkcode MaterialInstance} for a given material
-   * by applying overrides to the material's default configuration.
+   * by applying overrides in order.
    * @param materialName Name of the material.
    */
   public getResult(materialName: string): MaterialInstance {
@@ -107,48 +55,51 @@ export class ModelMaterialOverrides {
    * @param materialName Name of the material to override.
    * @param material Material properties to override.
    * @param type Whether to replace or override material properties.
-   * @param isInstance Whether this is an instance or shared override.
    */
-  public setOverride(materialName: string, material: Material, type: MaterialOverrideType, isInstance: boolean): void {
-    if (isInstance) {
-      this.instanceOverrides.set(materialName, { material, type });
-    } else {
-      this.sharedOverrides.set(materialName, { material, type });
-    }
-
-    this.reconcileComputedMaterialInstanceDependencies(materialName);
+  public setOverride(materialName: string, material: Material, type: MaterialOverrideType): void {
+    this.mutate(() => {
+      this.overrides.set(materialName, { material, type });
+      this.reconcileComputedMaterialInstanceDependencies(materialName);
+    });
   }
 
   /**
    * Remove a material override.
    * @param materialName Name of the material to remove the override from.
-   * @param isInstance Whether this is an instance or shared override.
    */
-  public removeOverride(materialName: string, isInstance: boolean): void {
-    if (isInstance) {
-      this.instanceOverrides.delete(materialName);
-    } else {
-      this.sharedOverrides.delete(materialName);
-    }
-
-    this.reconcileComputedMaterialInstanceDependencies(materialName);
+  public removeOverride(materialName: string): void {
+    this.mutate(() => {
+      this.overrides.delete(materialName);
+      this.reconcileComputedMaterialInstanceDependencies(materialName);
+    });
   }
 
   /**
-   * Ensure that the computed {@linkcode MaterialInstance}s for a given material have
+   * Fired whenever a parent (either transitive or direct) mutates a property.
+   */
+  private onParentChange(): void {
+    // Stack of dependencies is invalidated. Recompute every material
+    // instance's dependencies.
+    for (const materialName of this.computedMaterialInstances.keys()) {
+      this.reconcileComputedMaterialInstanceDependencies(materialName);
+    }
+    this.notifyOnChange();
+  }
+
+  /**
+   * Ensure that the computed {@linkcode MaterialInstance} for a given material has
    * the correct observable dependencies.
    * @param materialName
    */
   private reconcileComputedMaterialInstanceDependencies(materialName: string): void {
     const computedMaterialInstance = this.getComputedMaterialInstance(materialName);
     computedMaterialInstance.removeAllDependencies();
-    const sharedOverride = this.sharedOverrides.get(materialName);
-    if (sharedOverride) {
-      computedMaterialInstance.addDependency(sharedOverride.material);
-    }
-    const instanceOverride = this.instanceOverrides.get(materialName);
-    if (instanceOverride) {
-      computedMaterialInstance.addDependency(instanceOverride.material);
+    const dependencies = this.getAllDependencies();
+    for (const dependency of dependencies) {
+      const override = dependency.overrides.get(materialName);
+      if (override) {
+        computedMaterialInstance.addDependency(override.material);
+      }
     }
   }
 
@@ -157,72 +108,92 @@ export class ModelMaterialOverrides {
    * @param materialName
    */
   private getComputedMaterialInstance(materialName: string): Computed<MaterialInstance> {
-    const hasInstanceOverrides = this.instanceOverrides.has(materialName);
-    if (hasInstanceOverrides) {
-      // Get or create material based on Shared + Instance overrides
-      let materialInstance = this.instanceOverrideMaterialInstances.get(materialName);
-      if (materialInstance !== undefined) {
-        return materialInstance;
-      } else {
-        materialInstance = this.createNewComputedMaterialInstance(materialName, (self) => {
-          this.applyMaterialOverrideToInstance(self, this.sharedOverrides.get(materialName));
-          this.applyMaterialOverrideToInstance(self, this.instanceOverrides.get(materialName));
-        });
-
-        this.instanceOverrideMaterialInstances.set(materialName, materialInstance);
-        return materialInstance;
-      }
+    let materialInstance = this.computedMaterialInstances.get(materialName);
+    if (materialInstance) {
+      return materialInstance;
     } else {
-      // Get or create material based on ONLY Shared overrides
-      let materialInstance = this.sharedOverrideMaterialInstances.get(materialName);
-      if (materialInstance !== undefined) {
-        return materialInstance;
-      } else {
-        materialInstance = this.createNewComputedMaterialInstance(materialName, (self) => {
-          this.applyMaterialOverrideToInstance(self, this.sharedOverrides.get(materialName));
-        });
+      materialInstance = new Computed(new MaterialInstance(), {
+        dependencies: [],
+        recompute: (self) => {
+          // Get dependencies
+          const defaultMaterial = this.getDefaultMaterial(materialName);
+          const dependencies = this.getAllDependencies();
 
-        this.sharedOverrideMaterialInstances.set(materialName, materialInstance);
-        return materialInstance;
+          // Apply dependencies
+          self.replaceWith(defaultMaterial!);
+          for (const dependency of dependencies) {
+            const override = dependency.overrides.get(materialName);
+            if (override !== undefined) {
+              if (override.type === 'replace') {
+                self.replaceWith(override.material);
+              } else {
+                self.overrideWith(override.material);
+              }
+            }
+          }
+        },
+      });
+
+      this.computedMaterialInstances.set(materialName, materialInstance);
+
+      return materialInstance;
+    }
+  }
+
+  /**
+   * Look up the default material properties for a material.
+   * @param materialName
+   */
+  private getDefaultMaterial(materialName: string): Material | undefined {
+    // Find default material by walking the chain of dependencies.
+    // Default material is at the top, since a ModelMaterialOverrides
+    // MUST have a parent, and its parent is either another ModelMaterialOverrides
+    // instance or the set of default materials.
+    let currentDependency = this.parent;
+    while (true) {
+      if (currentDependency instanceof ModelMaterialOverrides) {
+        /* Override layer */
+        currentDependency = currentDependency.parent;
+      } else {
+        /* Default material */
+        return currentDependency.get(materialName);
       }
     }
   }
 
   /**
-   * Create a new {@linkcode Computed<MaterialInstance>} for a material, based on
-   * its default material configuration and a given {@linkcode recompute} parameter.
-   * @param materialName Name of the material.
-   * @param recompute Recompute function, intended to apply overrides to the material instance.
+   * Get the full stack of dependencies for this ModelMaterialOverrides, INCLUDING itself.
    */
-  private createNewComputedMaterialInstance(materialName: string, recompute: (self: MaterialInstance) => void): Computed<MaterialInstance> {
-    const defaultMaterial = this.defaultMaterialCache.get(materialName);
-    if (defaultMaterial === undefined) {
-      throw new Error(`Cannot compute material overrides for material '${materialName}' - it has not been initialised. Have you called 'init()'?`);
+  private getAllDependencies(): ModelMaterialOverrides[] {
+    const dependencies: ModelMaterialOverrides[] = [];
+
+    // Gather dependencies
+    let hasFoundDefaultMaterial = false;
+    let currentDependency = this.parent;
+    while (!hasFoundDefaultMaterial) {
+      if (currentDependency instanceof ModelMaterialOverrides) {
+        /* Override layer */
+        dependencies.push(currentDependency);
+        currentDependency = currentDependency.parent;
+      } else {
+        /* Default material */
+        hasFoundDefaultMaterial = true;
+      }
     }
-    const computedMaterialInstance = new Computed(MaterialInstance.fromMaterial(defaultMaterial), {
-      dependencies: [],
-      recompute: (self) => {
-        self.replaceWith(defaultMaterial);
-        recompute(self);
-      },
+
+    dependencies.push(this);
+
+    return dependencies;
+  }
+
+  public get parent(): ModelMaterialOverridesParent { return this._parent; }
+  public set parent(value: ModelMaterialOverridesParent) {
+    this.mutate(() => {
+      if (this.stopObservingParent) {
+        this.stopObservingParent();
+      }
+      this._parent = value;
+      this.onParentChange();
     });
-
-    return computedMaterialInstance;
-  }
-
-  /**
-   * Apply a {@linkcode MaterialOverride} to a {@linkcode MaterialInstance}.
-   * Convenience function for efficient code reuse.
-   * @param materialInstance
-   * @param override
-   */
-  private applyMaterialOverrideToInstance(materialInstance: MaterialInstance, override: MaterialOverride | undefined): void {
-    if (override !== undefined) {
-      if (override.type === 'replace') {
-        materialInstance.replaceWith(override.material);
-      } else {
-        materialInstance.overrideWith(override.material);
-      }
-    }
   }
 }

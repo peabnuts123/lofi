@@ -6,10 +6,10 @@ import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 import { Animation } from "@lofi/engine/animation";
 import type { Material } from "@lofi/engine/materials";
 import { type IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
-import type { MaterialOverrideType } from "@lofi/engine/models/ModelMaterialOverrides";
+import { ModelMaterialOverrides, type MaterialOverrideType } from "@lofi/engine/models/ModelMaterialOverrides";
 
 export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
-  public model: Model;
+  private _model: Model;
   private _animationSource: Model;
   private _verticesWorldSpaceTmp: Vector3[];
 
@@ -17,15 +17,18 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   private currentAnimation: Animation | undefined;
   private currentAnimationSpeed: number = 1;
 
+  private materialOverrides: ModelMaterialOverrides;
+
   public constructor(scene: IScene, name: string, model: Model, parent?: SceneNode) {
     super(scene, name, parent);
-    this.model = model.createInstance(); // @TODO Probably going to need a way to "reset" this instance
+    this._model = model.createInstance();
     this._animationSource = model;
     this._verticesWorldSpaceTmp = model.allVertexPositions.map(() => Vector3.zero());
+    this.materialOverrides = new ModelMaterialOverrides(model.materialOverrides);
   }
 
-  public setMaterialOverride(materialName: string, material: Material, type?: MaterialOverrideType): void {
-    this.model.setMaterialOverride(materialName, material, type);
+  public setMaterialOverride(materialName: string, material: Material, type: MaterialOverrideType = 'override'): void {
+    this.materialOverrides.setOverride(materialName, material, type);
   }
 
   public removeMaterialOverride(materialName: string): void {
@@ -55,7 +58,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
 
     // No scene or no camera = no draw tasks
     if (viewMatrix !== undefined) {
-      this.model.draw(engine, drawQueue, viewMatrix, this.worldMatrix);
+      this.model.draw(engine, drawQueue, viewMatrix, this.worldMatrix, this.materialOverrides);
     }
   }
 
@@ -121,5 +124,10 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   public set animationSource(value: Model) {
     this.stopAnimation();
     this._animationSource = value;
+  }
+  public get model(): Model { return this._model; }
+  public set model(value: Model) {
+    this._model = value;
+    this.materialOverrides.parent = value.materialOverrides;
   }
 }

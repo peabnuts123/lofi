@@ -33,7 +33,7 @@ export class MaterialInstance {
   private _reflectionCubemap: Cubemap | undefined;
   private _reflectionIntensity: number;
 
-  private constructor() {
+  public constructor() {
     this.id = MaterialInstance.IdPool.createNew();
 
     this.shader = new DefaultShader(

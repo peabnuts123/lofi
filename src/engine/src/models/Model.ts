@@ -3,7 +3,7 @@ import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import type { ModelDefinition, ModelPartDefinition } from "@lofi/engine/loaders/definitions";
 import { Animation } from "@lofi/engine/animation";
-import type { Material } from "@lofi/engine/materials";
+import { Material } from "@lofi/engine/materials";
 
 import type { Edge, EdgeIndices, Triangle, TriangleIndices } from "./MeshGeometry";
 import { ModelPart } from "./ModelPart";
@@ -18,15 +18,13 @@ import { ModelMaterialOverrides, type MaterialOverrideType } from "./ModelMateri
  * ```
  */
 export class Model {
-  private isInstance: boolean;
   private readonly rootParts: ModelPart[];
   public readonly allParts: ModelPart[];
   public readonly animations: Animation[];
 
-  private readonly materialOverrides: ModelMaterialOverrides;
+  public readonly materialOverrides: ModelMaterialOverrides;
 
   private constructor(rootParts: ModelPart[], allParts: ModelPart[], animations: Animation[], materialOverrides: ModelMaterialOverrides) {
-    this.isInstance = false;
     this.rootParts = rootParts;
     this.allParts = allParts;
     this.animations = animations;
@@ -40,10 +38,8 @@ export class Model {
     const tidyUpTasks: (() => void)[] = [];
     const oldToNewLookup = new Map<ModelPart, ModelPart>();
 
-    const materialOverrides = this.materialOverrides.createInstance();
-
     function createModelPartInstance(modelPart: ModelPart, parentInstance?: ModelPart): ModelPart {
-      const instance = modelPart.createInstance(materialOverrides, parentInstance);
+      const instance = modelPart.createInstance(parentInstance);
 
       newParts.push(instance);
       oldToNewLookup.set(modelPart, instance);
@@ -85,27 +81,27 @@ export class Model {
       newRootParts,
       newParts,
       this.animations,
-      materialOverrides,
+      this.materialOverrides,
     );
-    instance.isInstance = true;
     return instance;
   }
 
   public setMaterialOverride(materialName: string, material: Material, type: MaterialOverrideType = 'override'): void {
-    this.materialOverrides.setOverride(materialName, material, type, this.isInstance);
+    this.materialOverrides.setOverride(materialName, material, type);
   }
 
   public removeMaterialOverride(materialName: string): void {
-    this.materialOverrides.removeOverride(materialName, this.isInstance);
+    this.materialOverrides.removeOverride(materialName);
   }
 
-  public draw(engine: IEngine, drawQueue: DrawTask[], viewMatrix: Matrix4, worldMatrix: Matrix4): void {
+  public draw(engine: IEngine, drawQueue: DrawTask[], viewMatrix: Matrix4, worldMatrix: Matrix4, materialOverrides: ModelMaterialOverrides): void {
     for (const modelPart of this.allParts) {
       modelPart.draw(
         engine,
         drawQueue,
         viewMatrix,
         worldMatrix,
+        materialOverrides,
       );
     }
   }
@@ -115,7 +111,7 @@ export class Model {
     const modelPartLookup = new Map<ModelPartDefinition, ModelPart>();
     const rootParts: ModelPart[] = [];
     const allParts: ModelPart[] = [];
-    const materialOverrides = ModelMaterialOverrides.createNew();
+    const defaultMaterials: Map<string, Material> = new Map();
 
     for (const rootPart of definition.rootParts) {
       const modelPart = await createModelPart(rootPart);
@@ -123,7 +119,19 @@ export class Model {
     }
 
     async function createModelPart(partDefinition: ModelPartDefinition, parent?: ModelPart): Promise<ModelPart> {
-      const modelPart = await ModelPart.fromDefinition(engine, partDefinition, parent, materialOverrides);
+      const modelPart = ModelPart.fromDefinition(engine, partDefinition, parent);
+
+      // Load all default materials
+      if (partDefinition.mesh) {
+        for (const meshPrimitiveDefinition of partDefinition.mesh.primitives) {
+          if (meshPrimitiveDefinition.material) {
+            if (!defaultMaterials.has(meshPrimitiveDefinition.material.name)) {
+              const material = await Material.fromDefinition(engine, meshPrimitiveDefinition.material);
+              defaultMaterials.set(meshPrimitiveDefinition.material.name, material);
+            }
+          }
+        }
+      }
 
       modelPartLookup.set(partDefinition, modelPart);
       allParts.push(modelPart);
@@ -152,6 +160,8 @@ export class Model {
     }
 
     tidyUpTasks.forEach((task) => task());
+
+    const materialOverrides = new ModelMaterialOverrides(defaultMaterials);
 
     return new Model(rootParts, allParts, animations, materialOverrides);
   }
