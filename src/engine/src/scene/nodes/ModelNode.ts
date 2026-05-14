@@ -32,7 +32,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   }
 
   public removeMaterialOverride(materialName: string): void {
-    this.model.removeMaterialOverride(materialName);
+    this.materialOverrides.removeOverride(materialName);
   }
 
   public playAnimation(animationName: string, speed: number = 1): void {
