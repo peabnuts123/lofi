@@ -108,7 +108,7 @@ export abstract class Game {
     camera.position = new Vector3(-3.5, -3.5, 2);
     camera.pointAt(Vector3.zero());
     cameraOrigin.addChild(camera);
-    runLoopHooks.push((dt) => {
+    runLoopHooks.push((dt, time) => {
       const CameraRotationSpeedDegreesPerSecond = 15;
       cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
       camera.position.z = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
@@ -270,8 +270,8 @@ export abstract class Game {
       const originalBurgerScale = burger.scale.clone();
       const originalBurgerPosition = burger.position.clone();
 
-      runLoopHooks.push(() => {
-        cycleBehaviours(() => {
+      runLoopHooks.push((_dt, time) => {
+        cycleBehaviours(time, () => {
           burger.position = originalBurgerPosition;
           burger.rotation.set(originalBurgerRotation);
           burger.scale = originalBurgerScale;
@@ -297,6 +297,20 @@ export abstract class Game {
           const burger = new ModelNode(scene, 'burger', burgerModel);
           testObjects[i].push(burger);
 
+          if (i % 3 === 0 && j % 4 === 0) {
+            burger.setMaterialOverride('brownLight', new Material({
+              diffuseColor: Color4.red(),
+            }));
+          } else if (i % 3 === 0) {
+            burger.setMaterialOverride('brownLight', new Material({
+              diffuseColor: Color4.blue(),
+            }));
+          } else if (j % 4 === 0) {
+            burger.setMaterialOverride('brownLight', new Material({
+              diffuseColor: Color4.green(),
+            }));
+          }
+
           burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, (j - GridH / 2) * GridSpacing + 0.5, -0.5);
           burger.scale.multiplySelf(1.7);
 
@@ -306,7 +320,7 @@ export abstract class Game {
           miniBurger.scale.multiplySelf(0.5);
         }
       }
-      runLoopHooks.push(() => {
+      runLoopHooks.push((_dt, time) => {
         let n = 0;
         for (let i = 0; i < testObjects.length; i++) {
           for (let j = 0; j < testObjects[i].length; j++) {
@@ -327,7 +341,6 @@ export abstract class Game {
     }
     /* Blending test stuff */
     if (Flags.BlendingTestsEnabled) {
-      const blendingTexture = await Texture.load(engine, '/textures/stones.png');
       const blendingModel = await Model.fromDefinition(engine, models[2]);
       const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
       blendingAverage.position.x = 1.5;
@@ -336,7 +349,6 @@ export abstract class Game {
       blendingAverage.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Average(),
         diffuseColor: Color4.white().withA(0),
-        diffuseTexture: blendingTexture,
       }));
       const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel);
       blendingAdditive.position.x = -1.5;
@@ -345,7 +357,6 @@ export abstract class Game {
       blendingAdditive.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Additive(),
         diffuseColor: Color4.green().withA(0),
-        diffuseTexture: blendingTexture,
         unlit: true,
       }));
       const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel);
@@ -355,7 +366,6 @@ export abstract class Game {
       blendingSubtractive.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Subtractive(),
         diffuseColor: Color4.white().withA(0),
-        diffuseTexture: blendingTexture,
         unlit: true,
       }));
       const blendingAlphaBlend = new ModelNode(scene, 'blending_alphaBlend', blendingModel);
@@ -384,7 +394,7 @@ export abstract class Game {
       rotatingColliderParent.position.x = 1.2;
       rotatingColliderParent.position.z = 2.5;
 
-      runLoopHooks.push(() => {
+      runLoopHooks.push((_dt, time) => {
         if (rotatingColliderParent) {
           rotatingColliderParent.rotation.x = time * 360 / 7;
           rotatingColliderParent.rotation.y = time * 360 / 6;
@@ -473,9 +483,8 @@ export abstract class Game {
     }
 
     /* Helpers */
-    let time = 0;
     const CyclePeriod = 4;
-    function cycleBehaviours(reset: () => void, behaviours: Array<() => void>): void {
+    function cycleBehaviours(time: number, reset: () => void, behaviours: Array<() => void>): void {
       reset();
       const behaviourIndex = ~~(time / CyclePeriod) % (behaviours.length);
       if (behaviourIndex < behaviours.length) {
