@@ -68,7 +68,7 @@ export class MeshPrimitive {
       materialBlendingMode === 'Subtractive';
 
     const drawTaskUniforms: DrawTask['uniforms'] = {
-      worldMatrix: worldMatrix.clone(), // @NOTE We can't hold reference to a tmp value
+      worldMatrix: worldMatrix,
       skinWeights: jointMatricesBytes,
     };
     const drawTaskDrawFn: DrawTask['draw'] = {
