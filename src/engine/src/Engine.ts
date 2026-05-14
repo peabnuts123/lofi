@@ -304,6 +304,7 @@ export class Engine implements IEngine {
       /* Render layer */
       if (task.renderLayer !== currentRenderLayer) {
         currentRenderLayer = task.renderLayer;
+        gl.depthMask(true);
         gl.clear(gl.DEPTH_BUFFER_BIT);
       }
 
@@ -335,6 +336,10 @@ export class Engine implements IEngine {
         switch (task.material.blendingMode.type) {
           case 'None':
             // No blending. No-op.
+            gl.disable(gl.BLEND);
+            gl.depthMask(true);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.ONE, gl.ZERO);
             break;
           case 'Average':
             // Average blending:
@@ -375,6 +380,10 @@ export class Engine implements IEngine {
           case 'AlphaClip': {
             // Alpha clipping:
             //  No blending.
+            gl.disable(gl.BLEND);
+            gl.depthMask(true);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.ONE, gl.ZERO);
             //  Transparent pixel (alpha < cutoff):  0 * src + 1 * dest (discarded)
             //  Opaque pixel (alpha >= cutoff):      1 * src + 0 * dest
             const alphaCutoffUniform = currentShaderVariant.getUniform('alphaCutoff');
@@ -456,9 +465,6 @@ export class Engine implements IEngine {
     }
 
     gl.bindVertexArray(null);
-    gl.disable(gl.BLEND);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.depthMask(true);
 
     return ResourceCount;
   }

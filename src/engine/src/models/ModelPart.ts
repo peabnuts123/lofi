@@ -71,6 +71,7 @@ export class ModelPart {
     viewMatrix: Matrix4,
     worldMatrix: Matrix4,
     materialOverrides: ModelMaterialOverrides,
+    renderLayer: number,
   ): void {
     if (!this.meshPrimitiveDefinitions?.length) return; // @NOTE Don't bother doing math unless we need it
 
@@ -96,7 +97,15 @@ export class ModelPart {
         material = materialOverrides.getResult(primitive.material.name);
       }
       const primitiveInstance = this.meshPrimitiveCache.getOrCreate(primitive, material);
-      primitiveInstance.draw(engine, drawQueue, this._modelViewMatrixTmp, this._worldMatrixTmp, this._jointMatricesTmp, material);
+      primitiveInstance.draw(
+        engine,
+        drawQueue,
+        renderLayer,
+        this._modelViewMatrixTmp,
+        this._worldMatrixTmp,
+        this._jointMatricesTmp,
+        material,
+      );
     }
   }
 

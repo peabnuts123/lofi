@@ -17,6 +17,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   private currentAnimation: Animation | undefined;
   private currentAnimationSpeed: number = 1;
 
+  public renderLayer: number = 0;
   private materialOverrides: ModelMaterialOverrides;
 
   public constructor(scene: IScene, name: string, model: Model, parent?: SceneNode) {
@@ -58,7 +59,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
 
     // No scene or no camera = no draw tasks
     if (viewMatrix !== undefined) {
-      this.model.draw(engine, drawQueue, viewMatrix, this.worldMatrix, this.materialOverrides);
+      this.model.draw(engine, drawQueue, viewMatrix, this.worldMatrix, this.materialOverrides, this.renderLayer);
     }
   }
 

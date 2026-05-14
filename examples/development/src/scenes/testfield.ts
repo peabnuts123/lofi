@@ -260,8 +260,10 @@ export abstract class Game {
     /* Burger */
     if (Flags.BurgerEnabled) {
       const burger = new ModelNode(scene, 'burger', burgerModel);
+      burger.renderLayer = 1;
       burger.scale.multiplySelf(2);
       const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+      miniBurger.renderLayer = 1;
       miniBurger.position = new Vector3(0, 0.35, 0);
       miniBurger.scale.multiplySelf(0.5);
       burger.addChild(miniBurger);

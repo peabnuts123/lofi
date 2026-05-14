@@ -42,6 +42,7 @@ export class MeshPrimitive {
   public draw(
     engine: IEngine,
     drawQueue: DrawTask[],
+    renderLayer: number,
     modelViewMatrix: Matrix4,
     worldMatrix: Matrix4,
     jointMatrices: Matrix4[] | undefined,
@@ -87,7 +88,7 @@ export class MeshPrimitive {
         .multiplySelf(modelViewMatrix);
 
       drawQueue.push({
-        renderLayer: 0, // @TODO (?)
+        renderLayer,
         isTransparent: true,
         depth: this._cameraSpacePositionTmp.z,
         shaderVariant: this.shader,
@@ -97,7 +98,7 @@ export class MeshPrimitive {
       } satisfies TransparentDrawTask);
     } else {
       drawQueue.push({
-        renderLayer: 0, // @TODO (?)
+        renderLayer,
         isTransparent: false,
         shaderVariant: this.shader,
         material,

@@ -94,7 +94,7 @@ export class Model {
     this.materialOverrides.removeOverride(materialName);
   }
 
-  public draw(engine: IEngine, drawQueue: DrawTask[], viewMatrix: Matrix4, worldMatrix: Matrix4, materialOverrides: ModelMaterialOverrides): void {
+  public draw(engine: IEngine, drawQueue: DrawTask[], viewMatrix: Matrix4, worldMatrix: Matrix4, materialOverrides: ModelMaterialOverrides, renderLayer: number): void {
     for (const modelPart of this.allParts) {
       modelPart.draw(
         engine,
@@ -102,6 +102,7 @@ export class Model {
         viewMatrix,
         worldMatrix,
         materialOverrides,
+        renderLayer,
       );
     }
   }
