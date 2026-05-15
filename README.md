@@ -96,6 +96,7 @@ These items are roughly in priority order.
   - [ ] Fix errors introduced by `exactOptionalPropertyTypes` / make the project compile
   - Trigger type colliders
   - Ability to change scene
+  - Have opinions about what file types are supported (e.g. only png/jpeg/etc). Look at file extension e.g. for model texture file dependencies, or maybe even header bytes for known MIME types.
 
 
 ## Ideas

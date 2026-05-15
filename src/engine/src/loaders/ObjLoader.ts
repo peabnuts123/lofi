@@ -20,6 +20,7 @@ import type {
   MaterialDefinition,
   MeshPrimitiveDefinition,
   ModelDefinition,
+  ModelDefinitionDependency,
   ModelPartDefinition,
 } from './definitions';
 import { Texture } from '../textures';
@@ -45,6 +46,9 @@ export class ObjLoader {
     const knownFiles: Record<string, Uint8Array> = {};
     let newFilePaths: string[] = [];
     let parsedObj: ModelObj;
+    const dependencies = {
+      textures: [] as ModelDefinitionDependency[],
+    };
 
     // @NOTE `online-3d-viewer` loader is not async, so we have to work around it :/
     // Re-parse .obj repeatedly until we've successfully parsed all dependencies (e.g. .mtl, or textures)
@@ -55,18 +59,8 @@ export class ObjLoader {
         getFileBuffer(filePath: string): Uint8Array | undefined {
           filePath = canonicaliseDependencyPath(objPath, filePath);
 
-          const fileExt = getFileExtension(filePath).toLocaleLowerCase();
-
-          // @NOTE Only look up .mtl files
-          // We could look up EVERY file here (including textures) and
-          //  they will be parsed, but we don't even use them in this loader
-          //  so it is a waste.
-          // @TODO texture dependencies
+          // Return known files, or otherwise record new dependencies
           if (knownFiles[filePath] === undefined) {
-            // @DEBUG
-            console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) Encountered .obj dependency: ${filePath}`);
-          }
-          if (fileExt === '.mtl' && knownFiles[filePath] === undefined) {
             newFilePaths.push(filePath);
             return undefined;
           } else {
@@ -81,11 +75,20 @@ export class ObjLoader {
           filesystem.readFile(path)
             .then((file) => ({
               path,
-              bytes: file.bytes,
+              file,
             })),
         ));
-        for (const { path, bytes } of newFiles) {
-          knownFiles[path] = bytes;
+        for (const { path, file } of newFiles) {
+          const fileExt = getFileExtension(path).toLocaleLowerCase();
+          if (fileExt !== '.mtl') {
+            console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) Encountered .obj dependency: ${path}`);
+            // @TODO More robust, explicit list of supported file extensions / header bytes
+            dependencies.textures.push({
+              path,
+              file,
+            });
+          }
+          knownFiles[path] = file.bytes;
         }
       }
     } while (newFilePaths.length > 0);
@@ -104,7 +107,7 @@ export class ObjLoader {
         }),
       ],
       animations: [],
-      // @TODO Textures or whatever
+      dependencies,
     };
   }
 
