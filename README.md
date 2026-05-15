@@ -19,17 +19,16 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Picking / ray casting~~
     - [ ] Move ray casting into Scene or something
   - [x] ~~3D Animation including bones~~
-    - [ ] Ability to reset / stop animation
-    - [ ] Config e.g. animation looping
+
     - [x] ~~Rename a bunch of model stuff (such as? oh, like `MeshNode` and `SubMesh`)~~
   - [x] ~~Turning on Test objects now produces a performance problem! (at least with wireframe enabled / ray casting)~~
   - [x] ~~DrawDebug - what's the future here?~~
-  - [ ] ? POSSIBLE BUG?: `addChild` recomputes transforms. What happens to transitive children e.g. `c.addChild(b); a.addChild(b);` - Does C update correctly?
+  - [x] ~~? POSSIBLE BUG?: `addChild` recomputes transforms. What happens to transitive children e.g. `c.addChild(b); a.addChild(b);` - Does C update correctly?~~
   - [x] ~~Sound and audio (PoC)~~
   - [x] ~~Basic Input system~~
   - [x] ~~Materials can be reused~~
   - [ ] POC for gizmos
-    - [ ] Some way to render on a different "layer" (not to mention, UI?)
+    - [x] ~~Some way to render on a different "layer" (not to mention, UI?)~~
     - [ ] Calculate bounding box of node/hierarchy
   - [x] ~~Remaining material properties needed by PolyZone~~
     - [x] ~~Reflection~~
@@ -45,6 +44,8 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
 
 ## Milestone: 0.2
   - [ ] Collision handling for concave geometry e.g. levels
+  - [ ] Ability to reset / stop animation
+    - [ ] Config e.g. animation looping
 
 ## Backlog
 These items are roughly in priority order.

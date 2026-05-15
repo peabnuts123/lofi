@@ -11,7 +11,7 @@ import { Transform } from './Transform';
 
 /*
   @TODO Test backlog
-     ? POSSIBLE BUG?: `addChild` recomputes transforms. What happens to transitive children e.g. `c.addChild(b); a.addChild(b);` - Does C update correctly?
+    - None at present
  */
 
 describe("Transform", () => {
@@ -1196,8 +1196,39 @@ describe("Transform", () => {
       expect(updatedNumChildren).toBe(0);
       expect(updatedChildParent).toBe(otherTransform);
     });
-    // @TODO test with / without recursive flag (new)
-    test.skip("Calling forEachChild() iterates the entire hierarchy of Transforms", () => {
+    test("Calling forEachChild() by default iterates just the top level children of a Transform", () => {
+      // Setup
+      const transform = createTransform({ widget: new Widget('transform') });
+      const left = createTransform({ widget: new Widget('left'), parent: transform });
+      const leftA = createTransform({ widget: new Widget('leftA'), parent: left });
+      const right = createTransform({ widget: new Widget('right'), parent: transform });
+      const rightA = createTransform({ widget: new Widget('rightA'), parent: right });
+      const rightB = createTransform({ widget: new Widget('rightB'), parent: right });
+
+      /* @NOTE Lint hacking */
+      void leftA;
+      void rightA;
+      void rightB;
+
+      const expectedResults = [
+        left, right,
+      ];
+
+      // Test
+      const results: Transform<Widget>[] = [];
+      transform.forEachChild((child) => {
+        results.push(child);
+      });
+
+      // Assert
+      // @NOTE test the results mapped to the widget names for easier
+      // debugging if this test ever breaks.
+      const mapToName = (results: Transform<Widget>[]): string[] => {
+        return results.map((result) => result.node.name);
+      };
+      expect(mapToName(results)).toEqual(mapToName(expectedResults));
+    });
+    test("Calling forEachChild() with recursive=true iterates all children of a Transform", () => {
       // Setup
       const transform = createTransform({ widget: new Widget('transform') });
       const left = createTransform({ widget: new Widget('left'), parent: transform });
@@ -1214,7 +1245,7 @@ describe("Transform", () => {
       const results: Transform<Widget>[] = [];
       transform.forEachChild((child) => {
         results.push(child);
-      });
+      }, true);
 
       // Assert
       // @NOTE test the results mapped to the widget names for easier
@@ -1223,6 +1254,76 @@ describe("Transform", () => {
         return results.map((result) => result.node.name);
       };
       expect(mapToName(results)).toEqual(mapToName(expectedResults));
+    });
+    test("Reparenting a Transform that is the parent of another Transform maintains correct values", () => {
+      // Setup
+      const absolutePositionA = Vector3.one().multiplySelf(1);
+      const absolutePositionB = Vector3.one().multiplySelf(2);
+      const absolutePositionC = Vector3.one().multiplySelf(3);
+
+      // @NOTE "expected" positions after being reparented
+      const expectedPositionA = absolutePositionA.clone();
+      const expectedPositionB = absolutePositionB.subtract(absolutePositionA);
+      const expectedPositionC = absolutePositionC.subtract(absolutePositionB);
+
+
+      // Arrange three transforms in unique positions
+      const transformA = createTransform();
+      transformA.absolutePosition = absolutePositionA;
+      const transformB = createTransform();
+      transformB.absolutePosition = absolutePositionB;
+      const transformC = createTransform();
+      transformC.absolutePosition = absolutePositionC;
+
+      const transformAAbsolutePositionInitial = transformA.absolutePosition.clone();
+      const transformBAbsolutePositionInitial = transformB.absolutePosition.clone();
+      const transformCAbsolutePositionInitial = transformC.absolutePosition.clone();
+      const transformAPositionInitial = transformA.position.clone();
+      const transformBPositionInitial = transformB.position.clone();
+      const transformCPositionInitial = transformC.position.clone();
+
+      // Test
+      /* Parent C => B */
+      transformC.parent = transformB;
+      const transformAAbsolutePositionAfterFirstUpdate = transformA.absolutePosition.clone();
+      const transformBAbsolutePositionAfterFirstUpdate = transformB.absolutePosition.clone();
+      const transformCAbsolutePositionAfterFirstUpdate = transformC.absolutePosition.clone();
+      const transformAPositionAfterFirstUpdate = transformA.position.clone();
+      const transformBPositionAfterFirstUpdate = transformB.position.clone();
+      const transformCPositionAfterFirstUpdate = transformC.position.clone();
+
+      /* Parent B => A */
+      transformB.parent = transformA;
+      const transformAAbsolutePositionAfterSecondUpdate = transformA.absolutePosition.clone();
+      const transformBAbsolutePositionAfterSecondUpdate = transformB.absolutePosition.clone();
+      const transformCAbsolutePositionAfterSecondUpdate = transformC.absolutePosition.clone();
+      const transformAPositionAfterSecondUpdate = transformA.position.clone();
+      const transformBPositionAfterSecondUpdate = transformB.position.clone();
+      const transformCPositionAfterSecondUpdate = transformC.position.clone();
+
+
+      // Assert
+      /* Initial */
+      expect(transformAAbsolutePositionInitial).toEqual(absolutePositionA);
+      expect(transformBAbsolutePositionInitial).toEqual(absolutePositionB);
+      expect(transformCAbsolutePositionInitial).toEqual(absolutePositionC);
+      expect(transformAPositionInitial).toEqual(expectedPositionA);
+      expect(transformBPositionInitial).toEqual(absolutePositionB);
+      expect(transformCPositionInitial).toEqual(absolutePositionC);
+      /* After first update - C should should have relative local position */
+      expect(transformAAbsolutePositionAfterFirstUpdate).toEqual(absolutePositionA);
+      expect(transformBAbsolutePositionAfterFirstUpdate).toEqual(absolutePositionB);
+      expect(transformCAbsolutePositionAfterFirstUpdate).toEqual(absolutePositionC);
+      expect(transformAPositionAfterFirstUpdate).toEqual(expectedPositionA);
+      expect(transformBPositionAfterFirstUpdate).toEqual(absolutePositionB);
+      expect(transformCPositionAfterFirstUpdate).toEqual(expectedPositionC);
+      /* After second update - B and C should should have relative local position */
+      expect(transformAAbsolutePositionAfterSecondUpdate).toEqual(absolutePositionA);
+      expect(transformBAbsolutePositionAfterSecondUpdate).toEqual(absolutePositionB);
+      expect(transformCAbsolutePositionAfterSecondUpdate).toEqual(absolutePositionC);
+      expect(transformAPositionAfterSecondUpdate).toEqual(expectedPositionA);
+      expect(transformBPositionAfterSecondUpdate).toEqual(expectedPositionB);
+      expect(transformCPositionAfterSecondUpdate).toEqual(expectedPositionC);
     });
   });
   describe("World Matrix", () => {
