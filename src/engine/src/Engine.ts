@@ -465,6 +465,10 @@ export class Engine implements IEngine {
     }
 
     gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.ONE, gl.ZERO);
 
     return ResourceCount;
   }
