@@ -24,34 +24,6 @@ export abstract class SceneNode {
   }
 
   /**
-   * Add a child node to this node.
-   * The child's absolute transform values are preserved while its local transform values
-   * are recalculated relative to this node's transform.
-   *
-   * @param child - The child node to add
-   * @throws {Error} If the child already has a different parent
-   */
-  // @TODO should we remove this in favour of set parent?
-  public addChild<TNode extends SceneNode>(child: TNode, preserveLocalTransform?: boolean): TNode {
-    this.transform.addChild(child.transform, preserveLocalTransform);
-    this.scene.removeTopLevelNode(child);
-    return child;
-  }
-
-  /**
-   * Remove a child node from this node.
-   * The child's absolute transform values are preserved while its local transform values
-   * are recalculated to maintain the same world position/rotation/scale.
-   * The child becomes a top-level node in the scene.
-   *
-   * @param child - The scene node to remove
-   */
-  public removeChild(child: SceneNode): void {
-    this.transform.removeChild(child.transform);
-    this.scene.addTopLevelNode(child);
-  }
-
-  /**
    * Execute a callback function for each child node of this node.
    *
    * @param fn - The callback function to execute for each child
@@ -74,6 +46,7 @@ export abstract class SceneNode {
    * to implement per-frame update logic.
    *
    * @param dt - The time elapsed since the last frame, in seconds
+   * @param time - Arbitrary number that increases in real time.
    */
   public onUpdate(dt: number, time: number): void {
     /* No-op */
@@ -88,7 +61,7 @@ export abstract class SceneNode {
     if (this.parent === undefined) {
       this.scene.removeTopLevelNode(this);
     } else {
-      this.parent.transform.removeChild(this.transform);
+      this.parent = undefined;
     }
   }
 

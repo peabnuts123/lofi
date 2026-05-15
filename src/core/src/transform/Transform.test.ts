@@ -18,7 +18,7 @@ describe("Transform", () => {
   test("New Transform instance has expected values", () => {
     // Setup
     const widgetInstance = new Widget();
-    const transform = createTransform(widgetInstance);
+    const transform = createTransform({ widget: widgetInstance });
 
     // Test / Assert
     expectVectorsToBeEqual(transform.position, Vector3.zero());
@@ -43,8 +43,7 @@ describe("Transform", () => {
        */
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
-      transform.addChild(childTransform);
+      const childTransform = createTransform({ parent: transform });
 
       // @NOTE Read values so that they are not dirty initially
       readValue(transform.absolutePosition);
@@ -101,8 +100,7 @@ describe("Transform", () => {
        */
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
-      transform.addChild(childTransform);
+      const childTransform = createTransform({ parent: transform });
 
       // @NOTE Read values so that they are not dirty initially
       readValue(transform.absoluteRotation.q);
@@ -167,8 +165,7 @@ describe("Transform", () => {
        */
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
-      transform.addChild(childTransform);
+      const childTransform = createTransform({ parent: transform });
 
       // @NOTE Read values so that they are not dirty initially
       readValue(transform.absoluteScale);
@@ -249,7 +246,7 @@ describe("Transform", () => {
       parentTransform.scale = Vector3.one();
 
       // Test
-      parentTransform.addChild(transform);
+      transform.parent = parentTransform;
 
       const afterParentingAbsolutePosition = transform.absolutePosition.clone();
       const afterParentingAbsoluteRotationQ = transform.absoluteRotation.q.clone();
@@ -282,9 +279,8 @@ describe("Transform", () => {
     });
     test("Unparenting a parented Transform stops listening to the parents values", () => {
       // Setup
-      const transform = createTransform();
       const parentTransform = createTransform();
-      parentTransform.addChild(transform);
+      const transform = createTransform({ parent: parentTransform });
       const positionOperand = new Vector3(1, 2, 3);
       const rotationOperand = Quaternion.fromEuler(10, 20, 30);
       const scaleOperand = new Vector3(1.1, 1.2, 1.3);
@@ -308,7 +304,7 @@ describe("Transform", () => {
       parentTransform.scale = Vector3.one();
 
       // Test
-      parentTransform.removeChild(transform);
+      transform.parent = undefined;
 
       const afterUnparentingAbsolutePosition = transform.absolutePosition.clone();
       const afterUnparentingAbsoluteRotationQ = transform.absoluteRotation.q.clone();
@@ -413,7 +409,7 @@ describe("Transform", () => {
         const initialAbsolutePosition = transform.absolutePosition.clone();
 
         // Test
-        parentTransform.addChild(transform);
+        transform.parent = parentTransform;
 
         const updatedPosition = transform.position.clone();
         const updatedAbsolutePosition = transform.absolutePosition.clone();
@@ -428,10 +424,9 @@ describe("Transform", () => {
     describe("With parent", () => {
       test("Setting position updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
         const updatedPosition = new Vector3(10, 20, 30);
         const expectedAbsolutePosition = parentTransform.position.add(updatedPosition);
         const expectedWorldMatrix = worldMatrix({ position: expectedAbsolutePosition });
@@ -446,10 +441,11 @@ describe("Transform", () => {
       });
       test("Mutating position updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
         const updatedPositionX = 30;
         const expectedPosition = Vector3.zero().subtract(parentTransform.position).setX(updatedPositionX);
         const expectedAbsolutePosition = parentTransform.position.add(expectedPosition);
@@ -465,10 +461,9 @@ describe("Transform", () => {
       });
       test("Setting absolutePosition updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
         const updatedPosition = new Vector3(10, 20, 30);
         const expectedPosition = updatedPosition.subtract(parentTransform.absolutePosition);
         const expectedWorldMatrix = worldMatrix({ position: updatedPosition });
@@ -483,10 +478,11 @@ describe("Transform", () => {
       });
       test("Mutating absolutePosition updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
         const updatedPositionX = 30;
         const expectedAbsolutePosition = Vector3.zero().setX(updatedPositionX);
         const expectedPosition = expectedAbsolutePosition.subtract(parentTransform.absolutePosition);
@@ -502,10 +498,11 @@ describe("Transform", () => {
       });
       test("Modifying a parent's position updates the child's absolutePosition correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
         const offset = new Vector3(10, 20, 30);
         const expectedPosition = Vector3.zero().subtractSelf(parentTransform.position);
         const expectedAbsolutePosition = Vector3.zero().addSelf(offset);
@@ -527,12 +524,11 @@ describe("Transform", () => {
       });
       test("Unparenting a parented Transform updates its position based on absolutePosition", () => {
         // Setup
-        const transform = createTransform();
         const expectedAbsolutePosition = new Vector3(10, 20, 30);
-        transform.absolutePosition = expectedAbsolutePosition;
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
+        transform.absolutePosition = expectedAbsolutePosition;
 
         const expectedInitialPosition = transform.absolutePosition.subtract(parentTransform.absolutePosition);
 
@@ -540,7 +536,7 @@ describe("Transform", () => {
         const initialAbsolutePosition = transform.absolutePosition.clone();
 
         // Test
-        parentTransform.removeChild(transform);
+        transform.parent = undefined;
 
         const updatedPosition = transform.position.clone();
         const updatedAbsolutePosition = transform.absolutePosition.clone();
@@ -559,10 +555,9 @@ describe("Transform", () => {
           new Vector3(0, 1.1, 1.5),
         ];
         parentScaleTestCases.forEach((parentScale) => {
-          const transform = createTransform();
           const parentTransform = createTransform();
           parentTransform.scale = parentScale;
-          parentTransform.addChild(transform);
+          const transform = createTransform({ parent: parentTransform });
 
           const operand = new Vector3(2, 2, 2);
 
@@ -653,7 +648,7 @@ describe("Transform", () => {
         const initialAbsoluteRotation = transform.absoluteRotation.q.clone();
 
         // Test
-        parentTransform.addChild(transform);
+        transform.parent = parentTransform;
 
         const updatedRotation = transform.rotation.q.clone();
         const updatedAbsoluteRotation = transform.absoluteRotation.q.clone();
@@ -668,10 +663,9 @@ describe("Transform", () => {
     describe("With parent", () => {
       test("Mutating rotation updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.absoluteRotation.q = Quaternion.fromAxisAngle(Vector3.up(), 90);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
         const updatedRotation = Quaternion.fromAxisAngle(Vector3.up(), 30);
 
         const expectedAbsoluteRotation = parentTransform.rotation.q.multiply(updatedRotation);
@@ -687,10 +681,9 @@ describe("Transform", () => {
       });
       test("Mutating absoluteRotation updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.absoluteRotation.q = Quaternion.fromAxisAngle(Vector3.up(), 90);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
         const updatedRotation = Quaternion.fromAxisAngle(Vector3.up(), 30);
         const expectedRotation = Quaternion.fromAxisAngle(Vector3.up(), -60);
         const expectedWorldMatrix = worldMatrix({ rotation: updatedRotation });
@@ -705,10 +698,11 @@ describe("Transform", () => {
       });
       test("Modifying a parent's rotation updates the child's absoluteRotation, absolutePosition correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(5, 10, 15);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
         const operand = Quaternion.fromAxisAngle(Vector3.forward(), 90);
         const expectedPosition = Vector3.zero().subtractSelf(parentTransform.position);
         const expectedAbsolutePosition = new Vector3(
@@ -746,12 +740,11 @@ describe("Transform", () => {
       });
       test("Unparenting a parented Transform updates its rotation based on absoluteRotation", () => {
         // Setup
-        const transform = createTransform();
         const expectedAbsoluteRotation = Quaternion.fromAxisAngle(Vector3.up(), 30);
-        transform.absoluteRotation.q = expectedAbsoluteRotation;
         const parentTransform = createTransform();
         parentTransform.rotation.q = Quaternion.fromAxisAngle(Vector3.up(), 90);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
+        transform.absoluteRotation.q = expectedAbsoluteRotation;
 
         const expectedInitialRotation = Quaternion.fromAxisAngle(Vector3.up(), -60);
 
@@ -759,7 +752,7 @@ describe("Transform", () => {
         const initialAbsoluteRotation = transform.absoluteRotation.q.clone();
 
         // Test
-        parentTransform.removeChild(transform);
+        transform.parent = undefined;
 
         const updatedRotation = transform.rotation.q.clone();
         const updatedAbsoluteRotation = transform.absoluteRotation.q.clone();
@@ -875,7 +868,7 @@ describe("Transform", () => {
         const initialAbsoluteScale = transform.absoluteScale.clone();
 
         // Test
-        parentTransform.addChild(transform);
+        transform.parent = parentTransform;
 
         const updatedScale = transform.scale.clone();
         const updatedAbsoluteScale = transform.absoluteScale.clone();
@@ -890,10 +883,9 @@ describe("Transform", () => {
     describe("With parent", () => {
       test("Setting scale updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
         const updatedScale = new Vector3(1.1, 1.2, 1.3);
         const expectedAbsoluteScale = parentTransform.scale.multiply(updatedScale);
         const expectedWorldMatrix = worldMatrix({ scale: expectedAbsoluteScale });
@@ -908,10 +900,11 @@ describe("Transform", () => {
       });
       test("Mutating scale updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
         const updatedScaleX = 30;
         const expectedScale = Vector3.one().divide(parentTransform.scale).setX(updatedScaleX);
         const expectedAbsoluteScale = parentTransform.scale.multiply(expectedScale);
@@ -927,10 +920,9 @@ describe("Transform", () => {
       });
       test("Setting absoluteScale updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
         const updatedScale = new Vector3(1.1, 1.2, 1.3);
         const expectedScale = updatedScale.divide(parentTransform.absoluteScale);
         const expectedWorldMatrix = worldMatrix({ scale: updatedScale });
@@ -945,10 +937,11 @@ describe("Transform", () => {
       });
       test("Mutating absoluteScale updates state correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
         const updatedScaleX = 30;
         const expectedAbsoluteScale = Vector3.one().setX(updatedScaleX);
         const expectedScale = expectedAbsoluteScale.divide(parentTransform.absoluteScale);
@@ -964,10 +957,12 @@ describe("Transform", () => {
       });
       test("Modifying a parent's scale updates the child's absoluteScale, absolutePosition correctly", () => {
         // Setup
-        const transform = createTransform();
         const parentTransform = createTransform();
         parentTransform.position = new Vector3(0.5, 1.0, 1.5);
-        parentTransform.addChild(transform);
+        // @NOTE Intentionally create with default transform
+        const transform = createTransform();
+        transform.parent = parentTransform;
+
         const operand = new Vector3(0.3, 0.4, 0.5);
         const expectedPosition = Vector3.zero().subtractSelf(parentTransform.position);
         const expectedAbsolutePosition = new Vector3(
@@ -1004,12 +999,11 @@ describe("Transform", () => {
       });
       test("Unparenting a parented Transform updates its scale based on absoluteScale", () => {
         // Setup
-        const transform = createTransform();
         const expectedAbsoluteScale = new Vector3(1.1, 1.2, 1.3);
-        transform.absoluteScale = expectedAbsoluteScale;
         const parentTransform = createTransform();
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
-        parentTransform.addChild(transform);
+        const transform = createTransform({ parent: parentTransform });
+        transform.absoluteScale = expectedAbsoluteScale;
 
         const expectedInitialScale = transform.absoluteScale.divide(parentTransform.absoluteScale);
 
@@ -1017,7 +1011,7 @@ describe("Transform", () => {
         const initialAbsoluteScale = transform.absoluteScale.clone();
 
         // Test
-        parentTransform.removeChild(transform);
+        transform.parent = undefined;
 
         const updatedScale = transform.scale.clone();
         const updatedAbsoluteScale = transform.absoluteScale.clone();
@@ -1036,10 +1030,9 @@ describe("Transform", () => {
           new Vector3(0, 1.1, 1.5),
         ];
         parentScaleTestCases.forEach((parentScale) => {
-          const transform = createTransform();
           const parentTransform = createTransform();
           parentTransform.scale = parentScale;
-          parentTransform.addChild(transform);
+          const transform = createTransform({ parent: parentTransform });
 
           const operand = new Vector3(2, 2, 2);
 
@@ -1098,7 +1091,7 @@ describe("Transform", () => {
       const initialChildParent = childTransform.parent;
 
       // Test
-      transform.addChild(childTransform);
+      childTransform.parent = transform;
 
       const updatedTransformIncludesChild = transform.children.includes(childTransform);
       const updatedNumChildren = transform.children.length;
@@ -1116,30 +1109,28 @@ describe("Transform", () => {
     test("Attempting to add a child that is already a child of another Transform throws an error", () => {
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
       const otherTransform = createTransform();
-      otherTransform.addChild(childTransform);
+      const childTransform = createTransform({ parent: otherTransform });
 
       // Test
       const testFunc = (): void => {
-        transform.addChild(childTransform);
+        transform['addChild'](childTransform);
       };
 
       // Assert
-      expect(testFunc).toThrowError("It is already the child of another transform");
+      expect(testFunc).toThrow("It is already the child of another transform");
     });
     test("Attempting to re-add a child that is already a child of the target Transform is a no-op", () => {
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
-      transform.addChild(childTransform);
+      const childTransform = createTransform({ parent: transform });
 
       const initialTransformIncludesChild = transform.children.includes(childTransform);
       const initialNumChildren = transform.children.length;
       const initialChildParent = childTransform.parent;
 
       // Test
-      transform.addChild(childTransform);
+      childTransform.parent = transform;
 
       const updatedTransformIncludesChild = transform.children.includes(childTransform);
       const updatedNumChildren = transform.children.length;
@@ -1157,15 +1148,14 @@ describe("Transform", () => {
     test("Removing a child from a Transform removes it from the list of children, unsets child's parent", () => {
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
-      transform.addChild(childTransform);
+      const childTransform = createTransform({ parent: transform });
 
       const initialTransformIncludesChild = transform.children.includes(childTransform);
       const initialNumChildren = transform.children.length;
       const initialChildParent = childTransform.parent;
 
       // Test
-      transform.removeChild(childTransform);
+      childTransform.parent = undefined;
 
       const updatedTransformIncludesChild = transform.children.includes(childTransform);
       const updatedNumChildren = transform.children.length;
@@ -1183,16 +1173,15 @@ describe("Transform", () => {
     test("Attempting to remove a Transform that is not a child of the target Transform is a no-op", () => {
       // Setup
       const transform = createTransform();
-      const childTransform = createTransform();
       const otherTransform = createTransform();
-      otherTransform.addChild(childTransform);
+      const childTransform = createTransform({ parent: otherTransform });
 
       const initialTransformIncludesChild = transform.children.includes(childTransform);
       const initialNumChildren = transform.children.length;
       const initialChildParent = childTransform.parent;
 
       // Test
-      transform.removeChild(childTransform);
+      transform['removeChild'](childTransform);
 
       const updatedTransformIncludesChild = transform.children.includes(childTransform);
       const updatedNumChildren = transform.children.length;
@@ -1210,17 +1199,12 @@ describe("Transform", () => {
     // @TODO test with / without recursive flag (new)
     test.skip("Calling forEachChild() iterates the entire hierarchy of Transforms", () => {
       // Setup
-      const transform = createTransform(new Widget('transform'));
-      const left = createTransform(new Widget('left'));
-      transform.addChild(left);
-      const leftA = createTransform(new Widget('leftA'));
-      left.addChild(leftA);
-      const right = createTransform(new Widget('right'));
-      transform.addChild(right);
-      const rightA = createTransform(new Widget('rightA'));
-      const rightB = createTransform(new Widget('rightB'));
-      right.addChild(rightA);
-      right.addChild(rightB);
+      const transform = createTransform({ widget: new Widget('transform') });
+      const left = createTransform({ widget: new Widget('left'), parent: transform });
+      const leftA = createTransform({ widget: new Widget('leftA'), parent: left });
+      const right = createTransform({ widget: new Widget('right'), parent: transform });
+      const rightA = createTransform({ widget: new Widget('rightA'), parent: right });
+      const rightB = createTransform({ widget: new Widget('rightB'), parent: right });
 
       const expectedResults = [
         left, leftA, right, rightA, rightB,
@@ -1316,8 +1300,12 @@ class Widget {
   }
 }
 
-function createTransform(widget?: Widget): Transform<Widget> {
-  return new Transform(widget ?? new Widget());
+// widget?: Widget, parent?: Transform<Widget>
+function createTransform({ widget, parent }: {
+  widget?: Widget,
+  parent?: Transform<Widget>,
+} = {}): Transform<Widget> {
+  return new Transform(widget ?? new Widget(), parent);
 }
 
 function worldMatrix({

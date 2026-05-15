@@ -213,13 +213,14 @@ export class Transform<T extends TransformNodeTarget> {
 
   /**
    * Add a child node to this node.
-   * The child's absolute transform values are preserved while its local transform values
-   * are recalculated relative to this node's transform.
+   * Unless {@linkcode preserveLocalTransform} is set, the child's local transform values
+   * will be recalculated to preserve its absolute transform values.
    *
    * @param child - The child node to add
+   * @param preserveLocalTransform - Whether to preserve the child's local transform when reparenting
    * @throws {Error} If the child already has a different parent
    */
-  public addChild(child: Transform<T>, preserveLocalTransform: boolean = false): void {
+  private addChild(child: Transform<T>, preserveLocalTransform: boolean = false): void {
     if (this.children.some((existingChild) => existingChild === child)) {
       console.warn(`Tried to add transform '${child.node.name}' as child of transform '${this.node.name}' but it is already a child of this node`);
     } else if (child.parent !== undefined) {
@@ -261,13 +262,14 @@ export class Transform<T extends TransformNodeTarget> {
 
   /**
    * Remove a child node from this node.
-   * The child's absolute transform values are preserved while its local transform values
-   * are recalculated to maintain the same world position/rotation/scale.
+   * Unless {@linkcode preserveLocalTransform} is set, the child's local transform values
+   * will be recalculated to preserve its absolute transform values.
    * The child becomes a top-level node in the scene.
    *
    * @param child - The scene node to remove
+   * @param preserveLocalTransform - Whether to preserve the child's local transform when reparenting
    */
-  public removeChild(child: Transform<T>, preserveLocalTransform: boolean = false): void {
+  private removeChild(child: Transform<T>, preserveLocalTransform: boolean = false): void {
     const index = this.children.indexOf(child);
     if (index < 0) {
       console.warn(`Cannot remove transform '${child.node.name}' from children of node '${this.node.name}': it is not a child of this node`);

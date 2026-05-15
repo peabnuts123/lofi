@@ -104,10 +104,9 @@ export abstract class Game {
     const burgerModel = await Model.fromDefinition(engine, models[1]);
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
-    const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height);
+    const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height, cameraOrigin);
     camera.position = new Vector3(-3.5, -3.5, 2);
     camera.pointAt(Vector3.zero());
-    cameraOrigin.addChild(camera);
     runLoopHooks.push((dt, time) => {
       const CameraRotationSpeedDegreesPerSecond = 15;
       cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
@@ -123,8 +122,7 @@ export abstract class Game {
         diffuseColor: Color4.red(),
       }));
       audioBox.scale.multiplySelf(0.2);
-      const audioSource = new AudioSourceNode(scene, 'test');
-      audioBox.addChild(audioSource);
+      const audioSource = new AudioSourceNode(scene, 'test', audioBox);
 
       audioBox.absolutePosition = camera.absolutePosition;
       audioSource.playClip(testAudio);
@@ -262,11 +260,10 @@ export abstract class Game {
       const burger = new ModelNode(scene, 'burger', burgerModel);
       burger.renderLayer = 1;
       burger.scale.multiplySelf(2);
-      const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
+      const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel, burger);
       miniBurger.renderLayer = 1;
       miniBurger.position = new Vector3(0, 0.35, 0);
       miniBurger.scale.multiplySelf(0.5);
-      burger.addChild(miniBurger);
 
       const originalBurgerRotation = burger.rotation.q.clone();
       const originalBurgerScale = burger.scale.clone();
@@ -316,8 +313,7 @@ export abstract class Game {
           burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, (j - GridH / 2) * GridSpacing + 0.5, -0.5);
           burger.scale.multiplySelf(1.7);
 
-          const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel);
-          burger.addChild(miniBurger);
+          const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel, burger);
           miniBurger.position = new Vector3(0.2, 0.2, 0);
           miniBurger.scale.multiplySelf(0.5);
         }
@@ -384,17 +380,16 @@ export abstract class Game {
     if (Flags.IntersectingCollidersEnabled) {
       const colliderModel = await Model.fromDefinition(engine, models[0]);
       const staticColliderParent = new ModelNode(scene, "static_collider_parent", colliderModel);
+      staticColliderParent.position.z = 2.5;
       const staticCollider = new BoxColliderNode(scene, "static_collider", 0, {
         x: 1, y: 1, z: 1,
-      });
-      staticColliderParent.addChild(staticCollider);
-      staticColliderParent.position.z = 2.5;
+      }, staticColliderParent);
       const rotatingColliderParent = new ModelNode(scene, "rotating_collider_parent", colliderModel);
-      const rotatingCollider = rotatingColliderParent.addChild(new BoxColliderNode(scene, "rotating_collider", 0, {
-        x: 1, y: 1, z: 1,
-      }));
       rotatingColliderParent.position.x = 1.2;
       rotatingColliderParent.position.z = 2.5;
+      const rotatingCollider = new BoxColliderNode(scene, "rotating_collider", 0, {
+        x: 1, y: 1, z: 1,
+      }, rotatingColliderParent);
 
       runLoopHooks.push((_dt, time) => {
         if (rotatingColliderParent) {
@@ -419,9 +414,6 @@ export abstract class Game {
       const size = 1;
       function box(pos: Vector3, rot?: Vector3, scale?: Vector3): [SceneNode, ColliderNode] {
         const model = new ModelNode(scene, "box", boxModel);
-        const collider = model.addChild(new BoxColliderNode(scene, "collider", 0, {
-          x: size, y: size, z: size,
-        }));
         model.position = pos;
         if (rot) {
           model.rotation.euler.setValue(rot);
@@ -429,15 +421,15 @@ export abstract class Game {
         if (scale) {
           model.scale = scale;
         }
+
+        const collider = new BoxColliderNode(scene, "collider", 0, Vector3.one().multiplySelf(size), model);
         return [model, collider];
       }
       const speed = 0.35;
       const dumpsterModel = await Model.fromDefinition(engine, models[3]);
       const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
-      const convexCollider = convexColliderNode.addChild(
-        new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel),
-      );
       convexColliderNode.scale.multiplySelf(2);
+      const convexCollider = new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel, convexColliderNode);
       const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 0, 1.3,));
 
       runLoopHooks.push(() => {
