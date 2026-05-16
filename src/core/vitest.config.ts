@@ -10,5 +10,6 @@ export default defineConfig({
       requireAssertions: true,
     },
     reporters: ['verbose'],
+    execArgv: ['--expose-gc'],
   },
 });

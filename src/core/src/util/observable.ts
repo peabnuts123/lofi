@@ -1,4 +1,5 @@
 export type OnChangeCallback = () => void;
+export type DestructorCallback = () => void;
 
 export type StopObservingFn = () => void;
 export type IObservable = {
@@ -66,6 +67,18 @@ export class Computed<T> extends Observable {
 
   protected debug_name: string;
 
+  /** List of callbacks that are fired when this instance is garbage collected. */
+  protected readonly destructorCallbacks: DestructorCallback[] = [];
+  private static readonly destructor = new FinalizationRegistry<DestructorCallback[]>((destructorCallbacks) => {
+    for (const destructorCallback of destructorCallbacks) {
+      try {
+        destructorCallback();
+      } catch (e) {
+        console.error(`[${Computed.name}] (destructor) Error while calling destructor callback:`, e);
+      }
+    }
+  });
+
   public constructor(initialValue: T, { dependencies, recompute, debug_name }: ComputedArgs<T>) {
     super();
     this.isDirty = true;
@@ -77,6 +90,9 @@ export class Computed<T> extends Observable {
     for (const dependency of dependencies) {
       this.addDependency(dependency);
     }
+
+    // Register instance with finalizer to unsubscribe from dependencies when garbage collected
+    Computed.destructor.register(this, this.destructorCallbacks);
   }
 
   public addDependency(...dependencies: IObservable[]): void {
@@ -86,10 +102,24 @@ export class Computed<T> extends Observable {
       if (this.dependencies.some((existingDependency) => existingDependency.observable === dependency)) {
         /* @NOTE No-op. `dependency` is already registered. */
       } else {
+        // Use WeakRef to avoid holding a strong reference to this instance
+        // which would prevent it from being garbage collected
+        const weakThis = new WeakRef(this);
+        const stopObservingFn = dependency.onChange(() => {
+          const self = weakThis.deref();
+          if (self) {
+            self.onDependencyChange();
+          }
+        });
+
         this.dependencies.push({
           observable: dependency,
-          stopObservingFn: dependency.onChange(() => this.onDependencyChange()),
+          stopObservingFn,
         });
+
+        // Register stopObservingFn as destructor callback
+        // to automatically stop listening when this object is garbage collected
+        this.destructorCallbacks.push(stopObservingFn);
       }
     }
 
@@ -105,6 +135,7 @@ export class Computed<T> extends Observable {
       dependency.stopObservingFn();
     }
     this.dependencies.splice(0, this.dependencies.length);
+    this.destructorCallbacks.splice(0, this.destructorCallbacks.length);
     this.isDirty = true;
     this.notifyOnChange();
   }
@@ -116,9 +147,15 @@ export class Computed<T> extends Observable {
       const dependencyEntryIndex = this.dependencies.findIndex((existingDependency) => existingDependency.observable === dependency);
       if (dependencyEntryIndex !== -1) {
         // Remove listener
-        this.dependencies[dependencyEntryIndex].stopObservingFn();
+        const { stopObservingFn } = this.dependencies[dependencyEntryIndex];
+        stopObservingFn();
         // Remove from set of dependencies
         this.dependencies.splice(dependencyEntryIndex, 1);
+        // Remove from cleanup functions
+        const destructorCallbackIndex = this.destructorCallbacks.indexOf(stopObservingFn);
+        if (destructorCallbackIndex !== -1) {
+          this.destructorCallbacks.splice(destructorCallbackIndex, 1);
+        }
       }
     }
     // Mark computed as dirty if dependencies have been removed.
@@ -158,35 +195,48 @@ export interface WritableComputedArgs<T extends IObservable> extends ComputedArg
 }
 
 export class WritableComputed<T extends IObservable> extends Computed<T> {
-  private ignoreInternalChanges: boolean = false;
   private onSetValue: (value: T) => void;
   public constructor(initialValue: T, { dependencies, recompute, onSetValue, debug_name }: WritableComputedArgs<T>) {
+    // @NOTE We have to store this in a closure, otherwise
+    // it would require a reference to `this` which would prevent it from
+    // being garbage collected.
+    let ignoreInternalChanges = false;
+
     super(initialValue, {
       dependencies,
       recompute: (value) => {
-        this.ignoreInternalChanges = true;
+        ignoreInternalChanges = true;
         try {
           recompute(value);
         } finally {
-          this.ignoreInternalChanges = false;
+          ignoreInternalChanges = false;
         }
       },
       debug_name,
     });
 
     this.onSetValue = onSetValue;
-    initialValue.onChange(() => {
-      if (this.ignoreInternalChanges) return;
 
-      this.ignoreDependencies = true;
+    // Use WeakRef to avoid holding a strong reference to this instance
+    // which would prevent it from being garbage collected
+    const weakThis = new WeakRef(this);
+    const stopObservingFn = initialValue.onChange(() => {
+      const self = weakThis.deref();
+      if (self === undefined || ignoreInternalChanges) return;
+
+      self.ignoreDependencies = true;
       try {
-        onSetValue(this._value);
+        onSetValue(self._value);
       } finally {
-        this.notifyOnChange();
-        this.isDirty = false;
-        this.ignoreDependencies = false;
+        self.notifyOnChange();
+        self.isDirty = false;
+        self.ignoreDependencies = false;
       }
     });
+
+    // Register stopObservingFn as destructor callback
+    // to automatically stop listening when this object is garbage collected
+    this.destructorCallbacks.push(stopObservingFn);
   }
 
   /**

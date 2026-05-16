@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { Computed, Observable, WritableComputed } from './observable';
+import { forceGCAndWaitForCondition } from '@test/util/gc';
 
 describe("Observable", () => {
   test("`onChange()` callbacks are fired when `notifyOnChange() is called", () => {
@@ -681,6 +682,48 @@ describe("Computed", () => {
     expect(timesRecomputedAfterSetValue).toBe(1);
     expect(timesRecomputedAfterUpdatedRead).toBe(2);
   });
+  test("Computed instances can be garbage collected when no references remain", async () => {
+    // Setup
+    const source = new Widget(1, 2);
+    let computedWasCollected = false;
+    let timesDependencyChanged = 0;
+    const registry = new FinalizationRegistry(() => {
+      computedWasCollected = true;
+    });
+
+    (() => {
+      // @NOTE Create computed value in a local scope
+      // so it can be collected by the GC later.
+      const computed = new Computed(new Widget(0, 0), {
+        dependencies: [source],
+        recompute(value) {
+          value.setValue(source.a + 1, source.b + 1);
+        },
+      });
+      // @NOTE Replace `onDependencyChange` with spy function
+      computed['onDependencyChange'] = () => {
+        timesDependencyChanged++;
+      };
+      registry.register(computed, 'computed');
+    })();
+
+    expect(timesDependencyChanged).toBe(0);
+
+    // Test
+    /* Ensure computed is still firing */
+    source.b++;
+    expect(timesDependencyChanged).toBe(1);
+
+    /* Wait for object to be collected by GC */
+    await forceGCAndWaitForCondition(() => computedWasCollected);
+
+    /* Ensure computed is not still reacting (it has been garbage collected) */
+    source.a++;
+    expect(timesDependencyChanged).toBe(1);
+
+    // Assert
+    expect(computedWasCollected).toBe(true);
+  });
 });
 
 describe("WritableComputed", () => {
@@ -1009,6 +1052,52 @@ describe("WritableComputed", () => {
     expect(updatedSourcePlusOneValue).toEqual(new Widget(5, 4));
     expect(updatedSourcePlusTwoValue).toEqual(new Widget(6, 5));
   });
+  test("WritableComputed instances can be garbage collected when no strong references remain", async () => {
+    // Setup
+    const source = new Widget(1, 2);
+    let computedWasCollected = false;
+    let timesDependencyChanged = 0;
+    const registry = new FinalizationRegistry(() => {
+      computedWasCollected = true;
+    });
+
+    (() => {
+      // @NOTE Create computed value in a local scope
+      // so it can be collected by the GC later.
+      const computed = new WritableComputed(new Widget(0, 0), {
+        dependencies: [source],
+        recompute(value) {
+          value.setValue(source.a + 1, source.b + 1);
+        },
+        onSetValue(value) {
+          source.setValue(value.a - 1, value.b - 1);
+        },
+      });
+      // @NOTE Replace `onDependencyChange` with spy function
+      computed['onDependencyChange'] = () => {
+        timesDependencyChanged++;
+      };
+      registry.register(computed, 'computed');
+    })();
+
+    expect(timesDependencyChanged).toBe(0);
+
+    // Test
+    /* Ensure computed is still firing */
+    source.b++;
+    expect(timesDependencyChanged).toBe(1);
+
+    /* Wait for object to be collected by GC */
+    await forceGCAndWaitForCondition(() => computedWasCollected);
+
+    /* Ensure computed is not still reacting (it has been garbage collected) */
+    source.a++;
+    expect(timesDependencyChanged).toBe(1);
+
+    // Assert
+    expect(computedWasCollected).toBe(true);
+  });
+
 });
 
 function spyOnRecompute<T>(computed: Computed<T>, callback: () => void): void {
