@@ -1,5 +1,3 @@
-import type { GLTF, TypedArray } from "@gltf-transform/core";
-
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { Quaternion } from "@lofi/core/math/Quaternion";
 import type { Vector3 } from "@lofi/core/math/vector";
@@ -7,6 +5,27 @@ import type { Vector3 } from "@lofi/core/math/vector";
 import type { AnimationDefinition } from "./animation";
 import type { MaterialDefinition } from "./material";
 import type { VirtualFile } from "@lofi/engine/filesystem";
+import type { TypedArray } from "@lofi/core/util/types";
+
+export type AccessorComponentType = (
+  WebGL2RenderingContext['BYTE'] |
+  WebGL2RenderingContext['UNSIGNED_BYTE'] |
+  WebGL2RenderingContext['SHORT'] |
+  WebGL2RenderingContext['UNSIGNED_SHORT'] |
+  // @NOTE Accessors under the GLTF specification cannot be signed INT
+  // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#accessor-data-types
+  WebGL2RenderingContext['UNSIGNED_INT'] |
+  WebGL2RenderingContext['FLOAT']
+);
+export type MeshPrimitiveMode = (
+  WebGL2RenderingContext['POINTS'] |
+  WebGL2RenderingContext['LINES'] |
+  WebGL2RenderingContext['LINE_LOOP'] |
+  WebGL2RenderingContext['LINE_STRIP'] |
+  WebGL2RenderingContext['TRIANGLES'] |
+  WebGL2RenderingContext['TRIANGLE_STRIP'] |
+  WebGL2RenderingContext['TRIANGLE_FAN']
+);
 
 export interface ModelDefinitionDependency {
   path: string;
@@ -31,7 +50,6 @@ export interface TransformDefinition {
 export interface ModelPartDefinition {
   name: string;
   transform: TransformDefinition;
-  // @NOTE Could also store `parent` if we want
   children: ModelPartDefinition[];
   mesh?: MeshDefinition;
   skin?: SkinDefinition;
@@ -43,14 +61,11 @@ export interface MeshDefinition {
 
 export interface MeshPrimitiveDefinition {
   /** GL rendering mode e.g. TRIANGLES, LINES, TRIANGLE_FAN, etc. */
-  mode: GLTF.MeshPrimitiveMode;
+  mode: MeshPrimitiveMode;
   positionData: AttributeDefinition;      // VEC3
-  // @TODO Make required. Move generation code from `MeshGeometry` into loader
+  // @TODO Make required. Move generation code into loader
   normalData?: AttributeDefinition;       // VEC3
-  extents: {
-    min: Vector3,
-    max: Vector3,
-  },
+  extents: Extents,
   texCoord0Data?: AttributeDefinition;    // VEC2
   color0Data?: AttributeDefinition;       // VEC3 or VEC4
   joints0Data?: AttributeDefinition;      // VEC4
@@ -70,7 +85,7 @@ export interface AttributeDefinition {
    */
   componentSize: number;
   /** Type of each component e.g. `FLOAT`, `UNSIGNED_INT`, etc. */
-  componentType: GLTF.AccessorComponentType;
+  componentType: AccessorComponentType;
   /**
    * Specifies whether integer data values should be normalized (true) to [0, 1] (for unsigned types)
    * or [-1, 1] (for signed types), or converted directly (false) when they are accessed.
@@ -81,4 +96,9 @@ export interface AttributeDefinition {
 export interface SkinDefinition {
   inverseBindMatrices: Matrix4[];
   jointParts: ModelPartDefinition[];
+}
+
+export interface Extents {
+  min: Vector3;
+  max: Vector3;
 }

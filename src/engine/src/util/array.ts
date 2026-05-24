@@ -1,4 +1,4 @@
-import type { TypedArray } from "@gltf-transform/core";
+import type { TypedArray } from "@lofi/core/util/types";
 
 /**
  * Split a typed array into a series of chunks and then map each chunk into

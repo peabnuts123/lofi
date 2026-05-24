@@ -1,7 +1,9 @@
-import type { GLTF } from "@gltf-transform/core";
 import type { ArrayElementType } from "@lofi/core/util/types";
 import type { Vector2, Vector3 } from "@lofi/core/math/vector";
 import type { Quaternion } from "@lofi/core/math/Quaternion";
+
+export type AnimationSamplerInterpolation = 'LINEAR' | 'STEP' | 'CUBICSPLINE';
+export type AnimationChannelTargetPath = 'translation' | 'rotation' | 'scale' | 'weights';
 
 export interface AnimationDefinition {
   name: string;
@@ -11,9 +13,9 @@ export interface AnimationDefinition {
 
 export interface AnimationChannelDefinition {
   targetPartName: string;
-  targetPartProperty: GLTF.AnimationChannelTargetPath;
+  targetPartProperty: AnimationChannelTargetPath;
   timestamps: Float32Array;
-  interpolation: GLTF.AnimationSamplerInterpolation;
+  interpolation: AnimationSamplerInterpolation;
   values: AnimationChannelValues;
 }
 

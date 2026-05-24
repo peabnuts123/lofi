@@ -1,17 +1,15 @@
-import type { GLTF } from "@gltf-transform/core";
-
 import { inverseLerp, lerp } from "@lofi/core/math/util";
 import { Vector2, Vector3 } from "@lofi/core/math/vector";
 import { Quaternion } from "@lofi/core/math/Quaternion";
-import type { AnimationChannelDefinition, AnimationChannelValues, AnimationTypeValue } from "@lofi/engine/loaders/definitions";
+import type { AnimationChannelDefinition, AnimationChannelTargetPath, AnimationChannelValues, AnimationSamplerInterpolation, AnimationTypeValue } from "@lofi/engine/loaders/definitions";
 import type { Model, ModelPart } from "@lofi/engine/models";
 
 export class AnimationChannel {
   private readonly targetNodeName: string;
   private readonly timestamps: Float32Array;
   private readonly values: AnimationChannelValues;
-  private readonly interpolation: GLTF.AnimationSamplerInterpolation;
-  private readonly targetNodeProperty: GLTF.AnimationChannelTargetPath;
+  private readonly interpolation: AnimationSamplerInterpolation;
+  private readonly targetNodeProperty: AnimationChannelTargetPath;
 
   private currentModel: Model | undefined = undefined;
   private currentModelTarget: ModelPart | undefined = undefined;
