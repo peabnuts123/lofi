@@ -74,10 +74,10 @@ export class Vector2 extends Observable {
   public multiplySelf(factor: number): this;
   public multiplySelf(other: Vector2): this;
   public multiplySelf(operand: number | Vector2): this {
-    if (operand instanceof Vector2) {
-      return this.multiplyVector2Self(operand);
-    } else {
+    if (typeof operand === 'number') {
       return this.multiplyNumberSelf(operand);
+    } else {
+      return this.multiplyVector2Self(operand);
     }
   }
   private multiplyVector2Self(other: Vector2): this {
@@ -99,7 +99,7 @@ export class Vector2 extends Observable {
   public multiply(factor: number): Vector2;
   public multiply(other: Vector2): Vector2;
   public multiply(operand: number | Vector2): Vector2 {
-    if (operand instanceof Vector2) {
+    if (typeof operand === 'number') {
       return this.clone().multiplySelf(operand);
     } else {
       return this.clone().multiplySelf(operand);
@@ -109,15 +109,7 @@ export class Vector2 extends Observable {
   public divideSelf(factor: number): this;
   public divideSelf(other: Vector2): this;
   public divideSelf(operand: number | Vector2): this {
-    if (operand instanceof Vector2) {
-      if (operand.x === 0 || operand.y === 0) {
-        throw new Error(`Cannot divide Vector2 by 0: ${operand}`);
-      }
-      this.mutate(() => {
-        this.x /= operand.x;
-        this.y /= operand.y;
-      });
-    } else {
+    if (typeof operand === 'number') {
       if (operand === 0) {
         throw new Error(`Cannot divide Vector2 by 0`);
       }
@@ -125,13 +117,21 @@ export class Vector2 extends Observable {
         this.x /= operand;
         this.y /= operand;
       });
+    } else {
+      if (operand.x === 0 || operand.y === 0) {
+        throw new Error(`Cannot divide Vector2 by 0: ${operand}`);
+      }
+      this.mutate(() => {
+        this.x /= operand.x;
+        this.y /= operand.y;
+      });
     }
     return this;
   }
   public divide(factor: number): Vector2;
   public divide(other: Vector2): Vector2;
   public divide(operand: number | Vector2): Vector2 {
-    if (operand instanceof Vector2) {
+    if (typeof operand === 'number') {
       return this.clone().divideSelf(operand);
     } else {
       return this.clone().divideSelf(operand);
@@ -383,16 +383,7 @@ export class Vector3 extends Observable {
   public divideSelf(factor: number): this;
   public divideSelf(other: Vector3): this;
   public divideSelf(operand: number | Vector3): this {
-    if (operand instanceof Vector3) {
-      if (operand.x === 0 || operand.y === 0 || operand.z === 0) {
-        throw new Error(`Cannot divide Vector3 by 0: ${operand}`);
-      }
-      this.mutate(() => {
-        this.x /= operand.x;
-        this.y /= operand.y;
-        this.z /= operand.z;
-      });
-    } else {
+    if (typeof operand === 'number') {
       if (operand === 0) {
         throw new Error(`Cannot divide Vector3 by 0`);
       }
@@ -401,13 +392,22 @@ export class Vector3 extends Observable {
         this.y /= operand;
         this.z /= operand;
       });
+    } else {
+      if (operand.x === 0 || operand.y === 0 || operand.z === 0) {
+        throw new Error(`Cannot divide Vector3 by 0: ${operand}`);
+      }
+      this.mutate(() => {
+        this.x /= operand.x;
+        this.y /= operand.y;
+        this.z /= operand.z;
+      });
     }
     return this;
   }
   public divide(factor: number): Vector3;
   public divide(other: Vector3): Vector3;
   public divide(operand: number | Vector3): Vector3 {
-    if (operand instanceof Vector3) {
+    if (typeof operand === 'number') {
       return this.clone().divideSelf(operand);
     } else {
       return this.clone().divideSelf(operand);
