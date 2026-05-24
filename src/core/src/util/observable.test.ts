@@ -823,7 +823,7 @@ describe("WritableComputed", () => {
 
     expect(updatedTimesRecomputeCalled).toBe(1);
     expect(updatedTimesOnSetValueCalled).toBe(0);
-    expect(updatedTimesOnChangeCalled).toBe(1);
+    expect(updatedTimesOnChangeCalled).toBe(0);
     expect(updatedIsDirty).toBe(false);
   });
   test("Mutating dependency inside `onSetValue()` does not trigger `recompute()", () => {

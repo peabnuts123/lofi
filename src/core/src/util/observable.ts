@@ -124,7 +124,8 @@ export class Computed<T> extends Observable {
     }
 
     // Mark computed as dirty if additional dependencies have been added
-    if (this.dependencies.length !== initialNumDependencies) {
+    // No need to notify if computed is already dirty
+    if (this.dependencies.length !== initialNumDependencies && this.isDirty === false) {
       this.isDirty = true;
       this.notifyOnChange();
     }
@@ -134,10 +135,14 @@ export class Computed<T> extends Observable {
     for (const dependency of this.dependencies) {
       dependency.stopObservingFn();
     }
-    this.dependencies.splice(0, this.dependencies.length);
-    this.destructorCallbacks.splice(0, this.destructorCallbacks.length);
-    this.isDirty = true;
-    this.notifyOnChange();
+    this.dependencies.length = 0;
+    this.destructorCallbacks.length = 0;
+
+    // No need to notify if computed is already dirty
+    if (this.isDirty === false) {
+      this.isDirty = true;
+      this.notifyOnChange();
+    }
   }
 
   public removeDependency(...dependencies: IObservable[]): void {
@@ -161,9 +166,10 @@ export class Computed<T> extends Observable {
     // Mark computed as dirty if dependencies have been removed.
     // @NOTE You might think this un-necessary, but a counter example is something
     // like computed Transform properties that have different logic between
-    // having a parent vs. having no parent. The logic recompute logic might
+    // having a parent vs. having no parent. The recompute logic might
     // be different given fewer dependencies, thus we need to invalidate it.
-    if (this.dependencies.length !== initialNumDependencies) {
+    if (this.dependencies.length !== initialNumDependencies && this.isDirty === false) {
+      // No need to notify if computed is already dirty
       this.isDirty = true;
       this.notifyOnChange();
     }
@@ -175,8 +181,8 @@ export class Computed<T> extends Observable {
   }
 
   private onDependencyChange(): void {
-    if (this.ignoreDependencies) return;
-
+    // No need to notify if computed is already dirty
+    if (this.ignoreDependencies || this.isDirty) return;
     this.isDirty = true;
     this.notifyOnChange();
   }
