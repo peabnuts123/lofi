@@ -91,7 +91,12 @@ void main() {
 #endif
 
   // Lighting
+#ifdef SKIN
+  vec3 skinnedNormal = normalize(transpose(inverse(mat3(skinMatrix))) * vertexNormal);
+  worldNormal = normalize(normalMatrix * skinnedNormal);
+#else
   worldNormal = normalize(normalMatrix * vertexNormal);
+#endif
 #ifdef UNLIT
   fragmentLighting = vec3(1.0f, 1.0f, 1.0f);
 #else
