@@ -2,31 +2,25 @@ import { Vector3 } from "@lofi/core/math/vector";
 import type { Triangle } from "@lofi/engine/models";
 import type { AxisAlignedBoundingBox } from "../AxisAlignedBoundingBox";
 
-const RayAABBTmp: Vector3[] = [
-  Vector3.zero(),
-  Vector3.zero(),
-];
 export function rayAABBIntersection(rayOrigin: Vector3, rayDir: Vector3, aabb: AxisAlignedBoundingBox): number | undefined {
-  const tMin = RayAABBTmp[0].setValue(
-    (aabb.xMin - rayOrigin.x) / rayDir.x,
-    (aabb.yMin - rayOrigin.y) / rayDir.y,
-    (aabb.zMin - rayOrigin.z) / rayDir.z,
-  );
-  const tMax = RayAABBTmp[1].setValue(
-    (aabb.xMax - rayOrigin.x) / rayDir.x,
-    (aabb.yMax - rayOrigin.y) / rayDir.y,
-    (aabb.zMax - rayOrigin.z) / rayDir.z,
-  );
+  /* Min */
+  const tMinX = (aabb.xMin - rayOrigin.x) / rayDir.x;
+  const tMinY = (aabb.yMin - rayOrigin.y) / rayDir.y;
+  const tMinZ = (aabb.zMin - rayOrigin.z) / rayDir.z;
+  /* Max */
+  const tMaxX = (aabb.xMax - rayOrigin.x) / rayDir.x;
+  const tMaxY = (aabb.yMax - rayOrigin.y) / rayDir.y;
+  const tMaxZ = (aabb.zMax - rayOrigin.z) / rayDir.z;
 
   const tNear = Math.max(
-    Math.min(tMin.x, tMax.x),
-    Math.min(tMin.y, tMax.y),
-    Math.min(tMin.z, tMax.z),
+    Math.min(tMinX, tMaxX),
+    Math.min(tMinY, tMaxY),
+    Math.min(tMinZ, tMaxZ),
   );
   const tFar = Math.min(
-    Math.max(tMin.x, tMax.x),
-    Math.max(tMin.y, tMax.y),
-    Math.max(tMin.z, tMax.z),
+    Math.max(tMinX, tMaxX),
+    Math.max(tMinY, tMaxY),
+    Math.max(tMinZ, tMaxZ),
   );
 
   if (tNear <= tFar) {

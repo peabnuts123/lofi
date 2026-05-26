@@ -1,9 +1,9 @@
-import { Vector2, Vector3, Color3, Quaternion, DegreesToRadians } from '@lofi/core/math';
+import { Vector2, Vector3, Color3, Quaternion, DegreesToRadians, Matrix4, toFixed } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model, type Triangle } from '@lofi/engine/models';
-import { Engine } from '@lofi/engine/Engine';
-import { Scene, SceneNode } from '@lofi/engine/scene';
+import { Engine, type DrawTask, type IEngine } from '@lofi/engine/Engine';
+import { DrawableSceneNode, Scene, SceneNode, type IScene } from '@lofi/engine/scene';
 import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
 import { rayAABBIntersection, rayTriangleIntersection } from '@lofi/engine/collision/ray';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
@@ -14,6 +14,29 @@ import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import type { ModelDefinition } from '@lofi/engine/loaders/definitions';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
+import { DrawDebug } from '@lofi/engine/util/DrawDebug';
+import { RateCounter } from '@lofi/engine/util/RateCounter';
+
+/*
+@TODO
+  // Phase 1: Just tidy up and commit what we got
+  // Phase 2: "Approximate AABBs"
+  //   // - Compute a cheaper AABB based on the unskinned model.
+  //   // - For skinned models, we simply scale it by a factor (e.g. 2)
+  //   // - For unskinned models it will be identical
+  //   // - Add a config object to Model with a property to specify the aabb approximation
+  //   // - Default approximation: type: scale. scaleFactor: 2 (or whatever)
+  //   // - Also available: type: fixed, specify an exact size (if you know it)
+  //   // - approximate aabb is based on the aabbconfig policy
+  //   // - This implies an unskinned set of vertices. but I guess that's just for the scaleFactor policy. So maybe we keep it as part of the same computed.
+  //   // - Update raycastScene to use approx AABB as part of Pass 1. Should be WAY faster.
+  Phase 3: Low-level APIs
+    - Finish off all vertex attributes
+    - Subscribe to the instances (e.g. Vector3s) and replace the specific index in the buffer when it changes
+    - Also introduce ObservableArray<T> and watch for adds/removes/sets maybe.
+    - Update ModelPart geometry computeds whenever the MeshPrimitive geometry
+    - In theory then we can just expose these arrays and let people mutate them. That's the whole point of the observable system… right?
+ */
 
 const MaxRuntimeSeconds = 30;
 const GridW = 20;
@@ -32,6 +55,7 @@ const Flags = {
     IntersectingCollidersEnabled: false,
     MovingCollidersEnabled: false,
     AnimationTestEnabled: false,
+    RayCasting: false,
   },
   // AudioDemoEnabled: true,
   LightingEnabled: true,
@@ -42,6 +66,7 @@ const Flags = {
   // IntersectingCollidersEnabled: true,
   // MovingCollidersEnabled: true,
   AnimationTestEnabled: true,
+  // RayCasting: true,
 };
 
 const CollidingMaterial = new Material({
@@ -98,6 +123,7 @@ export abstract class Game {
     const engine = new Engine(canvas, fileSystem);
     const scene = new Scene(engine);
     scene.lighting.ambientColor = new Color3(30, 30, 30);
+    const debug_visualiser = new DrawDebugVisualiser(scene, 'ray:debug');
 
     // Load models
     const boxModel = await Model.fromDefinition(engine, models[0]);
@@ -132,6 +158,52 @@ export abstract class Game {
       });
     }
 
+    /* Ray casting */
+    if (Flags.RayCasting) {
+      const rayOrigin = new ObjectNode(scene, 'ray:origin');
+      rayOrigin.position.z = 0.5;
+
+      const rayTarget = new ModelNode(scene, 'ray:target', boxModel, rayOrigin);
+      rayTarget.scale.multiplySelf(0.2);
+      rayTarget.position.x = -2;
+      rayTarget.position.z = 2;
+      rayTarget.setMaterialOverride('ground', new Material({
+        diffuseColor: Color4.yellow(),
+        unlit: true,
+      }), 'replace');
+
+      const rayDirection = rayTarget.absolutePosition.subtract(rayOrigin.absolutePosition);
+
+      const frameCounter = new RateCounter('ray:fps', undefined, { mute: true });
+      const rayCastDurationCounter = new RateCounter('ray:duration', frameCounter);
+
+      runLoopHooks.push((dt) => {
+        rayOrigin.rotation.z += 15 * dt;
+
+        rayDirection
+          .setValue(rayTarget.absolutePosition)
+          .subtractSelf(rayOrigin.absolutePosition)
+          .normalizeSelf();
+
+        const raycastStart = performance.now();
+        let raycastResult = rayCastScene(rayOrigin.absolutePosition, rayDirection, scene);
+        const raycastEnd = performance.now();
+        const raycastHitPosition = raycastResult?.[1] ?? rayTarget.absolutePosition;
+        debug_visualiser.add(
+          DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, raycastHitPosition], { overlay: true }),
+          DrawDebug.drawPolyLine(engine, [raycastHitPosition, rayTarget.absolutePosition], { overlay: true, color: Color3.red(), }),
+        );
+
+        frameCounter.count();
+        rayCastDurationCounter.count(raycastEnd - raycastStart)
+      });
+
+      setTimeout(() => {
+        frameCounter.stop();
+        rayCastDurationCounter.stop();
+      }, MaxRuntimeSeconds * 1000)
+    }
+
 
     /* @DEBUG Mesh picking */
     {
@@ -141,7 +213,11 @@ export abstract class Game {
           e.offsetY / canvas.clientHeight,
         );
 
-        const result = performRayCast(camera, scene, clickNormalised.x, clickNormalised.y);
+        const startTime = performance.now();
+        const raycastResult = rayCastFromCamera(camera, scene, clickNormalised.x, clickNormalised.y);
+        const result = raycastResult?.[0];
+        const endTime = performance.now();
+        console.log(`Single ray cast: ${toFixed(endTime - startTime, 1)}`);
 
         if (result !== undefined) {
           console.log(`Picked: `, result.name);
@@ -149,67 +225,10 @@ export abstract class Game {
           console.log(`NO RESULT`);
         }
       });
-      // @NOTE Debug ray trace visualization - press spacebar
       document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && debugCanvas) {
           e.preventDefault();
-          console.log('Ray tracing scene to debug canvas...');
-
-          const debugCtx = debugCanvas.getContext('2d');
-          if (!debugCtx) return;
-
-          const debugWidth = debugCanvas.width;
-          const debugHeight = debugCanvas.height;
-
-          // Clear debug canvas
-          debugCtx.fillStyle = 'black';
-          debugCtx.fillRect(0, 0, debugWidth, debugHeight);
-
-          // Create image data for faster pixel manipulation
-          const imageData = debugCtx.createImageData(debugWidth, debugHeight);
-
-          // Simple hash function to convert string to color
-          const hashColor = (str: string): [number, number, number] => {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-              hash = ((hash << 5) - hash) + str.charCodeAt(i);
-              hash = hash & hash; // Convert to 32bit integer
-            }
-            const r = (hash & 0xFF0000) >> 16;
-            const g = (hash & 0x00FF00) >> 8;
-            const b = hash & 0x0000FF;
-            return [r, g, b];
-          };
-
-          // Ray trace each pixel
-          const renderStart = performance.now();
-          for (let y = 0; y < debugHeight; y++) {
-            for (let x = 0; x < debugWidth; x++) {
-              const normalizedX = x / debugWidth;
-              const normalizedY = y / debugHeight;
-
-              const hitNode = performRayCast(camera, scene, normalizedX, normalizedY);
-
-              const pixelIndex = (y * debugWidth + x) * 4;
-
-              if (hitNode) {
-                const [r, g, b] = hashColor(hitNode.name);
-                imageData.data[pixelIndex] = r;
-                imageData.data[pixelIndex + 1] = g;
-                imageData.data[pixelIndex + 2] = b;
-                imageData.data[pixelIndex + 3] = 255; // Alpha
-              } else {
-                // No hit - leave black (already cleared)
-                imageData.data[pixelIndex + 3] = 255; // Alpha
-              }
-            }
-          }
-
-          const renderStop = performance.now();
-          console.log(`Ray trace render: ${renderStop - renderStart}ms (${(renderStop - renderStart) / (debugHeight * debugWidth)}ms per pixel)`);
-
-          debugCtx.putImageData(imageData, 0, 0);
-          console.log('Ray trace complete!');
+          debug_rayCastEntireScreen(debugCanvas, camera, scene);
         }
       });
     }
@@ -443,9 +462,6 @@ export abstract class Game {
     if (Flags.AnimationTestEnabled) {
       const animatedModel = await Model.fromDefinition(engine, models[4]);
       const nonAnimatedModel = await Model.fromDefinition(engine, models[5]);
-      const figure1 = new ModelNode(scene, 'figure-1', nonAnimatedModel);
-      figure1.animationSource = animatedModel;
-      figure1.position.x = -1;
       const figure2 = new ModelNode(scene, 'figure-2', nonAnimatedModel);
       figure2.position.x = 1;
       const AnimationList: string[] = [
@@ -463,18 +479,44 @@ export abstract class Game {
         'Throw',
         'Use_Item',
       ];
-      if (AnimationList.length > 0) {
-        figure1.playAnimation(AnimationList[AnimationList.length - 1]);
-        let animationIndex = 0;
-        const stahp = setInterval(() => {
-          const animationName = AnimationList[animationIndex];
-          console.log(`Playing: '${animationName}'`);
-          figure1.playAnimation(animationName);
-          animationIndex = (animationIndex + 1) % AnimationList.length;
-        }, 1500);
-        setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
+      for (let i = 0; i < 5; i++) {
+        const figure = new ModelNode(scene, `figure (${i})`, nonAnimatedModel);
+        figure.animationSource = animatedModel;
+        if (i === 0) {
+          figure.position.x = -1 * i - 1;
+        } else {
+          figure.position.x = i;
+          figure.position.y = i;
+        }
+        if (AnimationList.length > 0) {
+          const debug_speed = 1;
+          figure.playAnimation(AnimationList[AnimationList.length - 1], debug_speed);
+          let animationIndex = 0;
+          const stahp = setInterval(() => {
+            const animationName = AnimationList[animationIndex];
+            figure.playAnimation(animationName, debug_speed);
+            animationIndex = (animationIndex + 1) % AnimationList.length;
+          }, 1500 + i * 100);
+          setTimeout(() => clearInterval(stahp), MaxRuntimeSeconds * 1000);
+        }
       }
     }
+
+    // @DEBUG Visualise wireframes
+    // scene.forEachNodeInHierarchy((sceneNode) => {
+    //   if (sceneNode instanceof ModelNode) {
+    //     runLoopHooks.push(() => {
+    //       const aabb = sceneNode.geometry.aabb;
+    //       const approximateAabb = sceneNode.geometry.approximateAabb;
+    //       debug_visualiser.add(
+    //         ...[
+    //           aabb && DrawDebug.drawWireframe(engine, aabb, { color: Color3.green(), }),
+    //           approximateAabb && DrawDebug.drawWireframe(engine, approximateAabb, { color: Color3.fuchsia(), overlay: true }),
+    //         ].filter(Boolean) as []
+    //       )
+    //     });
+    //   }
+    // })
 
     /* Helpers */
     const CyclePeriod = 4;
@@ -498,22 +540,39 @@ export abstract class Game {
   }
 }
 
+const tmp_RayCastFromCameraDirection = Vector3.zero();
+const tmp_RayCastFromCameraInverseViewProjectionMatrix = new Matrix4();
+function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, screenY: number): [target: ModelNode, hitPosition: Vector3] | undefined {
+  if (screenX > 1 || screenX < 0 || screenY > 1 || screenY < 0) {
+    throw new Error(`Invalid args to ${rayCastFromCamera.name}: screen coordinates must be normalized values from 0-1`)
+  }
 
-function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, normalizedY: number): ModelNode | undefined {
-  const rayTarget = new Vector3(
-    normalizedX * 2 - 1,
-    1 - normalizedY * 2, // @NOTE Invert Y
+  const rayDirection = tmp_RayCastFromCameraDirection.setValue(
+    screenX * 2 - 1,
+    1 - screenY * 2, // @NOTE Invert Y because on screens top=0
     1, // @NOTE Near plane in NDC
   ).multiplySelf(
-    camera.viewProjectionMatrix.invert(),
-  );
-
-  const rayDirection = rayTarget
+    tmp_RayCastFromCameraInverseViewProjectionMatrix
+      .setValue(camera.viewProjectionMatrix)
+      .invertSelf(),
+  )
     .subtractSelf(camera.absolutePosition)
     .normalizeSelf();
 
+  return rayCastScene(camera.absolutePosition, rayDirection, scene);
+}
+
+const tmp_PerformRayCastTriangleAABB = AxisAlignedBoundingBox.zero();
+const tmp_PerformRayCastRayDirection = Vector3.zero();
+function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene): [target: ModelNode, hitPosition: Vector3] | undefined {
   let shortestRayDistance: number = Number.MAX_SAFE_INTEGER;
   let shortestRayResult: ModelNode | undefined = undefined;
+
+  // @TODO Should this be returning a distance and not returning a result
+  // if the distance is longer than `rayDirection`?
+  const rayDirectionNormalized = tmp_PerformRayCastRayDirection
+    .setValue(rayDirection)
+    .normalizeSelf();
 
   const debug_phaseMaster = 3 as (1 | 2 | 3);
 
@@ -525,23 +584,29 @@ function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, n
   const possibleModels: ModelNode[] = [];
   scene.forEachNodeInHierarchy((node) => {
     if (node instanceof ModelNode) {
-      const aabb = node.getAABB();
-      const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabb);
-      if (result !== undefined) {
-        possibleModels.push(node);
-      }
+      const aabb = node.geometry.approximateAabb;
+      if (aabb) {
+        const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, aabb);
+        if (result !== undefined) {
+          possibleModels.push(node);
+        }
 
-      if (debug_phaseMaster === 1) {
-        if (result && result < shortestRayDistance) {
-          shortestRayDistance = result;
-          shortestRayResult = node;
+        if (debug_phaseMaster === 1) {
+          if (result && result < shortestRayDistance) {
+            shortestRayDistance = result;
+            shortestRayResult = node;
+          }
         }
       }
     }
   });
 
   if (debug_phaseMaster === 1) {
-    return shortestRayResult;
+    if (shortestRayResult) {
+      return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayDistance).addSelf(rayOrigin)];
+    } else {
+      return undefined;
+    }
   }
 
   /*
@@ -549,30 +614,23 @@ function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, n
     PHASE 2: Triangle AABB
     ========
    */
-  const aabbTmp = AxisAlignedBoundingBox.unit();
-  const possibleTriangles: { triangle: Triangle, node: ModelNode }[] = [];
+  const possibleTriangles: Array<[triangle: Triangle, node: ModelNode]> = [];
   for (const possibleModel of possibleModels) {
-    const modelVertices = possibleModel.getVerticesWorldSpace();
-    for (const triangleIndices of possibleModel.model.allTriangleIndices) {
-      const triangle: Triangle = [
-        modelVertices[triangleIndices[0]],
-        modelVertices[triangleIndices[1]],
-        modelVertices[triangleIndices[2]],
-      ];
+    for (const triangle of possibleModel.geometry.allTriangles) {
       // Construct AABB for triangle
-      aabbTmp.xMin = Math.min(triangle[0].x, triangle[1].x, triangle[2].x);
-      aabbTmp.xMax = Math.max(triangle[0].x, triangle[1].x, triangle[2].x);
-      aabbTmp.yMin = Math.min(triangle[0].y, triangle[1].y, triangle[2].y);
-      aabbTmp.yMax = Math.max(triangle[0].y, triangle[1].y, triangle[2].y);
-      aabbTmp.zMin = Math.min(triangle[0].z, triangle[1].z, triangle[2].z);
-      aabbTmp.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
+      tmp_PerformRayCastTriangleAABB.xMin = Math.min(triangle[0].x, triangle[1].x, triangle[2].x);
+      tmp_PerformRayCastTriangleAABB.xMax = Math.max(triangle[0].x, triangle[1].x, triangle[2].x);
+      tmp_PerformRayCastTriangleAABB.yMin = Math.min(triangle[0].y, triangle[1].y, triangle[2].y);
+      tmp_PerformRayCastTriangleAABB.yMax = Math.max(triangle[0].y, triangle[1].y, triangle[2].y);
+      tmp_PerformRayCastTriangleAABB.zMin = Math.min(triangle[0].z, triangle[1].z, triangle[2].z);
+      tmp_PerformRayCastTriangleAABB.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
 
-      const result = rayAABBIntersection(camera.absolutePosition, rayDirection, aabbTmp);
+      const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, tmp_PerformRayCastTriangleAABB);
       if (result !== undefined) {
-        possibleTriangles.push({
+        possibleTriangles.push([
           triangle,
-          node: possibleModel,
-        });
+          possibleModel,
+        ]);
       }
 
       if (debug_phaseMaster === 2) {
@@ -585,7 +643,11 @@ function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, n
   }
 
   if (debug_phaseMaster === 2) {
-    return shortestRayResult;
+    if (shortestRayResult) {
+      return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayDistance).addSelf(rayOrigin)];
+    } else {
+      return undefined;
+    }
   }
 
   /*
@@ -593,13 +655,88 @@ function performRayCast(camera: CameraNode, scene: Scene, normalizedX: number, n
     PHASE 3: Triangle
     ========
    */
-  for (const { triangle, node } of possibleTriangles) {
-    const result = rayTriangleIntersection(camera.absolutePosition, rayDirection, triangle);
+  for (const [triangle, node] of possibleTriangles) {
+    const result = rayTriangleIntersection(rayOrigin, rayDirectionNormalized, triangle);
     if (result && result < shortestRayDistance) {
       shortestRayDistance = result;
       shortestRayResult = node;
     }
   }
 
-  return shortestRayResult; // Triangle
+  if (shortestRayResult) {
+    return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayDistance).addSelf(rayOrigin)];
+  } else {
+    return undefined;
+  }
+}
+
+
+function debug_rayCastEntireScreen(canvas: HTMLCanvasElement, camera: CameraNode, scene: IScene) {
+  console.log('Ray casting scene to canvas...');
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Clear canvas
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Create image data for faster pixel manipulation
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+
+  const nodeNameToColor = (name: string): [number, number, number] => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash) + name.charCodeAt(i);
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    const r = (hash & 0xFF0000) >> 16;
+    const g = (hash & 0x00FF00) >> 8;
+    const b = hash & 0x0000FF;
+    return [r, g, b];
+  };
+
+  const renderStart = performance.now();
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const normalizedX = x / (canvas.width - 1);
+      const normalizedY = y / (canvas.height - 1);
+
+      const raycastResult = rayCastFromCamera(camera, scene, normalizedX, normalizedY);
+      const hitNode = raycastResult?.[0];
+
+      const pixelIndex = (y * canvas.width + x) * 4;
+
+      if (hitNode) {
+        const [r, g, b] = nodeNameToColor(hitNode.name);
+        imageData.data[pixelIndex] = r;
+        imageData.data[pixelIndex + 1] = g;
+        imageData.data[pixelIndex + 2] = b;
+        imageData.data[pixelIndex + 3] = 255; // Alpha
+      } else {
+        // No hit - leave black (already cleared)
+        imageData.data[pixelIndex + 3] = 255; // Alpha
+      }
+    }
+  }
+
+  const renderStop = performance.now();
+  console.log(`Ray cast render: ${renderStop - renderStart}ms (${(renderStop - renderStart) / (canvas.width * canvas.height)}ms per pixel)`);
+
+  ctx.putImageData(imageData, 0, 0);
+  console.log('Ray cast complete!');
+}
+
+// @TODO We gotta move this into the engine lol
+export class DrawDebugVisualiser extends DrawableSceneNode {
+  private readonly frameDrawTasks: DrawTask[] = [];
+
+  public add(...drawTasks: DrawTask[]): void {
+    this.frameDrawTasks.push(...drawTasks);
+  }
+
+  public override draw(_engine: IEngine, drawQueue: DrawTask[]): void {
+    drawQueue.push(...this.frameDrawTasks);
+    this.frameDrawTasks.length = 0;
+  }
 }

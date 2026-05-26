@@ -46,6 +46,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [ ] Collision handling for concave geometry e.g. levels
   - [ ] Ability to reset / stop animation
     - [ ] Config e.g. animation looping
+  - [ ] At least write down what tests need to be written
 
 ## Backlog
 These items are roughly in priority order.
@@ -97,6 +98,10 @@ These items are roughly in priority order.
   - Trigger type colliders
   - Ability to change scene
   - Have opinions about what file types are supported (e.g. only png/jpeg/etc). Look at file extension e.g. for model texture file dependencies, or maybe even header bytes for known MIME types.
+  - Ability to ignore certain results when ray casting the scene (? if that API even got built)
+  - Replace `new Matrix4` with `Matrix4.identity()`
+  - Generate missing normals in the model loaders (instead of in the mesh primitive geometry)
+  - If an Observable (e.g. Vector3) drops out of scope, can it be garbage collected? Or is it captured by the closure of the function that called `.onChange()`?
 
 
 ## Ideas

@@ -1,6 +1,6 @@
 import { IdPool } from '@lofi/core/util/IdPool';
 import type { IEngine } from '@lofi/engine/Engine';
-import type { MeshPrimitiveDefinition } from '@lofi/engine/loaders/definitions';
+import type { MeshPrimitiveGeometry } from '@lofi/engine/models/MeshPrimitiveCache';
 
 
 import { ShaderVariant, type ShaderVariantOptions } from './ShaderVariant';
@@ -23,7 +23,7 @@ export class ShaderCache {
     ].join('|');
   }
 
-  public static getOrCreate(engine: IEngine, primitiveDefinition: MeshPrimitiveDefinition, material: MaterialInstance): ShaderVariant {
+  public static getOrCreate(engine: IEngine, primitiveDefinition: MeshPrimitiveGeometry, material: MaterialInstance): ShaderVariant {
     const options: ShaderVariantOptions = {
       blendingMode: material.blendingMode,
       hasDiffuseColor: material.diffuseColor !== undefined,

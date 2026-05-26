@@ -1,6 +1,6 @@
 import { CannotInvertMatrixError, Matrix3 } from "@lofi/core/math/Matrix3";
 import type { DeepPartial } from "@lofi/core/util/types";
-import type { Matrix4 } from "@lofi/core/math";
+import { type Matrix4 } from "@lofi/core/math";
 
 import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo } from "./scene/nodes/CameraNode";
 import type { IFileSystem } from "./filesystem";
@@ -21,7 +21,7 @@ export interface DrawTaskCommon {
   material: MaterialInstance;
   uniforms: {
     worldMatrix: Matrix4;
-    skinWeights?: Float32Array;
+    skinWeights?: Float32Array; // @TODO poorly named? Should be skin matrix bytes
   },
   draw: {
     id: number;
@@ -152,9 +152,6 @@ export class Engine implements IEngine {
     let lastFrameTime: DOMHighResTimeStamp | null = null;
     let isStopped = false;
 
-    const debug_runStart = performance.now();
-    const debug_frameTimes: number[] = [];
-
     // Count number of frames drawn per second
     const fps = new RateCounter('FPS');
 
@@ -208,8 +205,6 @@ export class Engine implements IEngine {
         lastFrameTime = startFrameTime;
       }
 
-      const debug_startFrame = performance.now();
-
       /* Update internal state first */
       this.activeScene?.onUpdate(dt, timestamp / 1000);
 
@@ -247,23 +242,13 @@ export class Engine implements IEngine {
       debug_resourceCounters.mesh.shared.count(resources.mesh.shared);
       debug_resourceCounters.drawCalls.count(resources.drawCalls);
 
-      const debug_endFrame = performance.now();
-      const debug_frameTime = debug_endFrame - debug_startFrame;
-      debug_frameTimes.push(debug_frameTime);
-
       if (!isStopped) {
         requestAnimationFrame(tick);
       } else {
         fps.stop();
         forEachResourceCounter((rateCounter) => rateCounter.stop());
         this.audioSystem.destroy();
-        const debug_runStop = performance.now();
-        const averageFrameTime = debug_frameTimes.reduce((sum, frameTime) => {
-          sum += frameTime;
-          return sum;
-        }, 0) / debug_frameTimes.length;
         console.log(`[Engine] Stopped.`);
-        console.log(`[DEBUG] Average frame time over ${(debug_runStop - debug_runStart).toFixed(0)}ms: ${averageFrameTime.toFixed(3)})`);
       }
     };
 

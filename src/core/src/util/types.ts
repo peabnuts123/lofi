@@ -49,3 +49,10 @@ export type ClassReference<TClass> = abstract new (...args: any[]) => TClass;
 export type Enum<T> = T[keyof T];
 
 export type TypedArray = Float32Array<ArrayBuffer> | Uint32Array<ArrayBuffer> | Uint16Array<ArrayBuffer> | Uint8Array<ArrayBuffer> | Int16Array<ArrayBuffer> | Int8Array<ArrayBuffer>;
+
+export interface Optional<T> {
+  value: T | undefined;
+}
+export function Optional<T>(value?: T): Optional<T> {
+  return { value };
+}

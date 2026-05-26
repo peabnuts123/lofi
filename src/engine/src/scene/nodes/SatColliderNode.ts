@@ -17,39 +17,16 @@ export abstract class SATColliderNode extends ColliderNode {
     }
   }
 
+  private tmp_getAABB: AxisAlignedBoundingBox = AxisAlignedBoundingBox.zero();
   public override getAABB(offset?: Vector3): AxisAlignedBoundingBox {
-    const verticesWorldSpace = this.getVerticesWorldSpace();
-    const min = new Vector3(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
-    const max = new Vector3(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
-
-    for (const vertex of verticesWorldSpace) {
-      if (vertex.x < min.x) min.x = vertex.x;
-      if (vertex.x > max.x) max.x = vertex.x;
-      if (vertex.y < min.y) min.y = vertex.y;
-      if (vertex.y > max.y) max.y = vertex.y;
-      if (vertex.z < min.z) min.z = vertex.z;
-      if (vertex.z > max.z) max.z = vertex.z;
-    }
-
-    if (offset !== undefined) {
-      min.addSelf(offset);
-      max.addSelf(offset);
-    }
-
-    return new AxisAlignedBoundingBox({
-      xMin: min.x,
-      xMax: max.x,
-      yMin: min.y,
-      yMax: max.y,
-      zMin: min.z,
-      zMax: max.z,
-    });
+    const verticesWorldSpace = this.getVerticesWorldSpace(offset);
+    return this.tmp_getAABB.fromVerticesSelf(verticesWorldSpace);
   }
 
   protected projectToAxis(axis: Vector3, offset?: Vector3): SatProjection {
     const verticesWorldSpace = this.getVerticesWorldSpace(offset);
-    let min: number = Number.MAX_SAFE_INTEGER;
-    let max: number = Number.MIN_SAFE_INTEGER;
+    let min: number = Infinity;
+    let max: number = -Infinity;
 
     for (const vertex of verticesWorldSpace) {
       const projection = vertex.dot(axis); // @NOTE don't need to divide by axis length since axis is normalized
@@ -161,21 +138,22 @@ export abstract class SATColliderNode extends ColliderNode {
     };
   }
 
+  private tmp_getSATAxes_vector = Vector3.zero();
+  private tmp_getSATAxes_addProjectionAxis_vector = Vector3.zero();
   private getSATAxes(other: SATColliderNode): Vector3[] {
-    const tmpVec = Vector3.zero();
-    const tmpVec__addProjectionAxis = Vector3.zero();
     const projectionAxes: Vector3[] = [];
 
     /**
      * Add a projection axis to the list of all projection axes,
      * ensuring the axis is unique
      */
-    function addProjectionAxis(axis: Vector3): void {
+    const addProjectionAxis = (axis: Vector3): void => {
       // Ensure axis is not parallel / duplicate
       for (const existingProjectionAxis of projectionAxes) {
-        tmpVec__addProjectionAxis.setValue(axis);
-        tmpVec__addProjectionAxis.crossSelf(existingProjectionAxis);
-        if (tmpVec__addProjectionAxis.lengthSquared() < 0.0001) {
+        const crossProduct = this.tmp_getSATAxes_addProjectionAxis_vector
+          .setValue(axis)
+          .crossSelf(existingProjectionAxis);
+        if (crossProduct.lengthSquared() < 0.0001) {
           // Axis is duplicate / parallel, break
           return;
         }
@@ -183,10 +161,13 @@ export abstract class SATColliderNode extends ColliderNode {
 
       // Axis is unique
       projectionAxes.push(axis);
-    }
+    };
 
     // Collect normals frome each shape
-    for (const normal of this.getSATNormals().concat(other.getSATNormals())) {
+    for (const normal of this.getSATNormals()) {
+      addProjectionAxis(normal);
+    }
+    for (const normal of other.getSATNormals()) {
       addProjectionAxis(normal);
     }
 
@@ -194,11 +175,13 @@ export abstract class SATColliderNode extends ColliderNode {
     // cross product of each pair of edges
     for (const edgeA of this.getSATEdges()) {
       for (const edgeB of other.getSATEdges()) {
-        tmpVec.setValue(edgeA);
-        tmpVec.crossSelf(edgeB);
+        const axis = this.tmp_getSATAxes_vector
+          .setValue(edgeA)
+          .crossSelf(edgeB);
+
         // Ignore degenerate axes (parallel edges where lengthSqr === 0)
-        if (tmpVec.lengthSquared() > 0.0001) {
-          addProjectionAxis(tmpVec.normalizeSelf());
+        if (axis.lengthSquared() > 0.0001) {
+          addProjectionAxis(axis.normalizeSelf());
         }
       }
     }

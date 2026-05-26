@@ -2,6 +2,7 @@ import { Vector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Rotation } from "@lofi/core/transform/Rotation";
 import { Transform } from "@lofi/core/transform/Transform";
+import type { Computed } from "@lofi/core/util/observable";
 
 import type { IScene } from "./Scene";
 
@@ -81,4 +82,5 @@ export abstract class SceneNode {
   public set absoluteScale(value: Vector3) { this.transform.absoluteScale = value; }
 
   public get worldMatrix(): Matrix4 { return this.transform.worldMatrix; }
+  public get worldMatrixComputed(): Computed<Matrix4> { return this.transform.worldMatrixComputed; }
 }

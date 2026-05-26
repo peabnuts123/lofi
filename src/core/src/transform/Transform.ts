@@ -368,5 +368,6 @@ export class Transform<T extends TransformNodeTarget> {
   public set absoluteScale(value: Vector3) { this._absoluteScale.value.setValue(value); }
 
   public get worldMatrix(): Matrix4 { return this._worldMatrix.value; }
+  public get worldMatrixComputed(): Computed<Matrix4> { return this._worldMatrix; }
 }
 

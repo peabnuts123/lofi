@@ -1,6 +1,6 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { Color4 } from "@lofi/core/math/Color4";
+import { Color3 } from "@lofi/core/math/Color3";
 import type { IEngine, OpaqueDrawTask } from "@lofi/engine/Engine";
 import { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
 
@@ -33,7 +33,7 @@ const DebugFragmentShaderSource = `#version 300 es
 
 interface DrawOptions {
   /** Color used when drawing debug geometry. */
-  color: Color4;
+  color: Color3;
   /** World matrix to transform all debug geometry. */
   worldMatrix: Matrix4;
   /**
@@ -43,7 +43,7 @@ interface DrawOptions {
   overlay: boolean;
 }
 const DefaultDrawOptions: DrawOptions = {
-  color: Color4.yellow(),
+  color: Color3.yellow(),
   worldMatrix: new Matrix4(),
   overlay: false,
 };
@@ -97,7 +97,7 @@ export class DrawDebug {
     const vertices = new Float32Array(linePoints.flatMap((vertex) => [vertex.x, vertex.y, vertex.z]));
 
     return {
-      renderLayer: 10,
+      renderLayer: options.overlay ? Infinity : 0,
       isTransparent: false,
       shaderVariant: this.shader,
       material: MaterialInstance.fromMaterial(Material.DefaultMaterial),
@@ -108,10 +108,6 @@ export class DrawDebug {
         id: Math.trunc(Math.random() * 0xF000_0000) + 0x1000_0000, //  @NOTE Always unique
         init: () => { }, // Because ID is unique, `init()` will ALWAYS be called, so it's not really needed
         exec: ({ gl }) => {
-          if (drawOptions.overlay) {
-            gl.disable(gl.DEPTH_TEST);
-          }
-
           // Bind VAO (restores attribute configuration)
           gl.bindVertexArray(DrawDebug.vao);
 
@@ -124,7 +120,7 @@ export class DrawDebug {
             drawOptions.color.r / 0xFF,
             drawOptions.color.g / 0xFF,
             drawOptions.color.b / 0xFF,
-            drawOptions.color.a / 0xFF,
+            1,
           ]));
 
           // Draw lines
@@ -132,9 +128,6 @@ export class DrawDebug {
 
           // Cleanup
           gl.bindVertexArray(null);
-          if (drawOptions.overlay) {
-            gl.enable(gl.DEPTH_TEST);
-          }
         },
       },
     };
