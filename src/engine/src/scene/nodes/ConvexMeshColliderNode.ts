@@ -1,7 +1,7 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { SceneNode, type IScene } from "@lofi/engine/scene";
 import type { Model } from "@lofi/engine/models";
-import type { IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
+import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DrawDebug";
 
 import { SATColliderNode } from "./SatColliderNode";
 import type { CollisionGroup } from "./ColliderNode";
@@ -22,12 +22,12 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
     });
   }
 
-  protected override getSATNormals(): Vector3[] {
+  protected override getSATNormals(): readonly IReadonlyVector3[] {
     return this.geometry.allTriangleNormals;
   }
 
   private readonly tmp_getSATEdges: Vector3[] = [];
-  protected override getSATEdges(): Vector3[] {
+  protected override getSATEdges(): readonly IReadonlyVector3[] {
     // Look up vertex positions of collider mesh
     const allEdges = this.geometry.allEdges;
 
@@ -57,7 +57,7 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
   }
 
   private readonly tmp_getVerticesWorldSpace: Vector3[] = [];
-  protected getVerticesWorldSpace(offset?: Vector3): Vector3[] {
+  protected getVerticesWorldSpace(offset?: IReadonlyVector3): readonly IReadonlyVector3[] {
     // Look up vertex positions of collider mesh
     const allVertexPositions = this.geometry.allVertexPositions;
 
@@ -87,7 +87,7 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
     return this.tmp_getVerticesWorldSpace;
   }
 
-  public getWireframeFaces(): Vector3[][] {
+  public getWireframeFaces(): WireframeFaces {
     return this.geometry.allTriangles;
   }
 

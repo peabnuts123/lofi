@@ -19,12 +19,16 @@ export const MaterialDefaults = {
   reflectionIntensity: 0.5,
 };
 
+const DefaultShaderInstance = new DefaultShader(
+  VertexShaderSource,
+  FragmentShaderSource,
+);
 export class MaterialInstance {
   private static readonly IdPool: IdPool = new IdPool();
   public static readonly DefaultMaterial = MaterialInstance.fromMaterial(Material.DefaultMaterial);
   public readonly id: number;
 
-  public shader: IShader;
+  public readonly shader: IShader;
 
   private _diffuseColor: Color4 | undefined;
   private _diffuseTexture: Texture | undefined;
@@ -36,10 +40,8 @@ export class MaterialInstance {
   public constructor() {
     this.id = MaterialInstance.IdPool.createNew();
 
-    this.shader = new DefaultShader(
-      VertexShaderSource,
-      FragmentShaderSource,
-    );
+    // @TODO BYO shader.
+    this.shader = DefaultShaderInstance;
 
     this._diffuseColor = MaterialDefaults.diffuseColor;
     this._diffuseTexture = MaterialDefaults.diffuseTexture;

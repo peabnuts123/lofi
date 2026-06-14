@@ -13,7 +13,7 @@ import type {
   AnimationChannelDefinition,
   AnimationChannelValues,
   AnimationDefinition,
-  AttributeDefinition,
+  AnyAttributeDefinition,
   MaterialDefinition,
   MeshDefinition,
   MeshPrimitiveDefinition,
@@ -21,6 +21,13 @@ import type {
   ModelDefinitionDependency,
   ModelPartDefinition,
   SkinDefinition,
+  TriangleIndicesAttributeDefinition,
+  VertexColorAttributeDefinition,
+  VertexJointIndicesAttributeDefinition,
+  VertexJointWeightsAttributeDefinition,
+  VertexNormalAttributeDefinition,
+  VertexPositionAttributeDefinition,
+  VertexTextureCoordinateAttributeDefinition,
 } from './definitions';
 import { transformDefinition } from './util';
 
@@ -130,14 +137,14 @@ export abstract class GltfLoader {
       });
     }
 
-    function readVertexAttributes(accessor: Accessor): AttributeDefinition {
+    function readVertexAttributes<TAttributeDefinition extends AnyAttributeDefinition>(accessor: Accessor): TAttributeDefinition {
       return {
         buffer: accessor.getArray()!,
         componentCount: accessor.getElementSize(),
         componentSize: accessor.getComponentSize(),
         componentType: accessor.getComponentType(),
         normalized: accessor.getNormalized(),
-      };
+      } as TAttributeDefinition;
     }
 
     /**
@@ -222,7 +229,7 @@ export abstract class GltfLoader {
           const positionMaxComponents = positionAccessor.getMax([]);
           const primitiveDefinition: MeshPrimitiveDefinition = {
             mode: primitive.getMode(),
-            positionData: readVertexAttributes(positionAccessor),
+            positionData: readVertexAttributes<VertexPositionAttributeDefinition>(positionAccessor),
             extents: {
               min: new Vector3(positionMinComponents[0], positionMinComponents[1], positionMinComponents[2]),
               max: new Vector3(positionMaxComponents[0], positionMaxComponents[1], positionMaxComponents[2]),
@@ -231,32 +238,32 @@ export abstract class GltfLoader {
 
           const normalAccessor = primitive.getAttribute('NORMAL');
           if (normalAccessor) {
-            primitiveDefinition.normalData = readVertexAttributes(normalAccessor);
+            primitiveDefinition.normalData = readVertexAttributes<VertexNormalAttributeDefinition>(normalAccessor);
           }
 
           const textureCoordinate0Accessor = primitive.getAttribute('TEXCOORD_0');
           if (textureCoordinate0Accessor) {
-            primitiveDefinition.texCoord0Data = readVertexAttributes(textureCoordinate0Accessor);
+            primitiveDefinition.texCoord0Data = readVertexAttributes<VertexTextureCoordinateAttributeDefinition>(textureCoordinate0Accessor);
           }
 
           const color0Accessor = primitive.getAttribute('COLOR_0');
           if (color0Accessor) {
-            primitiveDefinition.color0Data = readVertexAttributes(color0Accessor);
+            primitiveDefinition.color0Data = readVertexAttributes<VertexColorAttributeDefinition>(color0Accessor);
           }
 
           const joints0Accessor = primitive.getAttribute('JOINTS_0');
           if (joints0Accessor) {
-            primitiveDefinition.joints0Data = readVertexAttributes(joints0Accessor);
+            primitiveDefinition.joints0Data = readVertexAttributes<VertexJointIndicesAttributeDefinition>(joints0Accessor);
           }
 
           const weights0Accessor = primitive.getAttribute('WEIGHTS_0');
           if (weights0Accessor) {
-            primitiveDefinition.weights0Data = readVertexAttributes(weights0Accessor);
+            primitiveDefinition.weights0Data = readVertexAttributes<VertexJointWeightsAttributeDefinition>(weights0Accessor);
           }
 
           const indicesAccessor = primitive.getIndices();
           if (indicesAccessor) {
-            primitiveDefinition.indices = readVertexAttributes(indicesAccessor);
+            primitiveDefinition.indices = readVertexAttributes<TriangleIndicesAttributeDefinition>(indicesAccessor);
           }
 
           const material = primitive.getMaterial();

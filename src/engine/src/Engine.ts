@@ -7,7 +7,7 @@ import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { MaterialInstance, ShaderVariant, Ubo } from "./materials";
 import type { IScene } from "./scene";
-import { RateCounter } from "./util/RateCounter";
+import { RateCounter } from "@lofi/core/util/RateCounter";
 import { CollisionSystem } from "./collision";
 import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
 import { DebugModule } from "./util/DebugModule";
@@ -21,6 +21,7 @@ export interface DrawTaskCommon {
   material: MaterialInstance;
   uniforms: {
     worldMatrix: Matrix4;
+    localMatrix: Matrix4;
     skinWeights?: Float32Array; // @TODO poorly named? Should be skin matrix bytes
   },
   draw: {
@@ -255,6 +256,9 @@ export class Engine implements IEngine {
     requestAnimationFrame(tick);
   }
 
+  private tmp_draw_color4Buffer = new Float32Array(4);
+  private tmp_draw_mat4Buffer = new Float32Array(16);
+  private tmp_draw_mat3Buffer = new Float32Array(9);
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   private draw(drawQueue: DrawTask[]) {
     const { gl } = this;
@@ -309,12 +313,11 @@ export class Engine implements IEngine {
         // Diffuse color
         const diffuseColorUniform = currentShaderVariant.getUniform('diffuseColor');
         if (task.material.diffuseColor !== undefined && diffuseColorUniform) {
-          gl.uniform4fv(diffuseColorUniform, new Float32Array([
-            task.material.diffuseColor.r / 255,
-            task.material.diffuseColor.g / 255,
-            task.material.diffuseColor.b / 255,
-            task.material.diffuseColor.a / 255,
-          ]));
+          this.tmp_draw_color4Buffer[0] = task.material.diffuseColor.r / 255;
+          this.tmp_draw_color4Buffer[1] = task.material.diffuseColor.g / 255;
+          this.tmp_draw_color4Buffer[2] = task.material.diffuseColor.b / 255;
+          this.tmp_draw_color4Buffer[3] = task.material.diffuseColor.a / 255;
+          gl.uniform4fv(diffuseColorUniform, this.tmp_draw_color4Buffer);
         }
 
         // Blending
@@ -403,7 +406,7 @@ export class Engine implements IEngine {
 
         /* Reflection - intensity */
         const cubemapIntensityUniform = currentShaderVariant.getUniform('cubemapIntensity');
-        if (cubemapIntensityUniform && task.material.reflectionIntensity) {
+        if (cubemapIntensityUniform) {
           gl.uniform1f(cubemapIntensityUniform, task.material.reflectionIntensity);
         }
       } else {
@@ -414,7 +417,15 @@ export class Engine implements IEngine {
       // World matrix uniform
       const worldMatrixUniform = currentShaderVariant.getUniform('worldMatrix');
       if (worldMatrixUniform) {
-        gl.uniformMatrix4fv(worldMatrixUniform, false, task.uniforms.worldMatrix.toArray());
+        task.uniforms.worldMatrix.writeTo(this.tmp_draw_mat4Buffer);
+        gl.uniformMatrix4fv(worldMatrixUniform, false, this.tmp_draw_mat4Buffer);
+      }
+
+      // Local matrix uniform
+      const localMatrixUniform = currentShaderVariant.getUniform('localMatrix');
+      if (localMatrixUniform) {
+        task.uniforms.localMatrix.writeTo(this.tmp_draw_mat4Buffer);
+        gl.uniformMatrix4fv(localMatrixUniform, false, this.tmp_draw_mat4Buffer);
       }
 
       // Lighting uniform
@@ -427,7 +438,8 @@ export class Engine implements IEngine {
           if (e instanceof CannotInvertMatrixError) continue;
           else throw e;
         }
-        gl.uniformMatrix3fv(normalMatrixUniform, false, this._normalTmp.toArray());
+        this._normalTmp.writeTo(this.tmp_draw_mat3Buffer);
+        gl.uniformMatrix3fv(normalMatrixUniform, false, this.tmp_draw_mat3Buffer);
       }
 
       // Joint matrices uniform

@@ -106,7 +106,7 @@ export class ShaderVariant {
 
   public getUniform(uniformName: string): WebGLUniformLocation | undefined {
     const uniform = this.gl.getUniformLocation(this.program, uniformName);
-    if (!uniform) {
+    if (uniform === null) {
       return undefined;
     }
 

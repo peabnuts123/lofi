@@ -48,8 +48,10 @@ export class CameraNode extends SceneNode {
     scene.activeCamera = this;
   }
 
+  private tmp_bindToUbo_viewProjectionMatrixBuffer = new Float32Array(16);
   public bindToUbo(gl: WebGL2RenderingContext, ubo: CameraUbo): void {
-    ubo.setProperty(gl, 'viewProjectionMatrix', this.viewProjectionMatrix.toArray());
+    this.viewProjectionMatrix.writeTo(this.tmp_bindToUbo_viewProjectionMatrixBuffer);
+    ubo.setProperty(gl, 'viewProjectionMatrix', this.tmp_bindToUbo_viewProjectionMatrixBuffer);
 
     const absolutePosition = this.absolutePosition;
     this.uboCameraPositionData_tmp[0] = absolutePosition.x;

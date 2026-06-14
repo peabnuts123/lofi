@@ -1,6 +1,5 @@
 import { Computed, WritableComputed } from "@lofi/core/util/observable";
-import { Vector3 } from "@lofi/core/math/vector";
-import { Matrix4 } from "@lofi/core/math/Matrix4";
+import { Vector3, Matrix4, Quaternion } from "@lofi/core/math";
 
 import { Rotation } from "./Rotation";
 
@@ -56,12 +55,15 @@ export class Transform<T extends TransformNodeTarget> {
           // Recompute absolute position considering parent's position, rotation, scale
           value
             // 1. Multiply position by parent absolute scale
-            .setValue(this.position)
-            .multiplySelf(this.parent.absoluteScale)
-            // 2. Rotate by parent's absolute rotation
-            .multiplySelf(this.parent.absoluteRotation.q)
-            // 3. Add parent's absolute position
-            .addSelf(this.parent.absolutePosition);
+            .setValue(
+              absolutePositionTmp
+                .setValue(this.position)
+                .multiplySelf(this.parent.absoluteScale)
+                // 2. Rotate by parent's absolute rotation
+                .multiplySelf(this.parent.absoluteRotation.q)
+                // 3. Add parent's absolute position
+                .addSelf(this.parent.absolutePosition),
+            );
         } else {
           // No parent - absolute is the same as local
           value.setValue(this.position);
@@ -103,6 +105,7 @@ export class Transform<T extends TransformNodeTarget> {
         }
       },
     });
+    const absoluteRotationTmp = Quaternion.identity();
     this._absoluteRotation = new WritableComputed(new Rotation(), {
       dependencies: [
         this.rotation,
@@ -115,27 +118,32 @@ export class Transform<T extends TransformNodeTarget> {
         if (this.parent) {
           // Node is child of another node
           // Recompute absolute rotation considering parent's rotation
-          value.set(
-            this.parent.absoluteRotation.q.multiply(this.rotation.q),
+          value.q.setValue(
+            absoluteRotationTmp
+              .setValue(this.parent.absoluteRotation.q)
+              .multiplySelf(this.rotation.q),
           );
         } else {
           // No parent - absolute is the same as local
-          value.set(this.rotation.q);
+          value.q.setValue(this.rotation.q);
         }
       },
       onSetValue: (value) => {
         if (this.parent !== undefined) {
           // Node is child of another node
           // Convert to local
-          this.rotation.set(
-            this.parent.absoluteRotation.qInverse.multiply(value.q),
+          this.rotation.q.setValue(
+            absoluteRotationTmp
+              .setValue(this.parent.absoluteRotation.qInverse)
+              .multiplySelf(value.q),
           );
         } else {
           // No parent - local is the same as absolute
-          this.rotation.set(value.q);
+          this.rotation.q.setValue(value.q);
         }
       },
     });
+    const absoluteScaleTmp = Vector3.zero();
     this._absoluteScale = new WritableComputed(Vector3.one(), {
       dependencies: [
         this.scale,
@@ -148,7 +156,11 @@ export class Transform<T extends TransformNodeTarget> {
         if (this.parent) {
           // Node is child of another node
           // Recompute absolute scale considering parent's scale
-          value.setValue(this.parent.absoluteScale.multiply(this.scale));
+          value.setValue(
+            absoluteScaleTmp
+              .setValue(this.parent.absoluteScale)
+              .multiplySelf(this.scale),
+          );
         } else {
           // No parent - absolute is the same as local
           value.setValue(this.scale);
@@ -158,29 +170,29 @@ export class Transform<T extends TransformNodeTarget> {
         if (this.parent !== undefined) {
           // Node is child of another node
           // Recompute local scale considering parent's scale
-          const newScale = new Vector3(1, 1, 1);
+          absoluteScaleTmp.setValue(1, 1, 1);
 
           // Avoid division by zero
           /* X */
           if (Math.abs(this.parent.absoluteScale.x) <= Number.EPSILON) {
             console.warn(`Cannot set absolute scaling to '${value}' for node '${this.node.name}' as its parent(s) scaling.x is currently 0. Its local scaling.x will be set to 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
           } else {
-            newScale.x = value.x / this.parent.absoluteScale.x;
+            absoluteScaleTmp.x = value.x / this.parent.absoluteScale.x;
           }
           /* Y */
           if (Math.abs(this.parent.absoluteScale.y) <= Number.EPSILON) {
             console.warn(`Cannot set absolute scaling to '${value}' for node '${this.node.name}' as its parent(s) scaling.y is currently 0. Its local scaling.y will be set to 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
           } else {
-            newScale.y = value.y / this.parent.absoluteScale.y;
+            absoluteScaleTmp.y = value.y / this.parent.absoluteScale.y;
           }
           /* Z */
           if (Math.abs(this.parent.absoluteScale.z) <= Number.EPSILON) {
             console.warn(`Cannot set absolute scaling to '${value}' for node '${this.node.name}' as its parent(s) scaling.z is currently 0. Its local scaling.z will be set to 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
           } else {
-            newScale.z = value.z / this.parent.absoluteScale.z;
+            absoluteScaleTmp.z = value.z / this.parent.absoluteScale.z;
           }
 
-          this.scale = newScale;
+          this.scale = absoluteScaleTmp;
         } else {
           // No parent - absolute is the same as local
           this.scale = value;

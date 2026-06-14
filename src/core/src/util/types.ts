@@ -56,3 +56,7 @@ export interface Optional<T> {
 export function Optional<T>(value?: T): Optional<T> {
   return { value };
 }
+
+export type Mutable<T> = {
+  -readonly [K in keyof T]: T[K];
+};

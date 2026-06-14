@@ -375,7 +375,7 @@ export class Matrix4 extends Observable {
     return new Matrix4().identitySelf();
   }
 
-  public writeTo(target: Float32Array, offset: number): void {
+  public writeTo(target: Float32Array, offset: number = 0): void {
     target[offset + 0] = this.m00;
     target[offset + 1] = this.m10;
     target[offset + 2] = this.m20;
@@ -392,15 +392,6 @@ export class Matrix4 extends Observable {
     target[offset + 13] = this.m13;
     target[offset + 14] = this.m23;
     target[offset + 15] = this.m33;
-  }
-
-  public toArray(): Float32Array {
-    return new Float32Array([
-      this.m00, this.m10, this.m20, this.m30,
-      this.m01, this.m11, this.m21, this.m31,
-      this.m02, this.m12, this.m22, this.m32,
-      this.m03, this.m13, this.m23, this.m33,
-    ]);
   }
 
   public toString(dp: number = 2): string {

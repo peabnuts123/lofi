@@ -3,9 +3,10 @@ import { Observable } from "@lofi/core/util/observable";
 import { Matrix4 } from "./Matrix4";
 import { Quaternion } from "./Quaternion";
 
-// @TODO Split into Vector2, Vector3, etc.
+// @TODO Split into separate files Vector2, Vector3, etc.
 
 export type AnyVector = Vector3 | Vector2;
+export type AnyReadonlyVector = IReadonlyVector3 | IReadonlyVector2;
 
 // @TODO Rename to `Vector3Like`  (Or what about we rename `Vector2Like` to definition?)
 export interface Vector3Definition {
@@ -18,7 +19,28 @@ export interface Vector2Like {
   y: number;
 }
 
-export class Vector2 extends Observable {
+export interface IReadonlyVector2 {
+  add(value: IReadonlyVector2): Vector2;
+  subtract(value: IReadonlyVector2): Vector2;
+  multiply(factor: number): Vector2;
+  multiply(other: IReadonlyVector2): Vector2;
+  divide(factor: number): Vector2;
+  divide(other: IReadonlyVector2): Vector2;
+  length(): number;
+  lengthSquared(): number;
+  normalize(): Vector2;
+  perpendicular(): Vector2;
+  dot(other: Vector2): number;
+  isNormalized(): boolean;
+  clone(): Vector2;
+  withX(value: number): Vector2;
+  withY(value: number): Vector2;
+  toString(): string;
+  get x(): number;
+  get y(): number;
+}
+
+export class Vector2 extends Observable implements IReadonlyVector2 {
   // @NOTE Raw values encapsulated in annoying object type to prevent
   // accidental direct access. Always use `this.{x,y}` getters/setters,
   // so that possible subclasses etc. always pick up correct side effects.
@@ -49,38 +71,38 @@ export class Vector2 extends Observable {
     return this;
   }
 
-  public addSelf(value: Vector2): this {
+  public addSelf(value: IReadonlyVector2): this {
     this.mutate(() => {
       this.x += value.x;
       this.y += value.y;
     });
     return this;
   }
-  public add(value: Vector2): Vector2 {
+  public add(value: IReadonlyVector2): Vector2 {
     return this.clone().addSelf(value);
   }
 
-  public subtractSelf(value: Vector2): this {
+  public subtractSelf(value: IReadonlyVector2): this {
     this.mutate(() => {
       this.x -= value.x;
       this.y -= value.y;
     });
     return this;
   }
-  public subtract(value: Vector2): Vector2 {
+  public subtract(value: IReadonlyVector2): Vector2 {
     return this.clone().subtractSelf(value);
   }
 
   public multiplySelf(factor: number): this;
-  public multiplySelf(other: Vector2): this;
-  public multiplySelf(operand: number | Vector2): this {
+  public multiplySelf(other: IReadonlyVector2): this;
+  public multiplySelf(operand: number | IReadonlyVector2): this {
     if (typeof operand === 'number') {
       return this.multiplyNumberSelf(operand);
     } else {
       return this.multiplyVector2Self(operand);
     }
   }
-  private multiplyVector2Self(other: Vector2): this {
+  private multiplyVector2Self(other: IReadonlyVector2): this {
     this.mutate(() => {
       this.x *= other.x;
       this.y *= other.y;
@@ -97,8 +119,8 @@ export class Vector2 extends Observable {
 
 
   public multiply(factor: number): Vector2;
-  public multiply(other: Vector2): Vector2;
-  public multiply(operand: number | Vector2): Vector2 {
+  public multiply(other: IReadonlyVector2): Vector2;
+  public multiply(operand: number | IReadonlyVector2): Vector2 {
     if (typeof operand === 'number') {
       return this.clone().multiplySelf(operand);
     } else {
@@ -107,8 +129,8 @@ export class Vector2 extends Observable {
   }
 
   public divideSelf(factor: number): this;
-  public divideSelf(other: Vector2): this;
-  public divideSelf(operand: number | Vector2): this {
+  public divideSelf(other: IReadonlyVector2): this;
+  public divideSelf(operand: number | IReadonlyVector2): this {
     if (typeof operand === 'number') {
       if (operand === 0) {
         throw new Error(`Cannot divide Vector2 by 0`);
@@ -129,8 +151,8 @@ export class Vector2 extends Observable {
     return this;
   }
   public divide(factor: number): Vector2;
-  public divide(other: Vector2): Vector2;
-  public divide(operand: number | Vector2): Vector2 {
+  public divide(other: IReadonlyVector2): Vector2;
+  public divide(operand: number | IReadonlyVector2): Vector2 {
     if (typeof operand === 'number') {
       return this.clone().divideSelf(operand);
     } else {
@@ -234,7 +256,32 @@ export class Vector2 extends Observable {
   public static left(): Vector2 { return new Vector2(-1, 0); }
 }
 
-export class Vector3 extends Observable {
+export interface IReadonlyVector3 {
+  add(value: AnyReadonlyVector): Vector3;
+  subtract(value: AnyReadonlyVector): Vector3;
+  multiply(factor: number): Vector3;
+  multiply(other: IReadonlyVector3): Vector3;
+  multiply(quaternion: Quaternion): Vector3;
+  multiply(matrix: Matrix4): Vector3;
+  divide(factor: number): Vector3;
+  divide(other: IReadonlyVector3): Vector3;
+  length(): number;
+  lengthSquared(): number;
+  normalize(): IReadonlyVector3;
+  cross(other: IReadonlyVector3): Vector3;
+  dot(other: IReadonlyVector3): number;
+  isNormalized(): boolean;
+  clone(): Vector3;
+  withX(value: number): Vector3;
+  withY(value: number): Vector3;
+  withZ(value: number): Vector3;
+  toString(): string;
+  get x(): number;
+  get y(): number;
+  get z(): number;
+}
+
+export class Vector3 extends Observable implements IReadonlyVector3 {
   // @NOTE Raw values encapsulated in annoying object type to prevent
   // accidental direct access. Always use `this.{x,y,z}` getters/setters,
   // so that possible subclasses etc. always pick up correct side effects.
@@ -272,7 +319,7 @@ export class Vector3 extends Observable {
     return this;
   }
 
-  public addSelf(value: AnyVector): this {
+  public addSelf(value: AnyReadonlyVector): this {
     this.mutate(() => {
       this.x += value.x;
       this.y += value.y;
@@ -282,11 +329,11 @@ export class Vector3 extends Observable {
     });
     return this;
   }
-  public add(value: AnyVector): Vector3 {
+  public add(value: AnyReadonlyVector): Vector3 {
     return this.clone().addSelf(value);
   }
 
-  public subtractSelf(value: AnyVector): this {
+  public subtractSelf(value: AnyReadonlyVector): this {
     this.mutate(() => {
       this.x -= value.x;
       this.y -= value.y;
@@ -296,26 +343,26 @@ export class Vector3 extends Observable {
     });
     return this;
   }
-  public subtract(value: AnyVector): Vector3 {
+  public subtract(value: AnyReadonlyVector): Vector3 {
     return this.clone().subtractSelf(value);
   }
 
   public multiplySelf(factor: number): this;
-  public multiplySelf(other: Vector3): this;
+  public multiplySelf(other: IReadonlyVector3): this;
   public multiplySelf(quaternion: Quaternion): this;
   public multiplySelf(matrix: Matrix4): this;
-  public multiplySelf(operand: number | Vector3 | Quaternion | Matrix4): this {
-    if (operand instanceof Vector3) {
-      return this.multiplyVector3Self(operand);
+  public multiplySelf(operand: number | IReadonlyVector3 | Quaternion | Matrix4): this {
+    if (typeof operand === 'number') {
+      return this.multiplyNumberSelf(operand);
     } else if (operand instanceof Quaternion) {
       return this.multiplyQuaternionSelf(operand);
     } else if (operand instanceof Matrix4) {
       return this.multiplyMatrix4Self(operand);
     } else {
-      return this.multiplyNumberSelf(operand);
+      return this.multiplyVector3Self(operand);
     }
   }
-  private multiplyVector3Self(other: Vector3): this {
+  private multiplyVector3Self(other: IReadonlyVector3): this {
     this.mutate(() => {
       this.x *= other.x;
       this.y *= other.y;
@@ -365,11 +412,11 @@ export class Vector3 extends Observable {
   }
 
   public multiply(factor: number): Vector3;
-  public multiply(other: Vector3): Vector3;
+  public multiply(other: IReadonlyVector3): Vector3;
   public multiply(quaternion: Quaternion): Vector3;
   public multiply(matrix: Matrix4): Vector3;
-  public multiply(operand: number | Vector3 | Quaternion | Matrix4): Vector3 {
-    if (operand instanceof Vector3) {
+  public multiply(operand: number | IReadonlyVector3 | Quaternion | Matrix4): Vector3 {
+    if (typeof operand === 'number') {
       return this.clone().multiplySelf(operand);
     } else if (operand instanceof Quaternion) {
       return this.clone().multiplySelf(operand);
@@ -381,8 +428,8 @@ export class Vector3 extends Observable {
   }
 
   public divideSelf(factor: number): this;
-  public divideSelf(other: Vector3): this;
-  public divideSelf(operand: number | Vector3): this {
+  public divideSelf(other: IReadonlyVector3): this;
+  public divideSelf(operand: number | IReadonlyVector3): this {
     if (typeof operand === 'number') {
       if (operand === 0) {
         throw new Error(`Cannot divide Vector3 by 0`);
@@ -405,8 +452,8 @@ export class Vector3 extends Observable {
     return this;
   }
   public divide(factor: number): Vector3;
-  public divide(other: Vector3): Vector3;
-  public divide(operand: number | Vector3): Vector3 {
+  public divide(other: IReadonlyVector3): Vector3;
+  public divide(operand: number | IReadonlyVector3): Vector3 {
     if (typeof operand === 'number') {
       return this.clone().divideSelf(operand);
     } else {
@@ -451,7 +498,7 @@ export class Vector3 extends Observable {
     return this.clone().normalizeSelf();
   }
 
-  public crossSelf(other: Vector3): this {
+  public crossSelf(other: IReadonlyVector3): this {
     this.mutate(() => {
       // @NOTE Intermediate values used
       const x = this.y * other.z - this.z * other.y;
@@ -463,11 +510,11 @@ export class Vector3 extends Observable {
     });
     return this;
   }
-  public cross(other: Vector3): Vector3 {
+  public cross(other: IReadonlyVector3): Vector3 {
     return this.clone().crossSelf(other);
   }
 
-  public dot(other: Vector3): number {
+  public dot(other: IReadonlyVector3): number {
     /*
       @NOTE to self
         (a·b) / a.lengthSqr = project b onto a

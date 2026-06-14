@@ -1,4 +1,4 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color3 } from "@lofi/core/math/Color3";
 import type { IEngine, OpaqueDrawTask } from "@lofi/engine/Engine";
@@ -71,7 +71,7 @@ export class DrawDebug {
 
   public static drawWireframe(engine: IEngine, wireframe: IWireframeDrawable, options: Partial<DrawOptions> = {}): OpaqueDrawTask {
     // Map faces into closed-loop polylines
-    const vertexPointData = wireframe.getWireframeFaces().flatMap((face: Vector3[]) => {
+    const vertexPointData = wireframe.getWireframeFaces().flatMap((face: readonly IReadonlyVector3[]) => {
       return face
         .flatMap((_, index, array) => {
           return [
@@ -84,7 +84,7 @@ export class DrawDebug {
     return DrawDebug.drawLines(engine, vertexPointData, options);
   }
 
-  private static drawLines(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions>): OpaqueDrawTask {
+  private static drawLines(engine: IEngine, linePoints: readonly IReadonlyVector3[], options: Partial<DrawOptions>): OpaqueDrawTask {
     const drawOptions = {
       ...DefaultDrawOptions,
       ...options,
@@ -103,6 +103,7 @@ export class DrawDebug {
       material: MaterialInstance.fromMaterial(Material.DefaultMaterial),
       uniforms: {
         worldMatrix: drawOptions.worldMatrix,
+        localMatrix: Matrix4.identity(),
       },
       draw: {
         id: Math.trunc(Math.random() * 0xF000_0000) + 0x1000_0000, //  @NOTE Always unique
@@ -176,13 +177,14 @@ export class DrawDebug {
   }
 }
 
+export type WireframeFaces = readonly (readonly IReadonlyVector3[])[];
 export interface IWireframeDrawable {
   /**
    * An array of faces. Each face is represented by an array of points.
    * Faces will be drawn as a closed-loop polyline that will join the last point
    * to the first.
    */
-  getWireframeFaces(): Vector3[][];
+  getWireframeFaces(): WireframeFaces;
 }
 export function isWireframeDrawable(object: any): object is IWireframeDrawable {
   return 'getWireframeFaces' in object;

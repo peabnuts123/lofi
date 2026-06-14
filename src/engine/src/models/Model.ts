@@ -1,17 +1,17 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { type IReadonlyVector3 } from "@lofi/core/math/vector";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Computed, Observable } from "@lofi/core/util/observable";
-import { Optional } from "@lofi/core/util/types";
+import { Optional, type Mutable } from "@lofi/core/util/types";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import type { ModelDefinition, ModelPartDefinition } from "@lofi/engine/loaders/definitions";
 import { Animation } from "@lofi/engine/animation";
 import { Material } from "@lofi/engine/materials";
-import { AxisAlignedBoundingBox, type AxisAlignedBoundingBoxConstructorArgs } from "@lofi/engine/collision";
+import { AxisAlignedBoundingBox, type AxisAlignedBoundingBoxConstructorArgs, type IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 import { ModelPart } from "./ModelPart";
 import { MeshSkin } from "./MeshSkin";
 import { ModelMaterialOverrides, type MaterialOverrideType } from "./ModelMaterialOverrides";
-import type { Edge, EdgeIndices, Triangle, TriangleIndices } from "./MeshPrimitiveCache";
+import { TriangleIndices, type Edge, type EdgeIndices, type IReadonlyTriangleIndices, type Triangle } from "./MeshPrimitiveCache";
 
 /**
  * A 3D model, comprised of a hierarchy of `ModelPart`s, which are comprised
@@ -21,7 +21,8 @@ import type { Edge, EdgeIndices, Triangle, TriangleIndices } from "./MeshPrimiti
  * ```
  */
 export class Model {
-  private readonly rootParts: ModelPart[];
+  // @TODO Are these public or do we have methods like `forEachPart` and `findPartWithName` or whatever.
+  public readonly rootParts: ModelPart[];
   public readonly allParts: ModelPart[];
   public readonly animations: Animation[];
   public readonly materialOverrides: ModelMaterialOverrides;
@@ -194,7 +195,7 @@ export class Model {
           }
 
           // Create part
-          const modelPart = ModelPart.fromDefinition(engine, partDefinition, parent, skin, modelConfig);
+          const modelPart = ModelPart.fromDefinition(engine, partDefinition, parent, skin);
 
           // Load all default materials
           if (partDefinition.mesh) {
@@ -251,23 +252,27 @@ export class Model {
 }
 
 export class ModelGeometry {
-  public readonly allVertexPositions: Computed<Vector3[]>;
+  public readonly allVertexPositions: Computed<readonly IReadonlyVector3[]>;
   // public readonly allVertexNormals: Computed<Vector3[]>;
-  public readonly allTriangleIndices: Computed<TriangleIndices[]>;
-  public readonly allTriangles: Computed<Triangle[]>;
-  public readonly allTriangleNormals: Computed<Vector3[]>;
-  public readonly allEdgeIndices: Computed<EdgeIndices[]>;
-  public readonly allEdges: Computed<Edge[]>;
-  public readonly aabb: Computed<Optional<AxisAlignedBoundingBox>>;
-  public readonly approximateAabb: Computed<Optional<AxisAlignedBoundingBox>>;
+  public readonly allTriangleIndices: Computed<readonly IReadonlyTriangleIndices[]>;
+  public readonly allTriangles: Computed<readonly Triangle[]>;
+  public readonly allTriangleNormals: Computed<readonly IReadonlyVector3[]>;
+  public readonly allEdgeIndices: Computed<readonly EdgeIndices[]>;
+  public readonly allEdges: Computed<readonly Edge[]>;
+  public readonly aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
+  public readonly approximateAabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
 
   public constructor(parts: ModelPart[], modelConfig: ModelConfig) {
     /* Vertices */
-    this.allVertexPositions = new Computed<Vector3[]>([], {
+    this.allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
+        // @NOTE We barely need these dependencies, since we just store the vertex references. We can potentially
+        // optimise this by never recomputing.
         ...parts.map((part) => part.geometry.allVertexPositions),
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let vertexCount = 0;
         for (const part of parts) {
           for (const vertexPosition of part.geometry.allVertexPositions.value) {
@@ -278,12 +283,14 @@ export class ModelGeometry {
     });
 
     /* Triangles */
-    this.allTriangleIndices = new Computed<TriangleIndices[]>([], {
+    this.allTriangleIndices = new Computed<readonly IReadonlyTriangleIndices[]>([], {
       dependencies: [
-        ...parts.map((part) => part.geometry.allVertexPositions),
+        // @NOTE Do not depend on `part.geometry.allVertexPositions` since we only need length (which cannot change)
         ...parts.map((part) => part.geometry.allTriangleIndices),
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         /**
          * We need to keep track of an offset for vertex indices,
          * since we are merging multiple primitives into one.
@@ -292,38 +299,61 @@ export class ModelGeometry {
         let triangleCount = 0;
         for (const part of parts) {
           for (const triangleIndices of part.geometry.allTriangleIndices.value) {
-            self[triangleCount++] = [
-              triangleIndices[0] + vertexIndexOffset,
-              triangleIndices[1] + vertexIndexOffset,
-              triangleIndices[2] + vertexIndexOffset,
-            ];
+            const aIndex = triangleIndices["aIndex"] + vertexIndexOffset;
+            const bIndex = triangleIndices["bIndex"] + vertexIndexOffset;
+            const cIndex = triangleIndices["cIndex"] + vertexIndexOffset;
+            if (self[triangleCount] !== undefined) {
+              // Re-use existing instances
+              (self[triangleCount] as TriangleIndices).setValue(aIndex, bIndex, cIndex);
+            } else {
+              // Build up array for the first time
+              self[triangleCount] = new TriangleIndices(aIndex, bIndex, cIndex);
+            }
+            triangleCount++;
           }
           vertexIndexOffset += part.geometry.allVertexPositions.value.length;
         }
       },
     });
-    this.allTriangles = new Computed<Triangle[]>([], {
+    this.allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
         this.allVertexPositions,
         this.allTriangleIndices,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let triangleCount = 0;
         const allVertexPositions = this.allVertexPositions.value;
         for (const triangleIndices of this.allTriangleIndices.value) {
-          self[triangleCount++] = [
-            allVertexPositions[triangleIndices[0]],
-            allVertexPositions[triangleIndices[1]],
-            allVertexPositions[triangleIndices[2]],
-          ];
+          const aTriangle = allVertexPositions[triangleIndices["aIndex"]];
+          const bTriangle = allVertexPositions[triangleIndices["bIndex"]];
+          const cTriangle = allVertexPositions[triangleIndices["cIndex"]];
+          if (self[triangleCount] !== undefined) {
+            // Re-use existing instances
+            (self[triangleCount] as Mutable<Triangle>)[0] = aTriangle;
+            (self[triangleCount] as Mutable<Triangle>)[1] = bTriangle;
+            (self[triangleCount] as Mutable<Triangle>)[2] = cTriangle;
+          } else {
+            // Build up array for the first time
+            self[triangleCount] = [
+              aTriangle,
+              bTriangle,
+              cTriangle,
+            ];
+          }
+          triangleCount++;
         }
       },
     });
-    this.allTriangleNormals = new Computed<Vector3[]>([], {
+    this.allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
+        // @TODO Like allVertexPositions, do we ever need to recompute?
         ...parts.map((part) => part.geometry.allTriangleNormals),
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let triangleCount = 0;
         for (const part of parts) {
           for (const triangleNormal of part.geometry.allTriangleNormals.value) {
@@ -334,12 +364,14 @@ export class ModelGeometry {
     });
 
     /* Edges */
-    this.allEdgeIndices = new Computed<EdgeIndices[]>([], {
+    this.allEdgeIndices = new Computed<readonly EdgeIndices[]>([], {
       dependencies: [
-        ...parts.map((part) => part.geometry.allVertexPositions),
+        // @NOTE Do not depend on `part.geometry.allVertexPositions` since we only need length (which cannot change)
         ...parts.map((part) => part.geometry.allEdgeIndices),
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         /**
          * We need to keep track of an offset for vertex indices,
          * since we are merging multiple primitives into one.
@@ -348,34 +380,64 @@ export class ModelGeometry {
         let edgeCount = 0;
         for (const part of parts) {
           for (const edgeIndices of part.geometry.allEdgeIndices.value) {
-            self[edgeCount++] = [
-              edgeIndices[0] + vertexIndexOffset,
-              edgeIndices[1] + vertexIndexOffset,
-            ];
+            const aIndex = edgeIndices[0] + vertexIndexOffset;
+            const bIndex = edgeIndices[1] + vertexIndexOffset;
+            if (self[edgeCount] !== undefined) {
+              // Re-use existing instances
+              (self[edgeCount] as Mutable<EdgeIndices>)[0] = aIndex;
+              (self[edgeCount] as Mutable<EdgeIndices>)[1] = bIndex;
+            } else {
+              // Build up array for the first time
+              self[edgeCount] = [
+                aIndex,
+                bIndex,
+              ];
+            }
+
+            edgeCount++;
           }
           vertexIndexOffset += part.geometry.allVertexPositions.value.length;
+
         }
+
+        // Number of unique edges can change, so ensure array is always correct size
+        self.length = edgeCount;
       },
     });
-    this.allEdges = new Computed<Edge[]>([], {
+    this.allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
         this.allVertexPositions,
         this.allEdgeIndices,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let edgeCount = 0;
         const allVertexPositions = this.allVertexPositions.value;
         for (const edgeIndices of this.allEdgeIndices.value) {
-          self[edgeCount++] = [
-            allVertexPositions[edgeIndices[0]],
-            allVertexPositions[edgeIndices[1]],
-          ];
+          const aVertex = allVertexPositions[edgeIndices[0]];
+          const bVertex = allVertexPositions[edgeIndices[1]];
+          if (self[edgeCount] !== undefined) {
+            // Re-use existing instances
+            (self[edgeCount] as Mutable<Edge>)[0] = aVertex;
+            (self[edgeCount] as Mutable<Edge>)[1] = bVertex;
+          } else {
+            // Build up array for the first time
+            self[edgeCount] = [
+              aVertex,
+              bVertex,
+            ];
+          }
+          edgeCount++;
         }
+
+        // Number of unique edges can change, so ensure array is always correct size
+        self.length = edgeCount;
       },
     });
 
     /* AABB */
-    this.aabb = new Computed<Optional<AxisAlignedBoundingBox>>(Optional(), {
+    this.aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         this.allVertexPositions,
       ],
@@ -386,23 +448,25 @@ export class ModelGeometry {
           self.value = undefined;
         } else {
           // Ensure value is initialised
-          const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
           // Recompute AABB based on vertex positions
-          aabb.fromVerticesSelf(this.allVertexPositions.value);
+          aabb.fromVerticesSelf(allVertexPositions);
         }
       },
     });
-    this.approximateAabb = new Computed<Optional<AxisAlignedBoundingBox>>(Optional(), {
+    this.approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         modelConfig,
         ...parts.map((part) => part.geometry.approximateAabb),
       ],
       recompute: (self) => {
         if (modelConfig.aabbApproximationPolicy.type === 'fixed') {
+          // @TODO What's the expectation if you set type 'fixed' for non-skinned models? That it is the value you set, or that it matches?
+          // @TODO Probably it is more predictable if we say "aabbApproximationPolicy only applies to skinned models"
           /* Fixed size AABB approximation */
           // Ensure value is initialised
-          const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
           aabb.setValue(modelConfig.aabbApproximationPolicy.dimensions);
         } else {
           const partAABBs = parts
@@ -414,7 +478,7 @@ export class ModelGeometry {
             self.value = undefined;
           } else {
             // Ensure value is initialised
-            const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+            const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
             // Combine child AABBs
             for (let i = 0; i < partAABBs.length; i++) {
@@ -428,7 +492,7 @@ export class ModelGeometry {
 
             const anyPartsHaveSkin = parts.some((part) => part.skin !== undefined);
 
-            // Apply AABB approximation policy if any model parts have skin
+            // Apply AABB approximation policy only if any model parts have skin
             // Unskinned models' approximate AABBs should be identical to their actual AABB
             if (anyPartsHaveSkin) {
               switch (modelConfig.aabbApproximationPolicy.type) {

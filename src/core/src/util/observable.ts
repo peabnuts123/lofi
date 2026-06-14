@@ -48,7 +48,7 @@ export abstract class Observable implements IObservable {
 
 export interface ComputedArgs<T> {
   debug_name?: string; // @TODO @DEBUG REMOVE
-  dependencies: IObservable[],
+  dependencies: readonly IObservable[],
   recompute: (tmpState: T) => void;
 }
 

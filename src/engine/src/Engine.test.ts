@@ -57,7 +57,8 @@ function createMockTask(opts: CreateDrawTaskOptions): DrawTask {
     material: { id: opts.material } as MaterialInstance,
     uniforms: {
       id: opts.uniforms,
-      worldMatrix: new Matrix4(),
+      worldMatrix: Matrix4.identity(),
+      localMatrix: Matrix4.identity(),
       skinWeights: new Float32Array(),
     } as DrawTask['uniforms'],
     draw: {

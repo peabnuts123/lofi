@@ -29,6 +29,7 @@ in vec4 vertexWeights;
 /* Uniforms */
 // Required
 uniform mat4 worldMatrix;
+uniform mat4 localMatrix;
 uniform mat3 normalMatrix;
 // Optional
 #ifdef DIFFUSE_COLOR
@@ -65,13 +66,20 @@ layout(std140) uniform Lighting {
 void main() {
   // Geometry
 #ifdef SKIN
-  mat4 skinMatrix = vertexWeights.x * jointMatrix[int(vertexJoints.x)] +
-    vertexWeights.y * jointMatrix[int(vertexJoints.y)] +
-    vertexWeights.z * jointMatrix[int(vertexJoints.z)] +
-    vertexWeights.w * jointMatrix[int(vertexJoints.w)];
+  // @NOTE Ignore skin if weights are all zero
+  float totalWeight = vertexWeights.x + vertexWeights.y + vertexWeights.z + vertexWeights.w;
+  mat4 skinMatrix;
+  if(totalWeight > 0.0f) {
+    skinMatrix = vertexWeights.x * jointMatrix[int(vertexJoints.x)] +
+      vertexWeights.y * jointMatrix[int(vertexJoints.y)] +
+      vertexWeights.z * jointMatrix[int(vertexJoints.z)] +
+      vertexWeights.w * jointMatrix[int(vertexJoints.w)];
+  } else {
+    skinMatrix = mat4(1.0f);
+  }
   vec4 worldPositionVec4 = worldMatrix * skinMatrix * vec4(vertexPosition, 1.0f);
 #else
-  vec4 worldPositionVec4 = worldMatrix * vec4(vertexPosition, 1.0f);
+  vec4 worldPositionVec4 = worldMatrix * localMatrix * vec4(vertexPosition, 1.0f);
 #endif
   worldPosition = vec3(worldPositionVec4);
   gl_Position = viewProjectionMatrix * worldPositionVec4;

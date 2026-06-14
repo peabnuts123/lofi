@@ -1,6 +1,6 @@
-import type { Matrix4, Vector3Definition } from "@lofi/core/math";
+import type { IReadonlyVector3, Matrix4, Vector3Definition } from "@lofi/core/math";
 import { Vector3 } from "@lofi/core/math/vector";
-import type { IWireframeDrawable } from "../util/DrawDebug";
+import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DrawDebug";
 
 export interface AxisAlignedBoundingBoxConstructorArgs {
   xMin: number;
@@ -10,6 +10,17 @@ export interface AxisAlignedBoundingBoxConstructorArgs {
   zMin: number;
   zMax: number;
 }
+
+export interface IReadonlyAxisAlignedBoundingBox {
+  get xMin(): number;
+  get xMax(): number;
+  get yMin(): number;
+  get yMax(): number;
+  get zMin(): number;
+  get zMax(): number;
+  intersects(other: AxisAlignedBoundingBox): boolean;
+}
+
 // @TODO We should validate to make sure min is always less than max.
 // @TODO Move out of `/collision` - it's just maths
 export class AxisAlignedBoundingBox implements IWireframeDrawable {
@@ -53,7 +64,7 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
     );
   }
 
-  public getWireframeFaces(): Vector3[][] {
+  public getWireframeFaces(): WireframeFaces {
     const vertices = this.getVertices();
     return [
       // Front
@@ -82,18 +93,10 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
     return this.fromVerticesSelf(vertices);
   }
 
-  public setValue(min: Vector3, max: Vector3): this;
+  public setValue(min: IReadonlyVector3, max: IReadonlyVector3): this;
   public setValue(value: AxisAlignedBoundingBoxConstructorArgs): this;
-  public setValue(minOrValue: Vector3 | AxisAlignedBoundingBoxConstructorArgs, max?: Vector3): this {
-    if (minOrValue instanceof Vector3) {
-      /* Separate min/max args */
-      this.xMin = minOrValue.x;
-      this.yMin = minOrValue.y;
-      this.zMin = minOrValue.z;
-      this.xMax = max!.x;
-      this.yMax = max!.y;
-      this.zMax = max!.z;
-    } else {
+  public setValue(minOrValue: IReadonlyVector3 | AxisAlignedBoundingBoxConstructorArgs, max?: IReadonlyVector3): this {
+    if ('xMin' in minOrValue) {
       /* AABB arg */
       this.xMin = minOrValue.xMin;
       this.yMin = minOrValue.yMin;
@@ -101,11 +104,19 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
       this.xMax = minOrValue.xMax;
       this.yMax = minOrValue.yMax;
       this.zMax = minOrValue.zMax;
+    } else {
+      /* Separate min/max args */
+      this.xMin = minOrValue.x;
+      this.yMin = minOrValue.y;
+      this.zMin = minOrValue.z;
+      this.xMax = max!.x;
+      this.yMax = max!.y;
+      this.zMax = max!.z;
     }
     return this;
   }
 
-  public unionSelf(other: AxisAlignedBoundingBox): this {
+  public unionSelf(other: IReadonlyAxisAlignedBoundingBox): this {
     /* Min */
     if (other.xMin < this.xMin) this.xMin = other.xMin;
     if (other.yMin < this.yMin) this.yMin = other.yMin;
@@ -141,7 +152,7 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
   }
 
   private tmp_fromVerticesSelf = [Vector3.zero(), Vector3.zero()] as const;
-  public fromVerticesSelf(vertices: Vector3[]): this {
+  public fromVerticesSelf(vertices: readonly IReadonlyVector3[]): this {
     if (vertices.length === 0) {
       this.xMin = this.yMin = this.zMin = 0;
       this.xMax = this.yMax = this.zMax = 0;
@@ -163,7 +174,7 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
 
     return this.setValue(minBounds, maxBounds);
   }
-  public static fromVertices(vertices: Vector3[]): AxisAlignedBoundingBox {
+  public static fromVertices(vertices: readonly IReadonlyVector3[]): AxisAlignedBoundingBox {
     return AxisAlignedBoundingBox.zero().fromVerticesSelf(vertices);
   }
 

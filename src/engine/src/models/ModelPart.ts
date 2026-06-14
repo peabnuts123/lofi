@@ -1,18 +1,17 @@
 import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
 import { Computed } from "@lofi/core/util/observable";
 import type { ModelPartDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import { MaterialInstance } from "@lofi/engine/materials";
-import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
+import { AxisAlignedBoundingBox, type IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 import { MeshSkin } from "./MeshSkin";
 import type { ModelMaterialOverrides } from "./ModelMaterialOverrides";
-import { MeshPrimitiveCache, type Edge, type EdgeIndices, type Triangle, type TriangleIndices } from "./MeshPrimitiveCache";
-import type { ModelConfig } from "./Model";
-import { Optional } from "@lofi/core/util/types";
+import { MeshPrimitiveCache, TriangleIndices, type Edge, type EdgeIndices, type IReadonlyTriangleIndices, type JointWeightsKey, type Triangle } from "./MeshPrimitiveCache";
+import { Optional, type Mutable } from "@lofi/core/util/types";
 
 export interface ModelPartConstructorArgs {
   name: string;
@@ -20,7 +19,6 @@ export interface ModelPartConstructorArgs {
   primitiveCaches: MeshPrimitiveCache[];
   parent?: ModelPart;
   skin: MeshSkin | undefined;
-  modelConfig: ModelConfig;
 }
 
 /**
@@ -31,16 +29,14 @@ export class ModelPart {
   public readonly name: string;
   private readonly _transform: Transform<ModelPart>;
   private readonly _skin: MeshSkin | undefined;
-  private readonly primitiveCaches: MeshPrimitiveCache[]; // @TODO Does it need a better name?
+  public readonly primitiveCaches: MeshPrimitiveCache[]; // @TODO Does it need a better name?
   private readonly jointMatricesComputed: Computed<Matrix4[]> | undefined;
-  private readonly modelConfig: ModelConfig;
   public readonly geometry: ModelPartGeometry;
 
-  private readonly _worldMatrixTmp: Matrix4 = new Matrix4();
   private _jointMatricesBytesTmp: Float32Array | undefined;
   private _modelViewMatrixTmp: Matrix4 = new Matrix4();
 
-  private constructor({ name, transform, primitiveCaches, parent, skin, modelConfig }: ModelPartConstructorArgs) {
+  private constructor({ name, transform, primitiveCaches, parent, skin }: ModelPartConstructorArgs) {
     this.name = name;
     this.primitiveCaches = primitiveCaches;
     this._transform = new Transform<ModelPart>(this, parent?.transform);
@@ -48,7 +44,6 @@ export class ModelPart {
     this._transform.rotation.q = transform.rotation;
     this._transform.scale = transform.scale;
     this._skin = skin;
-    this.modelConfig = modelConfig;
 
     if (this.skin) {
       this.jointMatricesComputed = new Computed<Matrix4[]>(this.skin.skeleton.map(() => new Matrix4()), {
@@ -71,7 +66,6 @@ export class ModelPart {
       primitiveCaches,
       localMatrixComputed: this.localMatrixComputed,
       skinJointMatricesComputed: this.jointMatricesComputed,
-      modelConfig,
     });
   }
 
@@ -86,7 +80,6 @@ export class ModelPart {
       parent: parentInstance,
       primitiveCaches: this.primitiveCaches,
       skin,
-      modelConfig: this.modelConfig,
     });
 
     return instance;
@@ -103,15 +96,8 @@ export class ModelPart {
     // Don't bother doing math unless we need to draw something
     if (this.primitiveCaches.length === 0) return;
 
-    this._worldMatrixTmp.setValue(worldMatrix);
-
-    if (this.skin === undefined) {
-      // @NOTE Transform geometry by this ModelPart's local transform ONLY
-      // if it does not have a skin. Skinned geometry is transformed by
-      // the weights of its joints so it does NOT want to be transformed
-      // by this ModelPart's local transform.
-      this._worldMatrixTmp.multiplySelf(this.localMatrix);
-    } else {
+    if (this.skin !== undefined) {
+      // Model has skin
       // Initialise / resize joint matrix buffer
       const JointMatricesTotalBytes = engine.config.models.maxBones * 16;
       if (this._jointMatricesBytesTmp === undefined || this._jointMatricesBytesTmp.length !== JointMatricesTotalBytes) {
@@ -126,18 +112,19 @@ export class ModelPart {
     }
 
     const drawTaskUniforms: DrawTask['uniforms'] = {
-      worldMatrix: this._worldMatrixTmp,
+      worldMatrix: worldMatrix,
+      localMatrix: this.localMatrix,
       skinWeights: this._jointMatricesBytesTmp,
     };
 
     this._modelViewMatrixTmp
       .setValue(viewMatrix)
-      .multiplySelf(this._worldMatrixTmp);
+      .multiplySelf(worldMatrix);
 
     for (const primitiveCache of this.primitiveCaches) {
       let material = MaterialInstance.DefaultMaterial;
-      if (primitiveCache.geometry.material) {
-        material = materialOverrides.getResult(primitiveCache.geometry.material.name);
+      if (primitiveCache.geometry.defaultMaterialDefinition) {
+        material = materialOverrides.getResult(primitiveCache.geometry.defaultMaterialDefinition.name);
       }
       const primitiveInstance = primitiveCache.getOrCreate(material);
       primitiveInstance.draw(
@@ -150,7 +137,7 @@ export class ModelPart {
     }
   }
 
-  public static fromDefinition(engine: IEngine, definition: ModelPartDefinition, parent: ModelPart | undefined, skin: MeshSkin | undefined, modelConfig: ModelConfig): ModelPart {
+  public static fromDefinition(engine: IEngine, definition: ModelPartDefinition, parent: ModelPart | undefined, skin: MeshSkin | undefined): ModelPart {
     const primitiveDefinitions = definition.mesh?.primitives ?? [];
     const meshPrimitives = primitiveDefinitions.map((definition) => new MeshPrimitiveCache(engine, definition));
 
@@ -160,7 +147,6 @@ export class ModelPart {
       transform: definition.transform,
       primitiveCaches: meshPrimitives,
       skin,
-      modelConfig,
     });
   }
 
@@ -190,21 +176,20 @@ interface ModelPartGeometryArgs {
   primitiveCaches: MeshPrimitiveCache[];
   localMatrixComputed: Computed<Matrix4>;
   skinJointMatricesComputed: Computed<Matrix4[]> | undefined;
-  modelConfig: ModelConfig;
 }
 
 export class ModelPartGeometry {
-  public readonly allVertexPositions: Computed<Vector3[]>;
+  public readonly allVertexPositions: Computed<readonly IReadonlyVector3[]>;
   // public readonly allVertexNormals: Computed<Vector3[]>;
-  public readonly allTriangleIndices: Computed<TriangleIndices[]>;
-  public readonly allTriangles: Computed<Triangle[]>;
-  public readonly allTriangleNormals: Computed<Vector3[]>;
-  public readonly allEdgeIndices: Computed<EdgeIndices[]>;
-  public readonly allEdges: Computed<Edge[]>;
-  public readonly aabb: Computed<Optional<AxisAlignedBoundingBox>>;
-  public readonly approximateAabb: Computed<Optional<AxisAlignedBoundingBox>>;
+  public readonly allTriangleIndices: Computed<readonly IReadonlyTriangleIndices[]>;
+  public readonly allTriangles: Computed<readonly Triangle[]>;
+  public readonly allTriangleNormals: Computed<readonly IReadonlyVector3[]>;
+  public readonly allEdgeIndices: Computed<readonly EdgeIndices[]>;
+  public readonly allEdges: Computed<readonly Edge[]>;
+  public readonly aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
+  public readonly approximateAabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
 
-  public constructor({ primitiveCaches, localMatrixComputed, skinJointMatricesComputed, modelConfig }: ModelPartGeometryArgs) {
+  public constructor({ primitiveCaches, localMatrixComputed, skinJointMatricesComputed }: ModelPartGeometryArgs) {
 
     /* Vertices */
     const hasSkin = skinJointMatricesComputed !== undefined;
@@ -212,12 +197,17 @@ export class ModelPartGeometry {
       new Matrix4(),
       new Matrix4(),
     ] as const;
-    this.allVertexPositions = new Computed<Vector3[]>([], {
+    this.allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         localMatrixComputed,
+        ...primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexPositions),
+        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.jointIndices).filter((jointIndices) => jointIndices !== undefined).flat(),
+        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.jointWeights).filter((jointWeights) => jointWeights !== undefined).flat(),
         ...(hasSkin ? [skinJointMatricesComputed] : []),
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let vertexCount = 0;
         const localMatrix = localMatrixComputed.value;
         const jointMatrices = skinJointMatricesComputed?.value;
@@ -227,46 +217,50 @@ export class ModelPartGeometry {
           for (let i = 0; i < vertexPositions.length; i++) {
             // Get vertex position
             let currentVertex: Vector3;
-            if (self[vertexCount]) {
+            if (self[vertexCount] !== undefined) {
               // Re-use existing instances
-              currentVertex = self[vertexCount].setValue(vertexPositions[i]);
+              currentVertex = (self[vertexCount] as Vector3).setValue(vertexPositions[i]);
             } else {
               // Build up array for the first time
               currentVertex = self[vertexCount] = vertexPositions[i].clone();
             }
 
-            if (hasSkin && jointMatrices) {
+            const primitiveHasJointWeights = primitiveCache.geometry.jointIndices && primitiveCache.geometry.jointWeights;
+            if (hasSkin && jointMatrices && primitiveHasJointWeights) {
               // Move vertex based on skin weights
-              const jointIndices = primitiveCache.geometry.jointIndices![i];
-              const jointWeights = primitiveCache.geometry.jointWeights![i];
+              const jointIndices = primitiveCache.geometry.jointIndices[i];
+              const jointWeights = primitiveCache.geometry.jointWeights[i];
 
-              /*
-                Compute linear sum:
-                  weight_0 * jointMatrix[index_0]
-                + weight_1 * jointMatrix[index_1]
-                + weight_2 * jointMatrix[index_2]
-                + weight_3 * jointMatrix[index_3]
+              const totalWeight = jointWeights[0] + jointWeights[1] + jointWeights[2] + jointWeights[3];
 
-                Result stored in `tmpMatrixA`
-              */
-              const tmpMatrixA = tmp_allVertexPositions_skinMatrices[0];
-              const tmpMatrixB = tmp_allVertexPositions_skinMatrices[1];
-              if (jointWeights[0] === 1) {
-                tmpMatrixA.setValue(jointMatrices[jointIndices[0]]);
-              } else if (jointWeights[0] > 0) {
-                tmpMatrixA.setValue(jointMatrices[jointIndices[0]]).multiplySelf(jointWeights[0]);
-              } else {
-                tmpMatrixA.identitySelf();
-              }
-              for (let i = 1; i <= 3; i++) {
-                const jointWeight = jointWeights[i];
-                if (jointWeight > 0) {
-                  tmpMatrixB.setValue(jointMatrices[jointIndices[i]]).multiplySelf(jointWeight);
-                  tmpMatrixA.addSelf(tmpMatrixB);
+              if (totalWeight > 0) {
+
+                /*
+                  Compute linear sum:
+                    weight_0 * jointMatrix[index_0]
+                  + weight_1 * jointMatrix[index_1]
+                  + weight_2 * jointMatrix[index_2]
+                  + weight_3 * jointMatrix[index_3]
+
+                  Result stored in `tmpMatrixA`
+                */
+                const tmpMatrixA = tmp_allVertexPositions_skinMatrices[0];
+                const tmpMatrixB = tmp_allVertexPositions_skinMatrices[1];
+                if (jointWeights[0] === 1) {
+                  tmpMatrixA.setValue(jointMatrices[jointIndices[0]]);
+                } else {
+                  tmpMatrixA.setValue(jointMatrices[jointIndices[0]]).multiplySelf(jointWeights[0]);
                 }
-              }
+                for (const i of [1, 2, 3] as JointWeightsKey[]) {
+                  const jointWeight = jointWeights[i];
+                  if (jointWeight > 0) {
+                    tmpMatrixB.setValue(jointMatrices[jointIndices[i]]).multiplySelf(jointWeight);
+                    tmpMatrixA.addSelf(tmpMatrixB);
+                  }
+                }
 
-              currentVertex.multiplySelf(tmpMatrixA);
+                currentVertex.multiplySelf(tmpMatrixA);
+              }
             } else {
               // @NOTE Transform geometry by this ModelPart's local transform ONLY
               // if it does not have a skin. Skinned geometry is transformed by
@@ -282,54 +276,81 @@ export class ModelPartGeometry {
     });
 
     /* Triangles */
-    this.allTriangleIndices = new Computed<TriangleIndices[]>([], {
-      dependencies: [],
-      recompute: (self) => {
+    this.allTriangleIndices = new Computed<readonly IReadonlyTriangleIndices[]>([], {
+      dependencies: [
+        // @NOTE Do not depend on `primitiveCache.geometry.vertexPositions` since we only need length (which cannot change)
+        ...primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.triangleIndices),
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         /**
          * We need to keep track of an offset for vertex indices,
          * since we are merging multiple primitives into one.
          */
         let vertexIndexOffset = 0;
-        let vertexCount = 0;
+        let triangleCount = 0;
         for (const primitiveCache of primitiveCaches) {
           for (const triangleIndices of primitiveCache.geometry.triangleIndices) {
-            self[vertexCount++] = [
-              triangleIndices[0] + vertexIndexOffset,
-              triangleIndices[1] + vertexIndexOffset,
-              triangleIndices[2] + vertexIndexOffset,
-            ];
+            const aIndex = triangleIndices["aIndex"] + vertexIndexOffset;
+            const bIndex = triangleIndices["bIndex"] + vertexIndexOffset;
+            const cIndex = triangleIndices["cIndex"] + vertexIndexOffset;
+            if (self[triangleCount] !== undefined) {
+              // Re-use existing instances
+              (self[triangleCount] as TriangleIndices).setValue(aIndex, bIndex, cIndex);
+            } else {
+              // Build up array for the first time
+              self[triangleCount] = new TriangleIndices(aIndex, bIndex, cIndex);
+            }
+            triangleCount++;
           }
           vertexIndexOffset += primitiveCache.geometry.vertexPositions.length;
         }
       },
     });
-    this.allTriangles = new Computed<Triangle[]>([], {
+    this.allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
         this.allVertexPositions,
         this.allTriangleIndices,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let triangleCount = 0;
         const allVertexPositions = this.allVertexPositions.value;
         for (const triangleIndices of this.allTriangleIndices.value) {
-          self[triangleCount++] = [
-            allVertexPositions[triangleIndices[0]],
-            allVertexPositions[triangleIndices[1]],
-            allVertexPositions[triangleIndices[2]],
-          ];
+          const aTriangle = allVertexPositions[triangleIndices["aIndex"]];
+          const bTriangle = allVertexPositions[triangleIndices["bIndex"]];
+          const cTriangle = allVertexPositions[triangleIndices["cIndex"]];
+          if (self[triangleCount] !== undefined) {
+            // Re-use existing instances
+            (self[triangleCount] as Mutable<Triangle>)[0] = aTriangle;
+            (self[triangleCount] as Mutable<Triangle>)[1] = bTriangle;
+            (self[triangleCount] as Mutable<Triangle>)[2] = cTriangle;
+          } else {
+            // Build up array for the first time
+            self[triangleCount] = [
+              aTriangle,
+              bTriangle,
+              cTriangle,
+            ];
+          }
+          triangleCount++;
         }
       },
     });
     const tmp_allTriangleNormals_edge1 = Vector3.zero();
     const tmp_allTriangleNormals_edge2 = Vector3.zero();
-    this.allTriangleNormals = new Computed<Vector3[]>([], {
+    this.allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         this.allTriangles,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         this.allTriangles.value.forEach((triangle, i) => {
           // Get or create reference to Vector3
-          let triangleNormal = self[i];
+          let triangleNormal: Vector3 = self[i] as Vector3;
           if (triangleNormal === undefined) {
             triangleNormal = self[i] = Vector3.zero();
           }
@@ -345,66 +366,104 @@ export class ModelPartGeometry {
     });
 
     /* Edges */
-    this.allEdgeIndices = new Computed<EdgeIndices[]>([], {
-      dependencies: [],
-      recompute: (self) => {
+    this.allEdgeIndices = new Computed<readonly EdgeIndices[]>([], {
+      dependencies: [
+        // @NOTE Do not depend on `primitiveCache.geometry.vertexPositions` since we only need length (which cannot change)
+        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.edgeIndices),
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         /**
          * We need to keep track of an offset for vertex indices,
          * since we are merging multiple primitives into one.
          */
         let vertexIndexOffset = 0;
-        let vertexCount = 0;
+        let edgeCount = 0;
         for (const primitiveCache of primitiveCaches) {
-          for (const edgeIndices of primitiveCache.geometry.edgeIndices) {
-            self[vertexCount++] = [
-              edgeIndices[0] + vertexIndexOffset,
-              edgeIndices[1] + vertexIndexOffset,
-            ];
+          for (const edgeIndices of primitiveCache.geometry.edgeIndices.value) {
+            const aIndex = edgeIndices[0] + vertexIndexOffset;
+            const bIndex = edgeIndices[1] + vertexIndexOffset;
+            if (self[edgeCount] !== undefined) {
+              // Re-use existing instances
+              (self[edgeCount] as Mutable<EdgeIndices>)[0] = aIndex;
+              (self[edgeCount] as Mutable<EdgeIndices>)[1] = bIndex;
+            } else {
+              // Build up array for the first time
+              self[edgeCount] = [
+                aIndex,
+                bIndex,
+              ];
+            }
+
+            edgeCount++;
           }
+
           vertexIndexOffset += primitiveCache.geometry.vertexPositions.length;
         }
+
+        // Number of unique edges can change, so ensure array is always correct size
+        self.length = edgeCount;
       },
     });
-    this.allEdges = new Computed<Edge[]>([], {
+    this.allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
         this.allVertexPositions,
         this.allEdgeIndices,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let edgeCount = 0;
         const allVertexPositions = this.allVertexPositions.value;
         for (const edgeIndices of this.allEdgeIndices.value) {
-          self[edgeCount++] = [
-            allVertexPositions[edgeIndices[0]],
-            allVertexPositions[edgeIndices[1]],
-          ];
+          const aVertex = allVertexPositions[edgeIndices[0]];
+          const bVertex = allVertexPositions[edgeIndices[1]];
+          if (self[edgeCount] !== undefined) {
+            // Re-use existing instances
+            (self[edgeCount] as Mutable<Edge>)[0] = aVertex;
+            (self[edgeCount] as Mutable<Edge>)[1] = bVertex;
+          } else {
+            // Build up array for the first time
+            self[edgeCount] = [
+              aVertex,
+              bVertex,
+            ];
+          }
+          edgeCount++;
         }
+
+        // Number of unique edges can change, so ensure array is always correct size
+        self.length = edgeCount;
       },
     });
 
     /* AABB */
-    this.aabb = new Computed<Optional<AxisAlignedBoundingBox>>(Optional(), {
+    this.aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         this.allVertexPositions,
       ],
       recompute: (self) => {
-        if (primitiveCaches.length === 0) {
+        const allVertexPositions = this.allVertexPositions.value;
+        if (allVertexPositions.length === 0) {
           // No geometry
           self.value = undefined;
           return;
         } else {
           // Ensure value is initialised
-          const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const aabb: AxisAlignedBoundingBox = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
           // Recompute AABB based on vertex positions
-          aabb.fromVerticesSelf(this.allVertexPositions.value);
+          aabb.fromVerticesSelf(allVertexPositions);
         }
       },
     });
     const tmp_approximateAabb_vertex = Vector3.zero();
-    this.approximateAabb = new Computed<Optional<AxisAlignedBoundingBox>>(Optional(), {
+    this.approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         localMatrixComputed,
+        ...primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexPositions),
+        // @NOTE Does NOT depend on `this.allVertexPositions.value` because calculating that involves skinning which is what we're trying to avoid
       ],
       recompute: (self) => {
         if (primitiveCaches.length === 0) {
@@ -413,7 +472,7 @@ export class ModelPartGeometry {
           return;
         } else {
           // Ensure value is initialised
-          const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
           // Initialise to extreme values
           aabb.setValue({
@@ -427,7 +486,8 @@ export class ModelPartGeometry {
 
           const localMatrix = localMatrixComputed.value;
 
-          // Iterate all vertices
+          // Iterate all vertices of all mesh primitives manually (do not apply skinning)
+          // We can't re-use `AxisAlignedBoundingBox.fromVerticesSelf()` because we'd have to allocate an array
           for (const primitiveCache of primitiveCaches) {
             const vertexPositions = primitiveCache.geometry.vertexPositions;
             for (let i = 0; i < vertexPositions.length; i++) {
@@ -448,5 +508,4 @@ export class ModelPartGeometry {
       },
     });
   }
-
 }

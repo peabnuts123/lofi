@@ -57,10 +57,13 @@ export class AnimationChannel {
     }
   }
 
-  public assignAnimatedValue(target: Model, previousTimestampIndex: number, nextTimestampIndex: undefined, animationTime: number): void;
-  public assignAnimatedValue(targetNode: Model, previousTimestampIndex: undefined, nextTimestampIndex: number, animationTime: number): void;
-  public assignAnimatedValue(targetNode: Model, previousTimestampIndex: number, nextTimestampIndex: number, animationTime: number): void;
-  public assignAnimatedValue(targetNode: Model, previousTimestampIndex: number | undefined, nextTimestampIndex: number | undefined, animationTime: number): void {
+  private tmp_assignAnimatedValue_vec2 = Vector2.zero();
+  private tmp_assignAnimatedValue_vec3 = Vector3.zero();
+  private tmp_assignAnimatedValue_quat = Quaternion.identity();
+  private assignAnimatedValue(target: Model, previousTimestampIndex: number, nextTimestampIndex: undefined, animationTime: number): void;
+  private assignAnimatedValue(targetNode: Model, previousTimestampIndex: undefined, nextTimestampIndex: number, animationTime: number): void;
+  private assignAnimatedValue(targetNode: Model, previousTimestampIndex: number, nextTimestampIndex: number, animationTime: number): void;
+  private assignAnimatedValue(targetNode: Model, previousTimestampIndex: number | undefined, nextTimestampIndex: number | undefined, animationTime: number): void {
     if (previousTimestampIndex === undefined) {
       // Peg to initial value
       this.setValue(targetNode, this.values.values[nextTimestampIndex!]);
@@ -73,7 +76,6 @@ export class AnimationChannel {
         /* Linear interpolation */
         const t = inverseLerp(this.timestamps[previousTimestampIndex], this.timestamps[nextTimestampIndex], animationTime);
 
-        // @TODO have some re-usable vectors, quats, laying around
         let value: AnimationTypeValue;
         switch (this.values.type) {
           case 'scalar': {
@@ -85,7 +87,7 @@ export class AnimationChannel {
           case 'vec2': {
             const a = this.values.values[previousTimestampIndex];
             const b = this.values.values[nextTimestampIndex];
-            value = new Vector2(
+            value = this.tmp_assignAnimatedValue_vec2.setValue(
               lerp(a.x, b.x, t),
               lerp(a.y, b.y, t),
             );
@@ -94,7 +96,7 @@ export class AnimationChannel {
           case 'vec3': {
             const a = this.values.values[previousTimestampIndex];
             const b = this.values.values[nextTimestampIndex];
-            value = new Vector3(
+            value = this.tmp_assignAnimatedValue_vec3.setValue(
               lerp(a.x, b.x, t),
               lerp(a.y, b.y, t),
               lerp(a.z, b.z, t),
@@ -104,7 +106,7 @@ export class AnimationChannel {
           case 'quat': {
             const a = this.values.values[previousTimestampIndex];
             const b = this.values.values[nextTimestampIndex];
-            value = a.slerp(b, t);
+            value = this.tmp_assignAnimatedValue_quat.setValue(a).slerpSelf(b, t);
             break;
           }
           default:
@@ -141,13 +143,13 @@ export class AnimationChannel {
 
     switch (this.targetNodeProperty) {
       case 'translation':
-        this.currentModelTarget.position = value as Vector3;
+        this.currentModelTarget.position.setValue(value as Vector3);
         break;
       case 'rotation':
         this.currentModelTarget.rotation.set(value as Quaternion);
         break;
       case 'scale':
-        this.currentModelTarget.scale = value as Vector3;
+        this.currentModelTarget.scale.setValue(value as Vector3);
         break;
       case 'weights':
         // @TODO

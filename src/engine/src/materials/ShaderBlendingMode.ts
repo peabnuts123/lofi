@@ -27,6 +27,14 @@ export type ShaderBlendingMode =
   AlphaClipBlendingMode;
 
 export type BlendingModeType = ShaderBlendingMode['type'];
+export const ShaderBlendingModeTypeEnumValue: Record<BlendingModeType, number> = {
+  'None': 0,
+  'Average': 1,
+  'Additive': 2,
+  'Subtractive': 3,
+  'AlphaBlend': 4,
+  'AlphaClip': 5,
+};
 
 // Hand-rolled artisanal enum
 export const ShaderBlendingMode = {

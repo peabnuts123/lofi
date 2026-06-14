@@ -3,8 +3,7 @@ import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { IdPool } from "@lofi/core/util/IdPool";
 import type { DrawTask, IEngine, OpaqueDrawTask, TransparentDrawTask } from "@lofi/engine/Engine";
 import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
-import type { AttributeDefinition } from "@lofi/engine/loaders/definitions";
-import type { MeshPrimitiveGeometry } from "./MeshPrimitiveCache";
+import type { MeshPrimitiveGeometry, VertexTextureCoordinateAttribute } from "./MeshPrimitiveCache";
 
 export interface MeshPrimitiveExtents {
   min: Vector3;
@@ -15,6 +14,7 @@ export interface MeshPrimitiveExtents {
 /**
  * A sub-piece of a mesh that is all drawn with one material.
  */
+// @TODO I think we need to use a finalizer to clean these up
 export class MeshPrimitive {
   private static readonly IdPool: IdPool = new IdPool();
 
@@ -123,59 +123,56 @@ export class MeshPrimitive {
         throw new Error(`Could not find vertex attribute 'vertexPosition' in shader. Cannot render mesh primitive with no vertex position data.`);
       }
       gl.enableVertexAttribArray(vertexPositionAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.positionGLBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.positionAttribute.glBuffer);
       gl.vertexAttribPointer(
         vertexPositionAttribute,
-        primitive.positionData.componentCount,
-        primitive.positionData.componentType,
-        primitive.positionData.normalized,
-        primitive.positionData.componentCount * primitive.positionData.componentSize,
+        primitive.positionAttribute.componentCount,
+        primitive.positionAttribute.componentType,
+        primitive.positionAttribute.normalized,
+        primitive.positionAttribute.componentCount * primitive.positionAttribute.componentSize,
         0,
       );
     }
 
     /* Vertex normals */
-    // @TODO generate normals somewhere
     const vertexNormalAttribute = shader.getAttribute('vertexNormal');
-    if (vertexNormalAttribute) {
-      if (primitive.normalData) {
+    if (vertexNormalAttribute !== undefined) {
+      if (primitive.normalAttribute) {
         gl.enableVertexAttribArray(vertexNormalAttribute);
-        gl.bindBuffer(gl.ARRAY_BUFFER, primitive.normalGLBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, primitive.normalAttribute.glBuffer);
         gl.vertexAttribPointer(
           vertexNormalAttribute,
-          primitive.normalData.componentCount,
-          primitive.normalData.componentType,
-          primitive.normalData.normalized,
-          primitive.normalData.componentCount * primitive.normalData.componentSize,
+          primitive.normalAttribute.componentCount,
+          primitive.normalAttribute.componentType,
+          primitive.normalAttribute.normalized,
+          primitive.normalAttribute.componentCount * primitive.normalAttribute.componentSize,
           0,
         );
-      } else {
-        throw new Error(`Missing normals - we must generate them`);
       }
     }
 
 
     /* Vertex colors */
     const vertexColorAttribute = shader.getAttribute('vertexColor');
-    if (vertexColorAttribute && primitive.color0Data) {
+    if (vertexColorAttribute !== undefined && primitive.color0Attribute) {
       gl.enableVertexAttribArray(vertexColorAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.color0GLBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.color0Attribute.glBuffer);
       gl.vertexAttribPointer(
         vertexColorAttribute,
-        primitive.color0Data.componentCount,
-        primitive.color0Data.componentType,
-        primitive.color0Data.normalized,
-        primitive.color0Data.componentCount * primitive.color0Data.componentSize,
+        primitive.color0Attribute.componentCount,
+        primitive.color0Attribute.componentType,
+        primitive.color0Attribute.normalized,
+        primitive.color0Attribute.componentCount * primitive.color0Attribute.componentSize,
         0,
       );
     }
-    const texCoordIndex = primitive.material?.diffuseTexture?.texCoord;
+    const texCoordIndex = primitive.defaultMaterialDefinition?.diffuseTexture?.texCoord;
     const textureCoordAttribute = shader.getAttribute('textureCoord');
-    if (textureCoordAttribute && texCoordIndex !== undefined) {
-      const textureCoordAttributeData = primitive[`texCoord${texCoordIndex}Data` as keyof MeshPrimitiveGeometry] as (AttributeDefinition | undefined);
+    if (textureCoordAttribute !== undefined && texCoordIndex !== undefined) {
+      const textureCoordAttributeData = primitive[`texCoord${texCoordIndex}Attribute` as keyof MeshPrimitiveGeometry] as (VertexTextureCoordinateAttribute | undefined);
       if (textureCoordAttributeData) {
         gl.enableVertexAttribArray(textureCoordAttribute);
-        gl.bindBuffer(gl.ARRAY_BUFFER, primitive[`texCoord${texCoordIndex}GLBuffer` as keyof MeshPrimitiveGeometry] as WebGLBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordAttributeData.glBuffer);
         gl.vertexAttribPointer(
           textureCoordAttribute,
           textureCoordAttributeData.componentCount,
@@ -189,29 +186,29 @@ export class MeshPrimitive {
 
     /* Joint indices */
     const vertexJointsAttribute = shader.getAttribute('vertexJoints');
-    if (vertexJointsAttribute && primitive.joints0Data) {
+    if (vertexJointsAttribute !== undefined && primitive.joints0Attribute) {
       gl.enableVertexAttribArray(vertexJointsAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.joints0GLBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.joints0Attribute.glBuffer);
       gl.vertexAttribPointer(
         vertexJointsAttribute,
-        primitive.joints0Data.componentCount,
-        primitive.joints0Data.componentType,
-        primitive.joints0Data.normalized,
-        primitive.joints0Data.componentCount * primitive.joints0Data.componentSize,
+        primitive.joints0Attribute.componentCount,
+        primitive.joints0Attribute.componentType,
+        primitive.joints0Attribute.normalized,
+        primitive.joints0Attribute.componentCount * primitive.joints0Attribute.componentSize,
         0,
       );
     }
     /* Joint weights */
     const vertexWeightsAttribute = shader.getAttribute('vertexWeights');
-    if (vertexWeightsAttribute && primitive.weights0Data) {
+    if (vertexWeightsAttribute !== undefined && primitive.weights0Attribute) {
       gl.enableVertexAttribArray(vertexWeightsAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.weights0GLBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.weights0Attribute.glBuffer);
       gl.vertexAttribPointer(
         vertexWeightsAttribute,
-        primitive.weights0Data.componentCount,
-        primitive.weights0Data.componentType,
-        primitive.weights0Data.normalized,
-        primitive.weights0Data.componentCount * primitive.weights0Data.componentSize,
+        primitive.weights0Attribute.componentCount,
+        primitive.weights0Attribute.componentType,
+        primitive.weights0Attribute.normalized,
+        primitive.weights0Attribute.componentCount * primitive.weights0Attribute.componentSize,
         0,
       );
     }
@@ -219,8 +216,8 @@ export class MeshPrimitive {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
     /* Indexed geometry */
-    if (primitive.indices) {
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, primitive.indicesGLBuffer);
+    if (primitive.indicesAttribute) {
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, primitive.indicesAttribute.glBuffer);
     }
 
     gl.bindVertexArray(null);
@@ -231,21 +228,14 @@ export class MeshPrimitive {
       center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
     };
 
-    let drawPrimitive: () => void;
-    if (primitive.indices) {
-      // Indexed geometry
-      const mode = primitive.glMode;
-      const elementCount = primitive.indices.buffer.length;
-      const elementType = primitive.indices.componentType;
-      drawPrimitive = () => {
-        gl.drawElements(mode, elementCount, elementType, 0);
-      };
-    } else {
-      const count = primitive.positionData.buffer.length / primitive.positionData.componentCount;
-      drawPrimitive = () => {
-        gl.drawArrays(primitive.glMode, 0, count);
-      };
-    }
+    // @NOTE Since `primitive.indicesAttribute` is not-nullable
+    // all geometry is indexed geometry.
+    const mode = primitive.glMode;
+    const elementCount = primitive.triangleIndices.length * 3;
+    const elementType = primitive.indicesAttribute.componentType;
+    const drawPrimitive = (): void => {
+      gl.drawElements(mode, elementCount, elementType, 0);
+    };
 
     return new MeshPrimitive(
       shader,

@@ -1,13 +1,13 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 import { ColliderNode, type CalculateIntersectionResult } from "./ColliderNode";
 
 export type SatProjection = [min: number, max: number]
 export abstract class SATColliderNode extends ColliderNode {
-  protected abstract getSATNormals(): Vector3[];
-  protected abstract getSATEdges(): Vector3[];
-  protected abstract getVerticesWorldSpace(offset?: Vector3): Vector3[];
+  protected abstract getSATNormals(): readonly IReadonlyVector3[];
+  protected abstract getSATEdges(): readonly IReadonlyVector3[];
+  protected abstract getVerticesWorldSpace(offset?: IReadonlyVector3): readonly IReadonlyVector3[];
 
   public intersects(other: ColliderNode): boolean {
     if (other instanceof SATColliderNode) {
@@ -23,7 +23,7 @@ export abstract class SATColliderNode extends ColliderNode {
     return this.tmp_getAABB.fromVerticesSelf(verticesWorldSpace);
   }
 
-  protected projectToAxis(axis: Vector3, offset?: Vector3): SatProjection {
+  protected projectToAxis(axis: IReadonlyVector3, offset?: IReadonlyVector3): SatProjection {
     const verticesWorldSpace = this.getVerticesWorldSpace(offset);
     let min: number = Infinity;
     let max: number = -Infinity;
@@ -140,14 +140,14 @@ export abstract class SATColliderNode extends ColliderNode {
 
   private tmp_getSATAxes_vector = Vector3.zero();
   private tmp_getSATAxes_addProjectionAxis_vector = Vector3.zero();
-  private getSATAxes(other: SATColliderNode): Vector3[] {
-    const projectionAxes: Vector3[] = [];
+  private getSATAxes(other: SATColliderNode): readonly IReadonlyVector3[] {
+    const projectionAxes: IReadonlyVector3[] = [];
 
     /**
      * Add a projection axis to the list of all projection axes,
      * ensuring the axis is unique
      */
-    const addProjectionAxis = (axis: Vector3): void => {
+    const addProjectionAxis = (axis: IReadonlyVector3): void => {
       // Ensure axis is not parallel / duplicate
       for (const existingProjectionAxis of projectionAxes) {
         const crossProduct = this.tmp_getSATAxes_addProjectionAxis_vector

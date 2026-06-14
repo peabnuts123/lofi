@@ -2,6 +2,10 @@ import { describe, test, expect } from 'vitest';
 import { Computed, Observable, WritableComputed } from './observable';
 import { forceGCAndWaitForCondition } from '@test/util/gc';
 
+/* @TODO Test backlog
+  - An observable value can be garbage collected even if something depends on it
+ */
+
 describe("Observable", () => {
   test("`onChange()` callbacks are fired when `notifyOnChange() is called", () => {
     // Setup

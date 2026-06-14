@@ -1,5 +1,6 @@
 import { Vector2, Vector3, Color3, Quaternion, DegreesToRadians, Matrix4, toFixed } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
+import { RateCounter } from '@lofi/core/util/RateCounter';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model, type Triangle } from '@lofi/engine/models';
 import { Engine, type DrawTask, type IEngine } from '@lofi/engine/Engine';
@@ -12,10 +13,9 @@ import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import type { ModelDefinition } from '@lofi/engine/loaders/definitions';
+import { DrawDebug } from '@lofi/engine/util/DrawDebug';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
-import { DrawDebug } from '@lofi/engine/util/DrawDebug';
-import { RateCounter } from '@lofi/engine/util/RateCounter';
 
 /*
 @TODO

@@ -1,6 +1,6 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import { SceneNode, type IScene } from "@lofi/engine/scene";
-import type { IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
+import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DrawDebug";
 import { SATColliderNode } from "./SatColliderNode";
 import type { CollisionGroup } from "./ColliderNode";
 
@@ -58,7 +58,7 @@ export class BoxColliderNode extends SATColliderNode implements IWireframeDrawab
     return this.getSATNormals();
   }
 
-  public getWireframeFaces(): Vector3[][] {
+  public getWireframeFaces(): WireframeFaces {
     const verticesWorldSpace = this.getVerticesWorldSpace();
     return [
       // Front face

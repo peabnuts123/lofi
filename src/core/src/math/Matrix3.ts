@@ -114,12 +114,16 @@ export class Matrix3 {
     return new Matrix3().normalSelf(matrix);
   }
 
-  public toArray(): Float32Array {
-    return new Float32Array([
-      this.m00, this.m10, this.m20,
-      this.m01, this.m11, this.m21,
-      this.m02, this.m12, this.m22,
-    ]);
+  public writeTo(target: Float32Array, offset: number = 0): void {
+    target[offset + 0] = this.m00;
+    target[offset + 1] = this.m10;
+    target[offset + 2] = this.m20;
+    target[offset + 3] = this.m01;
+    target[offset + 4] = this.m11;
+    target[offset + 5] = this.m21;
+    target[offset + 6] = this.m02;
+    target[offset + 7] = this.m12;
+    target[offset + 8] = this.m22;
   }
 
   public prettyPrint(dp: number = 2): void {

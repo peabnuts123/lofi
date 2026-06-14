@@ -1,14 +1,14 @@
 import { Vector3 } from "@lofi/core/math/vector";
-import type { Matrix4, Quaternion } from "@lofi/core/math";
+import type { IReadonlyVector3, Matrix4, Quaternion } from "@lofi/core/math";
 import { Computed } from "@lofi/core/util/observable";
-import { Optional } from "@lofi/core/util/types";
+import { Optional, type Mutable } from "@lofi/core/util/types";
 import { DrawableSceneNode, SceneNode, type IScene } from "@lofi/engine/scene";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
-import type { Edge, EdgeIndices, Model, Triangle, TriangleIndices } from "@lofi/engine/models";
-import { AxisAlignedBoundingBox } from "@lofi/engine/collision";
+import type { Edge, EdgeIndices, IReadonlyTriangleIndices, Model, Triangle } from "@lofi/engine/models";
+import { AxisAlignedBoundingBox, type IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
 import { Animation } from "@lofi/engine/animation";
 import type { Material } from "@lofi/engine/materials";
-import { type IWireframeDrawable } from "@lofi/engine/util/DrawDebug";
+import { type IWireframeDrawable, type WireframeFaces } from "@lofi/engine/util/DrawDebug";
 import { ModelMaterialOverrides, type MaterialOverrideType } from "@lofi/engine/models/ModelMaterialOverrides";
 
 export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
@@ -83,7 +83,7 @@ export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
     }
   }
 
-  public getWireframeFaces(): Vector3[][] {
+  public getWireframeFaces(): WireframeFaces {
     return this.geometry.allTriangles;
   }
 
@@ -114,33 +114,39 @@ interface ModelNodeGeometryArgs {
   absoluteRotationQuaternion: Quaternion;
 }
 export class ModelNodeGeometry {
-  private readonly _allVertexPositions: Computed<Vector3[]>;
+  private readonly _allVertexPositions: Computed<readonly IReadonlyVector3[]>;
   // private readonly _allVertexNormals: Computed<Vector3[]>;
-  private readonly _allTriangleIndices: Computed<TriangleIndices[]>;
-  private readonly _allTriangles: Computed<Triangle[]>;
-  private readonly _allTriangleNormals: Computed<Vector3[]>;
-  private readonly _allEdgeIndices: Computed<EdgeIndices[]>;
-  private readonly _allEdges: Computed<Edge[]>;
-  private readonly _aabb: Computed<Optional<AxisAlignedBoundingBox>>;
-  private readonly _approximateAabb: Computed<Optional<AxisAlignedBoundingBox>>;
+  private readonly _allTriangleIndices: Computed<readonly IReadonlyTriangleIndices[]>;
+  private readonly _allTriangles: Computed<readonly Triangle[]>;
+  private readonly _allTriangleNormals: Computed<readonly IReadonlyVector3[]>;
+  private readonly _allEdgeIndices: Computed<readonly EdgeIndices[]>;
+  private readonly _allEdges: Computed<readonly Edge[]>;
+  private readonly _aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
+  private readonly _approximateAabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
 
   public constructor({ model, worldMatrixComputed, absoluteRotationQuaternion }: ModelNodeGeometryArgs) {
     /* Vertices */
-    this._allVertexPositions = new Computed<Vector3[]>([], {
+    this._allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         worldMatrixComputed,
         model.geometry.allVertexPositions,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let vertexCount = 0;
         for (const vertexPosition of model.geometry.allVertexPositions.value) {
-          let current: Vector3 = self[vertexCount];
-          if (current === undefined) {
-            current = self[vertexCount] = Vector3.zero();
+          let current: Vector3;
+          if (self[vertexCount] !== undefined) {
+            // Re-use existing instances
+            current = (self[vertexCount] as Vector3).setValue(vertexPosition);
+          } else {
+            // Build up array for the first time
+            current = self[vertexCount] = vertexPosition.clone();
           }
 
           // Transform vertex by ModelNode's world matrix
-          current.setValue(vertexPosition).multiplySelf(worldMatrixComputed.value);
+          current.multiplySelf(worldMatrixComputed.value);
           vertexCount++;
         }
       },
@@ -149,38 +155,58 @@ export class ModelNodeGeometry {
     /* Triangles */
     // @NOTE Just an alias, since no further computation required
     this._allTriangleIndices = model.geometry.allTriangleIndices;
-    this._allTriangles = new Computed<Triangle[]>([], {
+    this._allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
         this._allVertexPositions,
         this._allTriangleIndices,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let triangleCount = 0;
         const allVertexPositions = this._allVertexPositions.value;
         for (const triangleIndices of this._allTriangleIndices.value) {
-          self[triangleCount++] = [
-            allVertexPositions[triangleIndices[0]],
-            allVertexPositions[triangleIndices[1]],
-            allVertexPositions[triangleIndices[2]],
-          ];
+          const aTriangle = allVertexPositions[triangleIndices["aIndex"]];
+          const bTriangle = allVertexPositions[triangleIndices["bIndex"]];
+          const cTriangle = allVertexPositions[triangleIndices["cIndex"]];
+          if (self[triangleCount] !== undefined) {
+            // Re-use existing instances
+            (self[triangleCount] as Mutable<Triangle>)[0] = aTriangle;
+            (self[triangleCount] as Mutable<Triangle>)[1] = bTriangle;
+            (self[triangleCount] as Mutable<Triangle>)[2] = cTriangle;
+          } else {
+            // Build up array for the first time
+            self[triangleCount] = [
+              aTriangle,
+              bTriangle,
+              cTriangle,
+            ];
+          }
+          triangleCount++;
         }
       },
     });
-    this._allTriangleNormals = new Computed<Vector3[]>([], {
+    this._allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         model.geometry.allTriangleNormals,
         absoluteRotationQuaternion,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let triangleCount = 0;
         for (const triangleNormal of model.geometry.allTriangleNormals.value) {
-          let current: Vector3 = self[triangleCount];
-          if (current === undefined) {
-            current = self[triangleCount] = Vector3.zero();
+          let current: Vector3;
+          if (self[triangleCount] !== undefined) {
+            // Re-use existing instances
+            current = (self[triangleCount] as Vector3).setValue(triangleNormal);
+          } else {
+            // Build up array for the first time
+            current = self[triangleCount] = triangleNormal.clone();
           }
 
           // Rotate normal by ModelNode's absolute rotation
-          current.setValue(triangleNormal).multiplySelf(absoluteRotationQuaternion);
+          current.multiplySelf(absoluteRotationQuaternion);
           triangleCount++;
         }
       },
@@ -189,25 +215,40 @@ export class ModelNodeGeometry {
     /* Edges */
     // @NOTE Just an alias, since no further computation required
     this._allEdgeIndices = model.geometry.allEdgeIndices;
-    this._allEdges = new Computed<Edge[]>([], {
+    this._allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
         this._allVertexPositions,
         this._allEdgeIndices,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
         let edgeCount = 0;
         const allVertexPositions = this._allVertexPositions.value;
         for (const edgeIndices of this._allEdgeIndices.value) {
-          self[edgeCount++] = [
-            allVertexPositions[edgeIndices[0]],
-            allVertexPositions[edgeIndices[1]],
-          ];
+          const aVertex = allVertexPositions[edgeIndices[0]];
+          const bVertex = allVertexPositions[edgeIndices[1]];
+          if (self[edgeCount] !== undefined) {
+            // Re-use existing instances
+            (self[edgeCount] as Mutable<Edge>)[0] = aVertex;
+            (self[edgeCount] as Mutable<Edge>)[1] = bVertex;
+          } else {
+            // Build up array for the first time
+            self[edgeCount] = [
+              aVertex,
+              bVertex,
+            ];
+          }
+          edgeCount++;
         }
+
+        // Number of unique edges can change, so ensure array is always correct size
+        self.length = edgeCount;
       },
     });
 
     /* AABB */
-    this._aabb = new Computed<Optional<AxisAlignedBoundingBox>>(Optional(), {
+    this._aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         worldMatrixComputed,
         model.geometry.aabb,
@@ -219,7 +260,7 @@ export class ModelNodeGeometry {
           self.value = undefined;
         } else {
           // Ensure value is initialised
-          const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
           aabb.setValue(modelAabb.value)
             // Recompute AABB in world space
@@ -227,7 +268,7 @@ export class ModelNodeGeometry {
         }
       },
     });
-    this._approximateAabb = new Computed<Optional<AxisAlignedBoundingBox>>(Optional(), {
+    this._approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         worldMatrixComputed,
         model.geometry.approximateAabb,
@@ -239,7 +280,7 @@ export class ModelNodeGeometry {
           self.value = undefined;
         } else {
           // Ensure value is initialised
-          const approximateAabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const approximateAabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
           approximateAabb.setValue(modelApproximateAabb.value)
             // Recompute approximate AABB in world space
@@ -249,13 +290,13 @@ export class ModelNodeGeometry {
     });
   }
 
-  public get allVertexPositions(): Vector3[] { return this._allVertexPositions.value; }
+  public get allVertexPositions(): readonly IReadonlyVector3[] { return this._allVertexPositions.value; }
   // public get allVertexNormals(): Vector3[] { return this._allVertexNormals.value; }
-  public get allTriangleIndices(): TriangleIndices[] { return this._allTriangleIndices.value; }
-  public get allTriangles(): Triangle[] { return this._allTriangles.value; }
-  public get allTriangleNormals(): Vector3[] { return this._allTriangleNormals.value; }
-  public get allEdgeIndices(): EdgeIndices[] { return this._allEdgeIndices.value; }
-  public get allEdges(): Edge[] { return this._allEdges.value; }
-  public get aabb(): AxisAlignedBoundingBox | undefined { return this._aabb.value.value; }
-  public get approximateAabb(): AxisAlignedBoundingBox | undefined { return this._approximateAabb.value.value; }
+  public get allTriangleIndices(): readonly IReadonlyTriangleIndices[] { return this._allTriangleIndices.value; }
+  public get allTriangles(): readonly Triangle[] { return this._allTriangles.value; }
+  public get allTriangleNormals(): readonly IReadonlyVector3[] { return this._allTriangleNormals.value; }
+  public get allEdgeIndices(): readonly EdgeIndices[] { return this._allEdgeIndices.value; }
+  public get allEdges(): readonly Edge[] { return this._allEdges.value; }
+  public get aabb(): IReadonlyAxisAlignedBoundingBox | undefined { return this._aabb.value.value; }
+  public get approximateAabb(): IReadonlyAxisAlignedBoundingBox | undefined { return this._approximateAabb.value.value; }
 }
