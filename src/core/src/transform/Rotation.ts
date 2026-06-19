@@ -1,12 +1,12 @@
 import { Computed, Observable, WritableComputed } from "@lofi/core/util/observable";
-import { Quaternion, ReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
+import { Quaternion, type IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
 import { EulerVector3, Vector3, type Vector3Definition } from "@lofi/core/math/vector";
 
 // I dub thee... "Eulernion"
 // @TODO put an interface around this for control over exposed types / params
 export class Rotation extends Observable {
   private readonly _q: Quaternion;
-  private readonly _qInverse: Computed<ReadOnlyQuaternion>;
+  private readonly _qInverse: Computed<IReadOnlyQuaternion>;
   private readonly _euler: WritableComputed<EulerVector3>;
 
   public constructor() {
@@ -15,13 +15,13 @@ export class Rotation extends Observable {
     this._q.onChange(() => this.notifyOnChange());
 
     /** Temp value used when recomputing qInverse. */
-    const qInverseTmp = Quaternion.identity();
-    this._qInverse = new Computed(new ReadOnlyQuaternion(0, 0, 0, 1), {
+    this._qInverse = new Computed<IReadOnlyQuaternion>(Quaternion.identity(), {
       dependencies: [this.q],
-      recompute: (value) => {
-        ReadOnlyQuaternion.replace(value,
-          qInverseTmp.setValue(this.q).invertSelf(),
-        );
+      recompute: (_self) => {
+        const self = _self as Quaternion;
+        self
+          .setValue(this.q)
+          .invertSelf();
       },
     });
 
@@ -96,5 +96,5 @@ export class Rotation extends Observable {
   /* Quaternion */
   public get q(): Quaternion { return this._q; }
   public set q(value: Quaternion) { this._q.setValue(value); }
-  public get qInverse(): Quaternion { return this._qInverse.value; }
+  public get qInverse(): IReadOnlyQuaternion { return this._qInverse.value; }
 }

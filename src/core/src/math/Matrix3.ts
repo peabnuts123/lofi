@@ -9,69 +9,64 @@ export type Matrix3InitialValues = [
   m02: number, m12: number, m22: number,
 ];
 
+class Matrix3InternalBuffer {
+  public static readonly BufferSize: number = 9;
+  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Matrix3InternalBuffer.BufferSize);
+  public get m00(): number { return this.buffer[0]; }
+  public set m00(value: number) { this.buffer[0] = value; }
+  public get m10(): number { return this.buffer[1]; }
+  public set m10(value: number) { this.buffer[1] = value; }
+  public get m20(): number { return this.buffer[2]; }
+  public set m20(value: number) { this.buffer[2] = value; }
+  public get m01(): number { return this.buffer[4]; }
+  public set m01(value: number) { this.buffer[4] = value; }
+  public get m11(): number { return this.buffer[5]; }
+  public set m11(value: number) { this.buffer[5] = value; }
+  public get m21(): number { return this.buffer[6]; }
+  public set m21(value: number) { this.buffer[6] = value; }
+  public get m02(): number { return this.buffer[8]; }
+  public set m02(value: number) { this.buffer[8] = value; }
+  public get m12(): number { return this.buffer[9]; }
+  public set m12(value: number) { this.buffer[9] = value; }
+  public get m22(): number { return this.buffer[10]; }
+  public set m22(value: number) { this.buffer[10] = value; }
+}
+
 /**
  * A 3x3 matrix. Values are stored in column-major order.
  */
 export class Matrix3 {
-  public m00: number;
-  public m10: number;
-  public m20: number;
-  public m01: number;
-  public m11: number;
-  public m21: number;
-  public m02: number;
-  public m12: number;
-  public m22: number;
+  private readonly internal: Matrix3InternalBuffer;
 
   public constructor(initialValues?: Matrix3InitialValues | TypedArray) {
+    this.internal = new Matrix3InternalBuffer();
     if (initialValues) {
-      this.m00 = initialValues[0];
-      this.m10 = initialValues[1];
-      this.m20 = initialValues[2];
-      this.m01 = initialValues[3];
-      this.m11 = initialValues[4];
-      this.m21 = initialValues[5];
-      this.m02 = initialValues[6];
-      this.m12 = initialValues[7];
-      this.m22 = initialValues[8];
+      for (let i = 0; i < Matrix3InternalBuffer.BufferSize; i++) {
+        this.internal.buffer[i] = initialValues[i];
+      }
     } else {
       // @NOTE Initialise to identity matrix
-      this.m00 = 1;
-      this.m10 = 0;
-      this.m20 = 0;
-      this.m01 = 0;
-      this.m11 = 1;
-      this.m21 = 0;
-      this.m02 = 0;
-      this.m12 = 0;
-      this.m22 = 1;
+      // @TODO deprecate in favour of static method
+      this.internal.m00 = 1;
+      this.internal.m10 = 0;
+      this.internal.m20 = 0;
+      this.internal.m01 = 0;
+      this.internal.m11 = 1;
+      this.internal.m21 = 0;
+      this.internal.m02 = 0;
+      this.internal.m12 = 0;
+      this.internal.m22 = 1;
     }
   }
 
   public clone(): Matrix3 {
-    const result = new Matrix3();
-    result.m00 = this.m00;
-    result.m10 = this.m10;
-    result.m20 = this.m20;
-    result.m01 = this.m01;
-    result.m11 = this.m11;
-    result.m21 = this.m21;
-    result.m02 = this.m02;
-    result.m12 = this.m12;
-    result.m22 = this.m22;
-    return result;
+    return new Matrix3(this.internal.buffer);
   }
 
   public setValue(value: Matrix3): this {
-    this.m00 = value.m00;
-    this.m10 = value.m10;
-    this.m20 = value.m20;
-    this.m01 = value.m01;
-    this.m11 = value.m11;
-    this.m21 = value.m21;
-    this.m02 = value.m02;
-    this.m12 = value.m12;
-    this.m22 = value.m22;
+    for (let i = 0; i < 9; i++) {
+      this.internal.buffer[i] = value.internal.buffer[i];
+    }
     return this;
   }
 
@@ -99,15 +94,15 @@ export class Matrix3 {
       throw new CannotInvertMatrixError("Matrix3: Can't invert matrix, determinant is 0");
     }
     det = 1.0 / det;
-    this.m00 = (a11 * b11 - a21 * b10 + a13 * b09) * det;
-    this.m10 = (a21 * b08 - a01 * b11 - a13 * b07) * det;
-    this.m20 = (a01 * b10 - a11 * b08 + a13 * b06) * det;
-    this.m01 = (a20 * b10 - a10 * b11 - a03 * b09) * det;
-    this.m11 = (a00 * b11 - a20 * b08 + a03 * b07) * det;
-    this.m21 = (a10 * b08 - a00 * b10 - a03 * b06) * det;
-    this.m02 = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-    this.m12 = (a32 * b02 - a30 * b05 - a33 * b01) * det;
-    this.m22 = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+    this.internal.m00 = (a11 * b11 - a21 * b10 + a13 * b09) * det;
+    this.internal.m10 = (a21 * b08 - a01 * b11 - a13 * b07) * det;
+    this.internal.m20 = (a01 * b10 - a11 * b08 + a13 * b06) * det;
+    this.internal.m01 = (a20 * b10 - a10 * b11 - a03 * b09) * det;
+    this.internal.m11 = (a00 * b11 - a20 * b08 + a03 * b07) * det;
+    this.internal.m21 = (a10 * b08 - a00 * b10 - a03 * b06) * det;
+    this.internal.m02 = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+    this.internal.m12 = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+    this.internal.m22 = (a30 * b04 - a31 * b02 + a33 * b00) * det;
     return this;
   }
   public static normal(matrix: Matrix4): Matrix3 {
@@ -115,15 +110,7 @@ export class Matrix3 {
   }
 
   public writeTo(target: Float32Array, offset: number = 0): void {
-    target[offset + 0] = this.m00;
-    target[offset + 1] = this.m10;
-    target[offset + 2] = this.m20;
-    target[offset + 3] = this.m01;
-    target[offset + 4] = this.m11;
-    target[offset + 5] = this.m21;
-    target[offset + 6] = this.m02;
-    target[offset + 7] = this.m12;
-    target[offset + 8] = this.m22;
+    target.set(this.internal.buffer, offset);
   }
 
   public prettyPrint(dp: number = 2): void {
@@ -132,6 +119,25 @@ export class Matrix3 {
     /**/ + `${this.m10.toFixed(dp)} ${this.m11.toFixed(dp)} ${this.m12.toFixed(dp)}\n`
     /**/ + `${this.m20.toFixed(dp)} ${this.m21.toFixed(dp)} ${this.m22.toFixed(dp)}\n`);
   }
+
+  public get m00(): number { return this.internal.m00; }
+  public set m00(value: number) { this.internal.m00 = value; }
+  public get m10(): number { return this.internal.m10; }
+  public set m10(value: number) { this.internal.m10 = value; }
+  public get m20(): number { return this.internal.m20; }
+  public set m20(value: number) { this.internal.m20 = value; }
+  public get m01(): number { return this.internal.m01; }
+  public set m01(value: number) { this.internal.m01 = value; }
+  public get m11(): number { return this.internal.m11; }
+  public set m11(value: number) { this.internal.m11 = value; }
+  public get m21(): number { return this.internal.m21; }
+  public set m21(value: number) { this.internal.m21 = value; }
+  public get m02(): number { return this.internal.m02; }
+  public set m02(value: number) { this.internal.m02 = value; }
+  public get m12(): number { return this.internal.m12; }
+  public set m12(value: number) { this.internal.m12 = value; }
+  public get m22(): number { return this.internal.m22; }
+  public set m22(value: number) { this.internal.m22 = value; }
 }
 
 export class CannotInvertMatrixError extends Error {

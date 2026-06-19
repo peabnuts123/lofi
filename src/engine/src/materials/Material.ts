@@ -94,38 +94,32 @@ export class Material extends Observable {
 
   public get diffuseColor(): Color4 | undefined | Unset { return this._diffuseColor; }
   public set diffuseColor(value: Color4 | undefined | Unset) {
-    this.mutate(() => {
-      this._diffuseColor = value;
-    });
+    this._diffuseColor = value;
+    this.notifyOnChange();
   }
   public get diffuseTexture(): Texture | undefined | Unset { return this._diffuseTexture; }
   public set diffuseTexture(value: Texture | undefined | Unset) {
-    this.mutate(() => {
-      this._diffuseTexture = value;
-    });
+    this._diffuseTexture = value;
+    this.notifyOnChange();
   }
   public get unlit(): boolean | undefined | Unset { return this._unlit; }
   public set unlit(value: boolean | undefined | Unset) {
-    this.mutate(() => {
-      this._unlit = value;
-    });
+    this._unlit = value;
+    this.notifyOnChange();
   }
   public get blendingMode(): ShaderBlendingMode | undefined | Unset { return this._blendingMode; }
   public set blendingMode(value: ShaderBlendingMode | undefined | Unset) {
-    this.mutate(() => {
-      this._blendingMode = value;
-    });
+    this._blendingMode = value;
+    this.notifyOnChange();
   }
   public get reflectionCubemap(): Cubemap | undefined | Unset { return this._reflectionCubemap; }
   public set reflectionCubemap(value: Cubemap | undefined | Unset) {
-    this.mutate(() => {
-      this._reflectionCubemap = value;
-    });
+    this._reflectionCubemap = value;
+    this.notifyOnChange();
   }
   public get reflectionIntensity(): number | undefined | Unset { return this._reflectionIntensity; }
   public set reflectionIntensity(value: number | undefined | Unset) {
-    this.mutate(() => {
-      this._reflectionIntensity = value;
-    });
+    this._reflectionIntensity = value;
+    this.notifyOnChange();
   }
 }

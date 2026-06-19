@@ -8,7 +8,6 @@ export type IObservable = {
 
 export abstract class Observable implements IObservable {
   private onChangeHooks: OnChangeCallback[] = [];
-  private isNotifyDisabled: boolean = false;
 
   public onChange(callback: OnChangeCallback): StopObservingFn {
     this.onChangeHooks.push(callback);
@@ -22,20 +21,7 @@ export abstract class Observable implements IObservable {
     };
   }
 
-  protected mutate(mutator: () => void): void {
-    this.isNotifyDisabled = true;
-    try {
-      mutator();
-      this.isNotifyDisabled = false;
-      this.notifyOnChange();
-    } finally {
-      this.isNotifyDisabled = false;
-    }
-  }
-
   protected notifyOnChange(): void {
-    if (this.isNotifyDisabled) return;
-
     for (const hook of this.onChangeHooks) {
       try {
         hook();

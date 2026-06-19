@@ -146,20 +146,6 @@ describe("Rotation", () => {
       expect(timesOnChangeCalledAfterY).toBe(2);
       expect(timesOnChangeCalledAfterZ).toBe(3);
     });
-    test("Mutating qInverse does not fire onChange()", () => {
-      // Setup
-      const rotation = new Rotation();
-      let timesOnChangeCalled = 0;
-      rotation.onChange(() => timesOnChangeCalled++);
-
-      // Test
-      rotation.qInverse.setValue(10, 20, 30, 40)
-        .invertSelf()
-        .normalizeSelf();
-
-      // Assert
-      expect(timesOnChangeCalled).toBe(0);
-    });
     test("Calling multiply() fires onChange() once", () => {
       // Setup
       const rotation = new Rotation();
@@ -416,24 +402,6 @@ describe("Rotation", () => {
 
     // Test
     rotation.q.setValue(expectedQuaternion);
-
-    // Assert
-    expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
-    expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
-    expectVectorsToBeEqual(rotation.euler, expectedEuler);
-  });
-  test("Mutating qInverse has no effect", () => {
-    // Setup
-    const rotation = new Rotation();
-    const expectedQuaternion = Quaternion.identity();
-    const expectedInverse = Quaternion.identity().invertSelf();
-    const expectedEuler = Vector3.zero();
-
-    // Test
-    rotation.qInverse
-      .slerpSelf(Quaternion.fromAxisAngle(Vector3.up(), 117), 0.5)
-      .invertSelf()
-      .multiplySelf(Quaternion.fromAxisAngle(Vector3.forward(), 67));
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);

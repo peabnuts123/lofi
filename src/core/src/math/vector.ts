@@ -1,7 +1,7 @@
 import { Observable } from "@lofi/core/util/observable";
 
 import { Matrix4 } from "./Matrix4";
-import { Quaternion } from "./Quaternion";
+import { type IReadOnlyQuaternion } from "./Quaternion";
 
 // @TODO Split into separate files Vector2, Vector3, etc.
 
@@ -40,42 +40,45 @@ export interface IReadonlyVector2 {
   get y(): number;
 }
 
+class Vector2InternalBuffer {
+  public static readonly BufferSize: number = 2;
+  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Vector2InternalBuffer.BufferSize);
+  public get x(): number { return this.buffer[0]; }
+  public set x(value: number) { this.buffer[0] = value; }
+  public get y(): number { return this.buffer[1]; }
+  public set y(value: number) { this.buffer[1] = value; }
+}
+
 export class Vector2 extends Observable implements IReadonlyVector2 {
-  // @NOTE Raw values encapsulated in annoying object type to prevent
-  // accidental direct access. Always use `this.{x,y}` getters/setters,
-  // so that possible subclasses etc. always pick up correct side effects.
-  private readonly internal: {
-    x: number;
-    y: number;
-  };
+  private readonly internal: Vector2InternalBuffer;
 
   public constructor(x: number, y: number) {
     super();
-    this.internal = { x, y };
+    this.internal = new Vector2InternalBuffer();
+    this.internal.x = x;
+    this.internal.y = y;
   }
 
   public setValue(x: number, y: number): this;
   public setValue(value: Vector2Like): this;
   public setValue(valueOrX: Vector2Like | number, maybeY: boolean | number = true): this {
-    this.mutate(() => {
-      if (typeof valueOrX === 'number' && typeof maybeY === 'number') {
-        this.x = valueOrX;
-        this.y = maybeY;
-      } else if (typeof valueOrX === 'object') {
-        this.x = valueOrX.x;
-        this.y = valueOrX.y;
-      } else {
-        throw new Error(`Unrecognised arguments to 'setValue()'`);
-      }
-    });
+    if (typeof valueOrX === 'number' && typeof maybeY === 'number') {
+      this.internal.x = valueOrX;
+      this.internal.y = maybeY;
+    } else if (typeof valueOrX === 'object') {
+      this.internal.x = valueOrX.x;
+      this.internal.y = valueOrX.y;
+    } else {
+      throw new Error(`Unrecognised arguments to 'setValue()'`);
+    }
+    this.notifyOnChange();
     return this;
   }
 
   public addSelf(value: IReadonlyVector2): this {
-    this.mutate(() => {
-      this.x += value.x;
-      this.y += value.y;
-    });
+    this.internal.x += value.x;
+    this.internal.y += value.y;
+    this.notifyOnChange();
     return this;
   }
   public add(value: IReadonlyVector2): Vector2 {
@@ -83,10 +86,9 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
   }
 
   public subtractSelf(value: IReadonlyVector2): this {
-    this.mutate(() => {
-      this.x -= value.x;
-      this.y -= value.y;
-    });
+    this.internal.x -= value.x;
+    this.internal.y -= value.y;
+    this.notifyOnChange();
     return this;
   }
   public subtract(value: IReadonlyVector2): Vector2 {
@@ -103,17 +105,15 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
     }
   }
   private multiplyVector2Self(other: IReadonlyVector2): this {
-    this.mutate(() => {
-      this.x *= other.x;
-      this.y *= other.y;
-    });
+    this.internal.x *= other.x;
+    this.internal.y *= other.y;
+    this.notifyOnChange();
     return this;
   }
   private multiplyNumberSelf(factor: number): this {
-    this.mutate(() => {
-      this.x *= factor;
-      this.y *= factor;
-    });
+    this.internal.x *= factor;
+    this.internal.y *= factor;
+    this.notifyOnChange();
     return this;
   }
 
@@ -135,19 +135,16 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
       if (operand === 0) {
         throw new Error(`Cannot divide Vector2 by 0`);
       }
-      this.mutate(() => {
-        this.x /= operand;
-        this.y /= operand;
-      });
+      this.internal.x /= operand;
+      this.internal.y /= operand;
     } else {
       if (operand.x === 0 || operand.y === 0) {
         throw new Error(`Cannot divide Vector2 by 0: ${operand}`);
       }
-      this.mutate(() => {
-        this.x /= operand.x;
-        this.y /= operand.y;
-      });
+      this.internal.x /= operand.x;
+      this.internal.y /= operand.y;
     }
+    this.notifyOnChange();
     return this;
   }
   public divide(factor: number): Vector2;
@@ -168,18 +165,27 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
     return this.x * this.x + this.y * this.y;
   }
 
+  /**
+   * Scale this vector such that it has length 1.
+   * It's efficient to call this if you aren't sure whether
+   * a vector is normalized i.e. there is no performance benefit
+   * to checking first:
+   * ```
+   * // Unnecessary, `normalizeSelf()` already checks this
+   * if (vector.isNormalized()) {
+   *   vector.normalizeSelf();
+   * }
+   * ```
+   */
   public normalizeSelf(): this {
-    const length = this.length();
-    if (length === 0) {
-      this.mutate(() => {
-        this.x = this.y = 0;
-      });
-    } else {
-      this.mutate(() => {
-        this.x /= length;
-        this.y /= length;
-      });
+    const lengthSqr = this.lengthSquared();
+    if (lengthSqr === 1 || lengthSqr === 0) {
+      return this;
     }
+    const length = Math.sqrt(lengthSqr);
+    this.internal.x /= length;
+    this.internal.y /= length;
+    this.notifyOnChange();
     return this;
   }
   public normalize(): Vector2 {
@@ -191,12 +197,11 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
   }
 
   public perpendicularSelf(): this {
-    this.mutate(() => {
-      const x = this.y;
-      const y = -this.x;
-      this.x = x;
-      this.y = y;
-    });
+    const x = this.y;
+    const y = -this.x;
+    this.internal.x = x;
+    this.internal.y = y;
+    this.notifyOnChange();
     return this;
   }
   public perpendicular(): Vector2 {
@@ -240,7 +245,6 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
     this.internal.x = value;
     this.notifyOnChange();
   }
-
   public get y(): number { return this.internal.y; }
   public set y(value: number) {
     this.internal.y = value;
@@ -261,7 +265,7 @@ export interface IReadonlyVector3 {
   subtract(value: AnyReadonlyVector): Vector3;
   multiply(factor: number): Vector3;
   multiply(other: IReadonlyVector3): Vector3;
-  multiply(quaternion: Quaternion): Vector3;
+  multiply(quaternion: IReadOnlyQuaternion): Vector3;
   multiply(matrix: Matrix4): Vector3;
   divide(factor: number): Vector3;
   divide(other: IReadonlyVector3): Vector3;
@@ -281,19 +285,25 @@ export interface IReadonlyVector3 {
   get z(): number;
 }
 
+class Vector3InternalBuffer {
+  public static readonly BufferSize: number = 3;
+  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Vector3InternalBuffer.BufferSize);
+  public get x(): number { return this.buffer[0]; }
+  public set x(value: number) { this.buffer[0] = value; }
+  public get y(): number { return this.buffer[1]; }
+  public set y(value: number) { this.buffer[1] = value; }
+  public get z(): number { return this.buffer[2]; }
+  public set z(value: number) { this.buffer[2] = value; }
+}
 export class Vector3 extends Observable implements IReadonlyVector3 {
-  // @NOTE Raw values encapsulated in annoying object type to prevent
-  // accidental direct access. Always use `this.{x,y,z}` getters/setters,
-  // so that possible subclasses etc. always pick up correct side effects.
-  private readonly internal: {
-    x: number;
-    y: number;
-    z: number;
-  };
+  private readonly internal: Vector3InternalBuffer;
 
   public constructor(x: number, y: number, z: number) {
     super();
-    this.internal = { x, y, z };
+    this.internal = new Vector3InternalBuffer();
+    this.internal.x = x;
+    this.internal.y = y;
+    this.internal.z = z;
   }
 
   public setValue(x: number, y: number, z: number): this;
@@ -301,32 +311,28 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   public setValue(valueOrX: Vector3Definition | number, maybeY: boolean | number = true, maybeZ?: number): this {
     /* Wow sorry for this completely cursed method signature */
     if (typeof valueOrX === 'number' && typeof maybeY === 'number' && typeof maybeZ === 'number') {
-      this.mutate(() => {
-        this.x = valueOrX;
-        this.y = maybeY;
-        this.z = maybeZ;
-      });
+      this.internal.x = valueOrX;
+      this.internal.y = maybeY;
+      this.internal.z = maybeZ;
     } else if (typeof valueOrX === 'object') {
-      this.mutate(() => {
-        this.x = valueOrX.x;
-        this.y = valueOrX.y;
-        this.z = valueOrX.z;
-      });
+      this.internal.x = valueOrX.x;
+      this.internal.y = valueOrX.y;
+      this.internal.z = valueOrX.z;
     } else {
       throw new Error(`Unrecognised arguments to 'setValue()'`);
     }
+    this.notifyOnChange();
 
     return this;
   }
 
   public addSelf(value: AnyReadonlyVector): this {
-    this.mutate(() => {
-      this.x += value.x;
-      this.y += value.y;
-      if ('z' in value) {
-        this.z += value.z;
-      }
-    });
+    this.internal.x += value.x;
+    this.internal.y += value.y;
+    if ('z' in value) {
+      this.internal.z += value.z;
+    }
+    this.notifyOnChange();
     return this;
   }
   public add(value: AnyReadonlyVector): Vector3 {
@@ -334,13 +340,12 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   }
 
   public subtractSelf(value: AnyReadonlyVector): this {
-    this.mutate(() => {
-      this.x -= value.x;
-      this.y -= value.y;
-      if ('z' in value) {
-        this.z -= value.z;
-      }
-    });
+    this.internal.x -= value.x;
+    this.internal.y -= value.y;
+    if ('z' in value) {
+      this.internal.z -= value.z;
+    }
+    this.notifyOnChange();
     return this;
   }
   public subtract(value: AnyReadonlyVector): Vector3 {
@@ -349,28 +354,27 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
 
   public multiplySelf(factor: number): this;
   public multiplySelf(other: IReadonlyVector3): this;
-  public multiplySelf(quaternion: Quaternion): this;
+  public multiplySelf(quaternion: IReadOnlyQuaternion): this;
   public multiplySelf(matrix: Matrix4): this;
-  public multiplySelf(operand: number | IReadonlyVector3 | Quaternion | Matrix4): this {
+  public multiplySelf(operand: number | IReadonlyVector3 | IReadOnlyQuaternion | Matrix4): this {
     if (typeof operand === 'number') {
       return this.multiplyNumberSelf(operand);
-    } else if (operand instanceof Quaternion) {
-      return this.multiplyQuaternionSelf(operand);
     } else if (operand instanceof Matrix4) {
       return this.multiplyMatrix4Self(operand);
+    } else if ('w' in operand) {
+      return this.multiplyQuaternionSelf(operand);
     } else {
       return this.multiplyVector3Self(operand);
     }
   }
-  private multiplyVector3Self(other: IReadonlyVector3): this {
-    this.mutate(() => {
-      this.x *= other.x;
-      this.y *= other.y;
-      this.z *= other.z;
-    });
+  private multiplyNumberSelf(factor: number): this {
+    this.internal.x *= factor;
+    this.internal.y *= factor;
+    this.internal.z *= factor;
+    this.notifyOnChange();
     return this;
   }
-  private multiplyQuaternionSelf(quat: Quaternion): this {
+  private multiplyQuaternionSelf(quat: IReadOnlyQuaternion): this {
     // Fast Vector Rotation using Quaternions by Robert Eisele
     // https://raw.org/proof/vector-rotation-using-quaternions/
     const { x, y, z } = this;
@@ -384,43 +388,41 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
     const tz = 2 * (quat.x * y - quat.y * x);
 
     // u + w t + v x t
-    this.mutate(() => {
-      this.x = x + quat.w * tx + quat.y * tz - quat.z * ty;
-      this.y = y + quat.w * ty + quat.z * tx - quat.x * tz;
-      this.z = z + quat.w * tz + quat.x * ty - quat.y * tx;
-    });
+    this.internal.x = x + quat.w * tx + quat.y * tz - quat.z * ty;
+    this.internal.y = y + quat.w * ty + quat.z * tx - quat.x * tz;
+    this.internal.z = z + quat.w * tz + quat.x * ty - quat.y * tx;
+
+    this.notifyOnChange();
 
     return this;
   }
   private multiplyMatrix4Self(matrix: Matrix4): this {
     const { x, y, z } = this;
-    const w = matrix["m30"] * this.x + matrix["m31"] * this.y + matrix["m32"] * this.z + matrix["m33"] || 1.0;
-    this.mutate(() => {
-      this.x = (matrix["m00"] * x + matrix["m01"] * y + matrix["m02"] * z + matrix["m03"]) / w;
-      this.y = (matrix["m10"] * x + matrix["m11"] * y + matrix["m12"] * z + matrix["m13"]) / w;
-      this.z = (matrix["m20"] * x + matrix["m21"] * y + matrix["m22"] * z + matrix["m23"]) / w;
-    });
+    const w = matrix.m30 * this.x + matrix.m31 * this.y + matrix.m32 * this.z + matrix.m33 || 1.0;
+    this.internal.x = (matrix.m00 * x + matrix.m01 * y + matrix.m02 * z + matrix.m03) / w;
+    this.internal.y = (matrix.m10 * x + matrix.m11 * y + matrix.m12 * z + matrix.m13) / w;
+    this.internal.z = (matrix.m20 * x + matrix.m21 * y + matrix.m22 * z + matrix.m23) / w;
+    this.notifyOnChange();
     return this;
   }
-  private multiplyNumberSelf(factor: number): this {
-    this.mutate(() => {
-      this.x *= factor;
-      this.y *= factor;
-      this.z *= factor;
-    });
+  private multiplyVector3Self(other: IReadonlyVector3): this {
+    this.internal.x *= other.x;
+    this.internal.y *= other.y;
+    this.internal.z *= other.z;
+    this.notifyOnChange();
     return this;
   }
 
   public multiply(factor: number): Vector3;
   public multiply(other: IReadonlyVector3): Vector3;
-  public multiply(quaternion: Quaternion): Vector3;
+  public multiply(quaternion: IReadOnlyQuaternion): Vector3;
   public multiply(matrix: Matrix4): Vector3;
-  public multiply(operand: number | IReadonlyVector3 | Quaternion | Matrix4): Vector3 {
+  public multiply(operand: number | IReadonlyVector3 | IReadOnlyQuaternion | Matrix4): Vector3 {
     if (typeof operand === 'number') {
       return this.clone().multiplySelf(operand);
-    } else if (operand instanceof Quaternion) {
-      return this.clone().multiplySelf(operand);
     } else if (operand instanceof Matrix4) {
+      return this.clone().multiplySelf(operand);
+    } else if ('w' in operand) {
       return this.clone().multiplySelf(operand);
     } else {
       return this.clone().multiplySelf(operand);
@@ -434,21 +436,18 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
       if (operand === 0) {
         throw new Error(`Cannot divide Vector3 by 0`);
       }
-      this.mutate(() => {
-        this.x /= operand;
-        this.y /= operand;
-        this.z /= operand;
-      });
+      this.internal.x /= operand;
+      this.internal.y /= operand;
+      this.internal.z /= operand;
     } else {
       if (operand.x === 0 || operand.y === 0 || operand.z === 0) {
         throw new Error(`Cannot divide Vector3 by 0: ${operand}`);
       }
-      this.mutate(() => {
-        this.x /= operand.x;
-        this.y /= operand.y;
-        this.z /= operand.z;
-      });
+      this.internal.x /= operand.x;
+      this.internal.y /= operand.y;
+      this.internal.z /= operand.z;
     }
+    this.notifyOnChange();
     return this;
   }
   public divide(factor: number): Vector3;
@@ -487,11 +486,10 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
       return this;
     }
     const length = Math.sqrt(lengthSqr);
-    this.mutate(() => {
-      this.x /= length;
-      this.y /= length;
-      this.z /= length;
-    });
+    this.internal.x /= length;
+    this.internal.y /= length;
+    this.internal.z /= length;
+    this.notifyOnChange();
     return this;
   }
   public normalize(): Vector3 {
@@ -499,15 +497,16 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   }
 
   public crossSelf(other: IReadonlyVector3): this {
-    this.mutate(() => {
-      // @NOTE Intermediate values used
-      const x = this.y * other.z - this.z * other.y;
-      const y = this.z * other.x - this.x * other.z;
-      const z = this.x * other.y - this.y * other.x;
-      this.x = x;
-      this.y = y;
-      this.z = z;
-    });
+    // @NOTE Compute all three values first. We need all
+    // components x/y/z in each calculation so modification
+    // would produce the wrong result.
+    const x = this.y * other.z - this.z * other.y;
+    const y = this.z * other.x - this.x * other.z;
+    const z = this.x * other.y - this.y * other.x;
+    this.internal.x = x;
+    this.internal.y = y;
+    this.internal.z = z;
+    this.notifyOnChange();
     return this;
   }
   public cross(other: IReadonlyVector3): Vector3 {
@@ -588,6 +587,15 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   public static back(): Vector3 { return new Vector3(0, -1, 0); }
 }
 
+class EulerVector3InternalBuffer extends Vector3InternalBuffer {
+  public get x(): number { return this.buffer[0]; }
+  public set x(value: number) { this.buffer[0] = value % 360; }
+  public get y(): number { return this.buffer[1]; }
+  public set y(value: number) { this.buffer[1] = value % 360; }
+  public get z(): number { return this.buffer[2]; }
+  public set z(value: number) { this.buffer[2] = value % 360; }
+}
+
 /**
  * A Vector3 specifically for expressing Euler rotation angles,
  * where all xyz components are always wrapped between -360 and 360.
@@ -603,6 +611,11 @@ export class EulerVector3 extends Vector3 {
       y % 360,
       z % 360,
     );
+    // @NOTE Override internal buffer with euler-based implementation
+    Object.assign(this, { internal: new EulerVector3InternalBuffer() });
+    this['internal'].x = x;
+    this['internal'].y = y;
+    this['internal'].z = z;
   }
 
   public override get x(): number { return super.x; }

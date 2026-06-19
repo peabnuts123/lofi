@@ -3,20 +3,46 @@ import { Observable } from "@lofi/core/util/observable";
 import { DegreesToRadians, RadiansToDegrees } from "./util";
 import { EulerVector3, Vector3 } from "./vector";
 
-export class Quaternion extends Observable {
+export interface IReadOnlyQuaternion {
+  toEuler(): EulerVector3;
+  multiply(q: IReadOnlyQuaternion): IReadOnlyQuaternion;
+  slerp(right: IReadOnlyQuaternion, t: number): IReadOnlyQuaternion;
+  invert(): IReadOnlyQuaternion;
+  normalize(): IReadOnlyQuaternion;
+  clone(): IReadOnlyQuaternion;
+  toString(): string;
+  get x(): number;
+  get y(): number;
+  get z(): number;
+  get w(): number;
+}
+
+class QuaternionInternalBuffer {
+  public static readonly BufferSize: number = 4;
+  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(QuaternionInternalBuffer.BufferSize);
+  public get x(): number { return this.buffer[0]; }
+  public set x(value: number) { this.buffer[0] = value; }
+  public get y(): number { return this.buffer[1]; }
+  public set y(value: number) { this.buffer[1] = value; }
+  public get z(): number { return this.buffer[2]; }
+  public set z(value: number) { this.buffer[2] = value; }
+  public get w(): number { return this.buffer[3]; }
+  public set w(value: number) { this.buffer[3] = value; }
+}
+
+export class Quaternion extends Observable implements IReadOnlyQuaternion {
   // @NOTE Raw values encapsulated in annoying object type to prevent
   // accidental direct access. Always use `this.{x,y,z,w}` getters/setters,
   // so that possible subclasses etc. always pick up correct side effects.
-  private readonly internal: {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-  };
+  private readonly internal: QuaternionInternalBuffer;
 
   public constructor(x: number, y: number, z: number, w: number) {
     super();
-    this.internal = { x, y, z, w };
+    this.internal = new QuaternionInternalBuffer();
+    this.internal.x = x;
+    this.internal.y = y;
+    this.internal.z = z;
+    this.internal.w = w;
   }
 
   /**
@@ -76,21 +102,20 @@ export class Quaternion extends Observable {
     );
   }
 
-  public multiplySelf(q: Quaternion): this {
-    this.mutate(() => {
-      const { x, y, z, w } = this;
-      this.x = w * q.x + x * q.w + y * q.z - z * q.y;
-      this.y = w * q.y - x * q.z + y * q.w + z * q.x;
-      this.z = w * q.z + x * q.y - y * q.x + z * q.w;
-      this.w = w * q.w - x * q.x - y * q.y - z * q.z;
-    });
+  public multiplySelf(q: IReadOnlyQuaternion): this {
+    const { x, y, z, w } = this;
+    this.internal.x = w * q.x + x * q.w + y * q.z - z * q.y;
+    this.internal.y = w * q.y - x * q.z + y * q.w + z * q.x;
+    this.internal.z = w * q.z + x * q.y - y * q.x + z * q.w;
+    this.internal.w = w * q.w - x * q.x - y * q.y - z * q.z;
+    this.notifyOnChange();
     return this;
   }
-  public multiply(q: Quaternion): Quaternion {
+  public multiply(q: IReadOnlyQuaternion): Quaternion {
     return this.clone().multiplySelf(q);
   }
 
-  public slerpSelf(right: Quaternion, t: number): this {
+  public slerpSelf(right: IReadOnlyQuaternion, t: number): this {
     // Sanitise
     t = Math.min(1, Math.max(t, 0));
 
@@ -115,26 +140,25 @@ export class Quaternion extends Observable {
       num2 = flag ? -Math.sin(t * num5) * num6 : Math.sin(t * num5) * num6;
     }
 
-    this.mutate(() => {
-      this.x = num3 * this.x + num2 * right.x;
-      this.y = num3 * this.y + num2 * right.y;
-      this.z = num3 * this.z + num2 * right.z;
-      this.w = num3 * this.w + num2 * right.w;
-    });
+    this.internal.x = num3 * this.x + num2 * right.x;
+    this.internal.y = num3 * this.y + num2 * right.y;
+    this.internal.z = num3 * this.z + num2 * right.z;
+    this.internal.w = num3 * this.w + num2 * right.w;
+    this.notifyOnChange();
+
     return this;
   }
 
-  public slerp(right: Quaternion, t: number): Quaternion {
+  public slerp(right: IReadOnlyQuaternion, t: number): Quaternion {
     return this.clone().slerpSelf(right, t);
   }
 
   public invertSelf(): this {
-    this.mutate(() => {
-      this.x = -this.x;
-      this.y = -this.y;
-      this.z = -this.z;
-      // @NOTE w remains unchanged.
-    });
+    this.internal.x = -this.x;
+    this.internal.y = -this.y;
+    this.internal.z = -this.z;
+    // @NOTE w remains unchanged.
+    this.notifyOnChange();
     return this;
   }
   public invert(): Quaternion {
@@ -144,18 +168,16 @@ export class Quaternion extends Observable {
   public normalizeSelf(): this {
     const n = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
     if (n === 0) {
-      this.mutate(() => {
-        this.x = this.y = this.z = 0;
-        this.w = 1;
-      });
+      this.internal.x = this.internal.y = this.internal.z = 0;
+      this.internal.w = 1;
     } else {
-      this.mutate(() => {
-        this.x /= n;
-        this.y /= n;
-        this.z /= n;
-        this.w /= n;
-      });
+      this.internal.x /= n;
+      this.internal.y /= n;
+      this.internal.z /= n;
+      this.internal.w /= n;
     }
+    this.notifyOnChange();
+
     return this;
   }
   public normalize(): Quaternion {
@@ -163,26 +185,25 @@ export class Quaternion extends Observable {
   }
 
   public setValue(x: number, y: number, z: number, w: number): this;
-  public setValue(value: Quaternion): this;
-  public setValue(xOrValue: number | Quaternion, maybeY?: number, maybeZ?: number, maybeW?: number): this {
+  public setValue(value: IReadOnlyQuaternion): this;
+  public setValue(xOrValue: number | IReadOnlyQuaternion, maybeY?: number, maybeZ?: number, maybeW?: number): this {
     /* Wow sorry for this completely cursed method signature */
-    if (typeof xOrValue === 'number' && typeof maybeY === 'number' && typeof maybeZ === 'number' && typeof maybeW === 'number') {
-      this.mutate(() => {
-        this.x = xOrValue;
-        this.y = maybeY;
-        this.z = maybeZ;
-        this.w = maybeW;
-      });
-    } else if (typeof xOrValue === 'object') {
-      this.mutate(() => {
-        this.x = xOrValue.x;
-        this.y = xOrValue.y;
-        this.z = xOrValue.z;
-        this.w = xOrValue.w;
-      });
+    if (typeof xOrValue === 'number') {
+      if (typeof maybeY === 'number' && typeof maybeZ === 'number' && typeof maybeW === 'number') {
+        this.internal.x = xOrValue;
+        this.internal.y = maybeY;
+        this.internal.z = maybeZ;
+        this.internal.w = maybeW;
+      } else {
+        throw new Error(`Unrecognised arguments to 'setValue()': (${xOrValue}, ${maybeY}, ${maybeZ}, ${maybeW})`);
+      }
     } else {
-      throw new Error(`Unrecognised arguments to 'setValue()'`);
+      this.internal.x = xOrValue.x;
+      this.internal.y = xOrValue.y;
+      this.internal.z = xOrValue.z;
+      this.internal.w = xOrValue.w;
     }
+    this.notifyOnChange();
     return this;
   }
 
@@ -381,46 +402,5 @@ export class Quaternion extends Observable {
   public set w(value: number) {
     this.internal.w = value;
     this.notifyOnChange();
-  }
-}
-
-
-// @TODO throw errors instead of logging warnings?
-export class ReadOnlyQuaternion extends Quaternion {
-  /**
-   * Escape hatch to replace the value in a read-only quaternion, if you
-   * really need to.
-   * @param self ReadOnlyQuaternion to replace.
-   * @param value The value to place into the ReadOnlyQuaternion instance.
-   */
-  public static replace(self: ReadOnlyQuaternion, value: Quaternion): void {
-    // @NOTE Call mutable Quaternion definition to allow modification
-    Quaternion.prototype['mutate'].call(self, () => {
-      self['internal'].x = value.x;
-      self['internal'].y = value.y;
-      self['internal'].z = value.z;
-      self['internal'].w = value.w;
-    });
-  }
-
-  protected override mutate(_mutator: () => void): void {
-    console.warn(`(mutate) Cannot modify read-only Quaternion`);
-  }
-
-  public override get x(): number { return super.x; }
-  public override set x(_: number) {
-    console.warn(`(set x) Cannot modify read-only Quaternion`);
-  }
-  public override get y(): number { return super.y; }
-  public override set y(_: number) {
-    console.warn(`(set y) Cannot modify read-only Quaternion`);
-  }
-  public override get z(): number { return super.z; }
-  public override set z(_: number) {
-    console.warn(`(set z) Cannot modify read-only Quaternion`);
-  }
-  public override get w(): number { return super.w; }
-  public override set w(_: number) {
-    console.warn(`(set w) Cannot modify read-only Quaternion`);
   }
 }

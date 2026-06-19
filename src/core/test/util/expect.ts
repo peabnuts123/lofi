@@ -1,17 +1,17 @@
 import { expect } from "vitest";
 
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
-import type { Quaternion } from "@lofi/core/math/Quaternion";
-import type { Vector3 } from "@lofi/core/math/vector";
+import type { IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
+import type { IReadonlyVector3 } from "@lofi/core/math/vector";
 
-export function expectQuaternionsToBeEqual(actual: Quaternion, expected: Quaternion): void {
+export function expectQuaternionsToBeEqual(actual: IReadOnlyQuaternion, expected: IReadOnlyQuaternion): void {
   expect(actual.x, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.x, 8);
   expect(actual.y, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.y, 8);
   expect(actual.z, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.z, 8);
   expect(actual.w, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.w, 8);
 }
 
-export function expectVectorsToBeEqual(actual: Vector3, expected: Vector3): void {
+export function expectVectorsToBeEqual(actual: IReadonlyVector3, expected: IReadonlyVector3): void {
   expect(actual.x, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.x, 8);
   expect(actual.y, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.y, 8);
   expect(actual.z, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.z, 8);

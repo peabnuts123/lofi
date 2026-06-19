@@ -547,8 +547,7 @@ export class ModelConfig extends Observable {
       }
     }
 
-    this.mutate(() => {
-      this._aabbApproximationPolicy = value;
-    });
+    this._aabbApproximationPolicy = value;
+    this.notifyOnChange();
   }
 }

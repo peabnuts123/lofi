@@ -86,52 +86,6 @@ describe("Observable", () => {
     expect(timesOnChangeCalledBAfterSecondCall).toBe(1);
     expect(timesOnChangeCalledCAfterSecondCall).toBe(1);
   });
-  test("`notifyOnChange()` is only called once when calling `mutate()`", () => {
-    // Setup
-    const observable = new Widget(1, 2);
-
-    let timesOnChangeCalled = 0;
-    observable.onChange(() => {
-      timesOnChangeCalled++;
-    });
-
-    // Test
-    observable['mutate'](() => {
-      // @NOTE Modifying either `a` or `b` should fire `onChange()`
-      observable.a = 2;
-      observable.b = 4;
-    });
-
-    // Assert
-    expect(timesOnChangeCalled).toBe(1);
-  });
-  test("`notifyOnChange()` is not broken after an error is thrown while calling `mutate()`", () => {
-    // Setup
-    const observable = new Widget(1, 2);
-
-    let timesOnChangeCalled = 0;
-    observable.onChange(() => {
-      timesOnChangeCalled++;
-    });
-
-    // Test
-    /* Throw an error while mutating */
-    try {
-      observable['mutate'](() => {
-        throw new Error(`Mock error`);
-      });
-    } catch {
-      /* @NOTE swallow error */
-    }
-    const timesOnChangeCalledAfterError = timesOnChangeCalled;
-    /* Modify */
-    observable.setValue(2, 4);
-    const timesOnChangeCalledAfterModify = timesOnChangeCalled;
-
-    // Assert
-    expect(timesOnChangeCalledAfterError).toBe(0);
-    expect(timesOnChangeCalledAfterModify).toBe(1);
-  });
 });
 
 describe("Computed", () => {
@@ -1124,10 +1078,9 @@ class Widget extends Observable {
   }
 
   public setValue(a: number, b: number): this {
-    this.mutate(() => {
-      this.a = a;
-      this.b = b;
-    });
+    this._a = a;
+    this._b = b;
+    this.notifyOnChange();
     return this;
   }
 

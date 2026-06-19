@@ -57,10 +57,9 @@ export class ModelMaterialOverrides extends Observable {
    * @param type Whether to replace or override material properties.
    */
   public setOverride(materialName: string, material: Material, type: MaterialOverrideType): void {
-    this.mutate(() => {
-      this.overrides.set(materialName, { material, type });
-      this.reconcileComputedMaterialInstanceDependencies(materialName);
-    });
+    this.overrides.set(materialName, { material, type });
+    this.reconcileComputedMaterialInstanceDependencies(materialName);
+    this.notifyOnChange();
   }
 
   /**
@@ -68,10 +67,9 @@ export class ModelMaterialOverrides extends Observable {
    * @param materialName Name of the material to remove the override from.
    */
   public removeOverride(materialName: string): void {
-    this.mutate(() => {
-      this.overrides.delete(materialName);
-      this.reconcileComputedMaterialInstanceDependencies(materialName);
-    });
+    this.overrides.delete(materialName);
+    this.reconcileComputedMaterialInstanceDependencies(materialName);
+    this.notifyOnChange();
   }
 
   /**
@@ -188,12 +186,11 @@ export class ModelMaterialOverrides extends Observable {
 
   public get parent(): ModelMaterialOverridesParent { return this._parent; }
   public set parent(value: ModelMaterialOverridesParent) {
-    this.mutate(() => {
-      if (this.stopObservingParent) {
-        this.stopObservingParent();
-      }
-      this._parent = value;
-      this.onParentChange();
-    });
+    if (this.stopObservingParent) {
+      this.stopObservingParent();
+    }
+    this._parent = value;
+    this.onParentChange();
+    this.notifyOnChange();
   }
 }

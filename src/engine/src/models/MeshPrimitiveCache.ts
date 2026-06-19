@@ -124,11 +124,10 @@ export class TriangleIndices extends Observable implements IReadonlyTriangleIndi
   }
 
   public setValue(a: number, b: number, c: number): void {
-    this.mutate(() => {
-      this.aIndex = a;
-      this.bIndex = b;
-      this.cIndex = c;
-    });
+      this._aIndex = a;
+      this._bIndex = b;
+      this._cIndex = c;
+      this.notifyOnChange();
   }
 
   public get aIndex(): number {

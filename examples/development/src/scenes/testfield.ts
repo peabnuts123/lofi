@@ -17,28 +17,7 @@ import { DrawDebug } from '@lofi/engine/util/DrawDebug';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 
-/*
-@TODO
-  // Phase 1: Just tidy up and commit what we got
-  // Phase 2: "Approximate AABBs"
-  //   // - Compute a cheaper AABB based on the unskinned model.
-  //   // - For skinned models, we simply scale it by a factor (e.g. 2)
-  //   // - For unskinned models it will be identical
-  //   // - Add a config object to Model with a property to specify the aabb approximation
-  //   // - Default approximation: type: scale. scaleFactor: 2 (or whatever)
-  //   // - Also available: type: fixed, specify an exact size (if you know it)
-  //   // - approximate aabb is based on the aabbconfig policy
-  //   // - This implies an unskinned set of vertices. but I guess that's just for the scaleFactor policy. So maybe we keep it as part of the same computed.
-  //   // - Update raycastScene to use approx AABB as part of Pass 1. Should be WAY faster.
-  Phase 3: Low-level APIs
-    - Finish off all vertex attributes
-    - Subscribe to the instances (e.g. Vector3s) and replace the specific index in the buffer when it changes
-    - Also introduce ObservableArray<T> and watch for adds/removes/sets maybe.
-    - Update ModelPart geometry computeds whenever the MeshPrimitive geometry
-    - In theory then we can just expose these arrays and let people mutate them. That's the whole point of the observable system… right?
- */
-
-const MaxRuntimeSeconds = 30;
+const MaxRuntimeSeconds = 60;
 const GridW = 20;
 const GridH = 20;
 const GridSpacing = 0.5;
@@ -56,6 +35,7 @@ const Flags = {
     MovingCollidersEnabled: false,
     AnimationTestEnabled: false,
     RayCasting: false,
+    LowLevelApiDemoEnabled: false,
   },
   // AudioDemoEnabled: true,
   LightingEnabled: true,
@@ -67,6 +47,7 @@ const Flags = {
   // MovingCollidersEnabled: true,
   AnimationTestEnabled: true,
   // RayCasting: true,
+  LowLevelApiDemoEnabled: true,
 };
 
 const CollidingMaterial = new Material({
@@ -462,6 +443,34 @@ export abstract class Game {
     if (Flags.AnimationTestEnabled) {
       const animatedModel = await Model.fromDefinition(engine, models[4]);
       const nonAnimatedModel = await Model.fromDefinition(engine, models[5]);
+
+      // @TODO Probably should be its own feature (not dependent on Animation flag)
+      if (Flags.LowLevelApiDemoEnabled) {
+        const noiseFactor = 0.15;
+        const allPrimitives = nonAnimatedModel.allParts
+          .flatMap((part) => part.primitiveCaches);
+        const allVertexPositions = allPrimitives
+          .flatMap((primitive) => primitive.geometry.vertexPositions);
+        const originalHatVertexPositions = allVertexPositions.map((x) => x.clone());
+        const tmp_vector = Vector3.zero();
+        runLoopHooks.push((_dt, time) => {
+          for (let i = 0; i < allVertexPositions.length; i++) {
+            const hatVertex = allVertexPositions[i];
+            tmp_vector.setValue(
+              Math.sin(time * 6 + hatVertex.y * 3) * noiseFactor,
+              0,
+              Math.cos(time * 6 + hatVertex.y * 3) * noiseFactor,
+            );
+            hatVertex.setValue(originalHatVertexPositions[i])
+              .addSelf(tmp_vector);
+          }
+
+          for (const primitive of allPrimitives) {
+            primitive.geometry.recomputeVertexNormals();
+          }
+        });
+      }
+
       const figure2 = new ModelNode(scene, 'figure-2', nonAnimatedModel);
       figure2.position.x = 1;
       const AnimationList: string[] = [

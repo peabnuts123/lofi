@@ -48,7 +48,6 @@ export class ModelPart {
     if (this.skin) {
       this.jointMatricesComputed = new Computed<Matrix4[]>(this.skin.skeleton.map(() => new Matrix4()), {
         dependencies: [
-          this.localMatrixComputed,
           ...this.skin.skeleton.map((bone) => bone.localMatrixComputed),
         ],
         recompute: (self) => {
