@@ -1,7 +1,7 @@
 import { Observable } from "@lofi/core/util/observable";
 
-import { DegreesToRadians, RadiansToDegrees } from "./util";
-import { EulerVector3, Vector3 } from "./vector";
+import { DegreesToRadians } from "./util";
+import { EulerVector3, Vector3, type Vector3Definition } from "./vector";
 
 export interface IReadOnlyQuaternion {
   toEuler(): EulerVector3;
@@ -49,57 +49,7 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
    * Convert the quaternion to Euler angles (in degrees).
    */
   public toEuler(): EulerVector3 {
-    // From: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5217
-    const { x, y, z, w } = this;
-
-    // Early check for identity to produce nice Vector3 without -0
-    if (
-      x === 0 &&
-      y === 0 &&
-      z === 0 &&
-      w === 1
-    ) {
-      return new EulerVector3(0, 0, 0);
-    }
-
-    /*
-      @NOTE Rotation order is ZXY where:
-      Z = Yaw, X = Pitch, Y = Roll
-
-      Equations derived from:
-      https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/index.htm
-      with reference to (angle formulas):
-      https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix
-     */
-
-    const test = y * z + x * w;
-    const limit = 0.4999999;
-
-    let resultX: number, resultY: number, resultZ: number;
-
-    if (test > limit) {
-      resultX = Math.PI / 2;
-      resultY = 0;
-      resultZ = 2 * Math.atan2(z, w);
-    } else if (test < -limit) {
-      resultX = -Math.PI / 2;
-      resultY = 0;
-      resultZ = -2 * Math.atan2(z, w);
-    } else {
-      const xSquared = x * x;
-      const ySquared = y * y;
-      const zSquared = z * z;
-      resultX = Math.asin(2 * test);
-      resultZ = Math.atan2(2 * (z * w - x * y), 1 - 2 * (xSquared + zSquared));
-      resultY = Math.atan2(2 * (y * w - x * z), 1 - 2 * (xSquared + ySquared));
-    }
-
-    // Convert to degrees
-    return new EulerVector3(
-      resultX * RadiansToDegrees,
-      resultY * RadiansToDegrees,
-      resultZ * RadiansToDegrees,
-    );
+    return EulerVector3.zero().setValue(this);
   }
 
   public multiplySelf(q: IReadOnlyQuaternion): this {
@@ -148,7 +98,6 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
 
     return this;
   }
-
   public slerp(right: IReadOnlyQuaternion, t: number): Quaternion {
     return this.clone().slerpSelf(right, t);
   }
@@ -187,24 +136,25 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
   public setValue(x: number, y: number, z: number, w: number): this;
   public setValue(value: IReadOnlyQuaternion): this;
   public setValue(xOrValue: number | IReadOnlyQuaternion, maybeY?: number, maybeZ?: number, maybeW?: number): this {
-    /* Wow sorry for this completely cursed method signature */
     if (typeof xOrValue === 'number') {
-      if (typeof maybeY === 'number' && typeof maybeZ === 'number' && typeof maybeW === 'number') {
-        this.internal.x = xOrValue;
-        this.internal.y = maybeY;
-        this.internal.z = maybeZ;
-        this.internal.w = maybeW;
-      } else {
-        throw new Error(`Unrecognised arguments to 'setValue()': (${xOrValue}, ${maybeY}, ${maybeZ}, ${maybeW})`);
-      }
+      this.setValueXYZW(xOrValue, maybeY as number, maybeZ as number, maybeW as number);
     } else {
-      this.internal.x = xOrValue.x;
-      this.internal.y = xOrValue.y;
-      this.internal.z = xOrValue.z;
-      this.internal.w = xOrValue.w;
+      this.setValueQuaternion(xOrValue);
     }
     this.notifyOnChange();
     return this;
+  }
+  private setValueXYZW(x: number, y: number, z: number, w: number): void {
+    this.internal.x = x;
+    this.internal.y = y;
+    this.internal.z = z;
+    this.internal.w = w;
+  }
+  private setValueQuaternion(value: IReadOnlyQuaternion): void {
+    this.internal.x = value.x;
+    this.internal.y = value.y;
+    this.internal.z = value.z;
+    this.internal.w = value.w;
   }
 
   public clone(): Quaternion {
@@ -212,9 +162,17 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
   }
 
   public toString(): string {
-    return `Quaternion(x=${this.x}, y=${this.y}, z=${this.z}, w=${this.w})`;
+    return `${Quaternion.name}(x=${this.x}, y=${this.y}, z=${this.z}, w=${this.w})`;
   }
 
+  public identitySelf(): this {
+    this.internal.x = 0;
+    this.internal.y = 0;
+    this.internal.z = 0;
+    this.internal.w = 1;
+    this.notifyOnChange();
+    return this;
+  }
   /**
    * Create a quaternion that represents no rotation.
    */
@@ -222,56 +180,62 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
     return new Quaternion(0, 0, 0, 1);
   }
 
-  /** Reusable static value for `Quaternion.fromAxisAngle()` */
-  private static fromAxisAngleTmp: Vector3 | undefined;
+  private static tmp_fromAxisAngle: Vector3 | undefined;
+  public fromAxisAngleSelf(axis: Vector3, angle: number): this {
+    const halfAngle = angle * DegreesToRadians * 0.5;
+    const s = Math.sin(halfAngle);
+
+    // Lazily initialise static Vector instance
+    Quaternion.tmp_fromAxisAngle ??= Vector3.zero();
+
+    // Assign to reusable static instance
+    axis = Quaternion.tmp_fromAxisAngle
+      .setValue(axis)
+      .normalizeSelf();
+
+    this.internal.x = axis.x * s;
+    this.internal.y = axis.y * s;
+    this.internal.z = axis.z * s;
+    this.internal.w = Math.cos(halfAngle);
+    this.notifyOnChange();
+    return this;
+  }
   /**
    * Creates a quaternion from an axis and angle (in degrees).
    * @param axis The axis of rotation.
    * @param angle The angle in degrees.
    */
   public static fromAxisAngle(axis: Vector3, angle: number): Quaternion {
-    const halfAngle = angle * DegreesToRadians * 0.5;
-    const s = Math.sin(halfAngle);
-
-    // Lazily initialise static Vector instance
-    Quaternion.fromAxisAngleTmp ??= Vector3.zero();
-
-    // Assign to reusable static instance
-    axis = Quaternion.fromAxisAngleTmp
-      .setValue(axis)
-      .normalizeSelf();
-
-    return new Quaternion(
-      axis.x * s,
-      axis.y * s,
-      axis.z * s,
-      Math.cos(halfAngle),
-    );
+    return Quaternion.identity().fromAxisAngleSelf(axis, angle);
   }
 
-  /**
-   * Creates a quaternion from Euler angles (in degrees).
-   * @param x Rotation around X axis in degrees.
-   * @param y Rotation around Y axis in degrees.
-   * @param z Rotation around Z axis in degrees.
-   */
-  public static fromEuler(vector: Vector3): Quaternion;
-  public static fromEuler(x: number, y: number, z: number): Quaternion;
-  public static fromEuler(xOrVector: number | Vector3, y?: number, z?: number): Quaternion {
-    // From: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5650
-    let xValue: number;
-    let yValue: number;
-    let zValue: number;
-    if (xOrVector instanceof Vector3) {
-      xValue = xOrVector.x * DegreesToRadians;
-      yValue = xOrVector.y * DegreesToRadians;
-      zValue = xOrVector.z * DegreesToRadians;
+  public fromEulerSelf(x: number, y: number, z: number): this;
+  public fromEulerSelf(vector: Vector3Definition): this;
+  public fromEulerSelf(xOrVector: number | Vector3Definition, y?: number, z?: number): this {
+    if (typeof xOrVector === 'number') {
+      this.fromEulerSelfXYZ(xOrVector, y as number, z as number);
     } else {
-      xValue = xOrVector * DegreesToRadians;
-      yValue = y! * DegreesToRadians;
-      zValue = z! * DegreesToRadians;
+      this.fromEulerSelfVector(xOrVector);
     }
+    this.notifyOnChange();
+    return this;
 
+  }
+  private fromEulerSelfXYZ(x: number, y: number, z: number): void {
+    this.__fromEulerInner(
+      x * DegreesToRadians,
+      y * DegreesToRadians,
+      z * DegreesToRadians,
+    );
+  }
+  private fromEulerSelfVector(vector: Vector3Definition): void {
+    this.__fromEulerInner(
+      vector.x * DegreesToRadians,
+      vector.y * DegreesToRadians,
+      vector.z * DegreesToRadians,
+    );
+  }
+  private __fromEulerInner(x: number, y: number, z: number): void {
     /*
       @NOTE Rotation order is ZXY where:
       Z = Yaw, X = Pitch, Y = Roll
@@ -288,9 +252,9 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
       Equations can be derived by fully expanding the above and simplifying.
      */
 
-    const halfYaw = zValue * 0.5;
-    const halfPitch = xValue * 0.5;
-    const halfRoll = yValue * 0.5;
+    const halfYaw = z * 0.5;
+    const halfPitch = x * 0.5;
+    const halfRoll = y * 0.5;
     const sinRoll = Math.sin(halfRoll);
     const cosRoll = Math.cos(halfRoll);
     const sinPitch = Math.sin(halfPitch);
@@ -298,46 +262,50 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
     const sinYaw = Math.sin(halfYaw);
     const cosYaw = Math.cos(halfYaw);
 
-    return new Quaternion(
-      cosYaw * sinPitch * cosRoll - sinYaw * cosPitch * sinRoll,
-      cosYaw * cosPitch * sinRoll + sinYaw * sinPitch * cosRoll,
-      cosYaw * sinPitch * sinRoll + sinYaw * cosPitch * cosRoll,
-      cosYaw * cosPitch * cosRoll - sinYaw * sinPitch * sinRoll,
-    );
+    this.internal.x = cosYaw * sinPitch * cosRoll - sinYaw * cosPitch * sinRoll;
+    this.internal.y = cosYaw * cosPitch * sinRoll + sinYaw * sinPitch * cosRoll;
+    this.internal.z = cosYaw * sinPitch * sinRoll + sinYaw * cosPitch * cosRoll;
+    this.internal.w = cosYaw * cosPitch * cosRoll - sinYaw * sinPitch * sinRoll;
   }
 
-  /** Reusable static values for `Quaternion.fromLookDirection()` */
-  private static fromLookDirectionTmp: {
-    forward?: Vector3,
-    up?: Vector3,
-    right?: Vector3,
-  } = {};
   /**
-   * Construct a Quaternion from a direction + optional "up" (i.e. "roll") vector.
-   * `up` does not have to be strictly orthogonal to `forward`.
-   * If `up` is not provided, `Vector3.up()` is used as the default value.
-   * @param forward Direction to convert into a Quaternion.
-   * @param up (Optional) Up vector determining the roll of the resulting Quaternion.
-   */
-  public static fromLookDirection(forward: Vector3, up?: Vector3): Quaternion {
+     * Creates a quaternion from Euler angles (in degrees).
+     * @param x Rotation around X axis in degrees.
+     * @param y Rotation around Y axis in degrees.
+     * @param z Rotation around Z axis in degrees.
+     */
+  public static fromEuler(vector: Vector3Definition): Quaternion;
+  public static fromEuler(x: number, y: number, z: number): Quaternion;
+  public static fromEuler(xOrVector: number | Vector3Definition, y?: number, z?: number): Quaternion {
+    // @NOTE TypeScript is too dumb to figure this one out
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return Quaternion.identity().fromEulerSelf(xOrVector as any, y as any, z as any);
+  }
+
+  /** Reusable static values for `fromLookDirectionSelf()` */
+  private static tmp_fromLookDirectionSelf_forward: Vector3 | undefined;
+  private static tmp_fromLookDirectionSelf_up: Vector3 | undefined;
+  private static tmp_fromLookDirectionSelf_right: Vector3 | undefined;
+  private static tmp_fromLookDirectionSelf_DefaultUp: Vector3 | undefined;
+  public fromLookDirectionSelf(forward: Vector3Definition, up?: Vector3Definition): this {
     // Param defaults
-    up ??= Vector3.up();
+    up ??= (Quaternion.tmp_fromLookDirectionSelf_DefaultUp ??= Vector3.up());
 
     // Lazily initialise static Vector instances
-    Quaternion.fromLookDirectionTmp.forward ??= Vector3.zero();
-    Quaternion.fromLookDirectionTmp.up ??= Vector3.zero();
-    Quaternion.fromLookDirectionTmp.right ??= Vector3.zero();
+    Quaternion.tmp_fromLookDirectionSelf_forward ??= Vector3.zero();
+    Quaternion.tmp_fromLookDirectionSelf_up ??= Vector3.zero();
+    Quaternion.tmp_fromLookDirectionSelf_right ??= Vector3.zero();
 
     // Calculate strictly orthogonal basis vectors
     // using reusable static instances
-    const right = Quaternion.fromLookDirectionTmp.right
+    const right = Quaternion.tmp_fromLookDirectionSelf_right
       .setValue(forward)
       .crossSelf(up)
       .normalizeSelf();
-    up = Quaternion.fromLookDirectionTmp.up
+    up = Quaternion.tmp_fromLookDirectionSelf_up
       .setValue(forward)
       .normalizeSelf();
-    forward = Quaternion.fromLookDirectionTmp.forward
+    forward = Quaternion.tmp_fromLookDirectionSelf_forward
       .setValue(right)
       .crossSelf(forward)
       .normalizeSelf();
@@ -347,37 +315,42 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
 
     if (trace > 0) {
       const s = 0.5 / Math.sqrt(trace + 1.0);
-      return new Quaternion(
-        (up.z - forward.y) * s,
-        (forward.x - right.z) * s,
-        (right.y - up.x) * s,
-        0.25 / s,
-      );
+      this.internal.x = (up.z - forward.y) * s;
+      this.internal.y = (forward.x - right.z) * s;
+      this.internal.z = (right.y - up.x) * s;
+      this.internal.w = 0.25 / s;
     } else if (right.x > up.y && right.x > forward.z) {
       const s = 2.0 * Math.sqrt(1.0 + right.x - up.y - forward.z);
-      return new Quaternion(
-        0.25 * s,
-        (up.x + right.y) / s,
-        (forward.x + right.z) / s,
-        (up.z - forward.y) / s,
-      );
+      this.internal.x = 0.25 * s;
+      this.internal.y = (up.x + right.y) / s;
+      this.internal.z = (forward.x + right.z) / s;
+      this.internal.w = (up.z - forward.y) / s;
     } else if (up.y > forward.z) {
       const s = 2.0 * Math.sqrt(1.0 + up.y - right.x - forward.z);
-      return new Quaternion(
-        (up.x + right.y) / s,
-        0.25 * s,
-        (forward.y + up.z) / s,
-        (forward.x - right.z) / s,
-      );
+      this.internal.x = (up.x + right.y) / s;
+      this.internal.y = 0.25 * s;
+      this.internal.z = (forward.y + up.z) / s;
+      this.internal.w = (forward.x - right.z) / s;
     } else {
       const s = 2.0 * Math.sqrt(1.0 + forward.z - right.x - up.y);
-      return new Quaternion(
-        (forward.x + right.z) / s,
-        (forward.y + up.z) / s,
-        0.25 * s,
-        (right.y - up.x) / s,
-      );
+      this.internal.x = (forward.x + right.z) / s;
+      this.internal.y = (forward.y + up.z) / s;
+      this.internal.z = 0.25 * s;
+      this.internal.w = (right.y - up.x) / s;
     }
+    this.notifyOnChange();
+    return this;
+  }
+
+  /**
+   * Construct a Quaternion from a direction + optional "up" (i.e. "roll") vector.
+   * `up` does not have to be strictly orthogonal to `forward`.
+   * If `up` is not provided, `Vector3.up()` is used as the default value.
+   * @param forward Direction to convert into a Quaternion.
+   * @param up (Optional) Up vector determining the roll of the resulting Quaternion.
+   */
+  public static fromLookDirection(forward: Vector3Definition, up?: Vector3Definition): Quaternion {
+    return Quaternion.identity().fromLookDirectionSelf(forward, up);
   }
 
   public get x(): number { return this.internal.x; }

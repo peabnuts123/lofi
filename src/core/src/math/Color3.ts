@@ -8,17 +8,26 @@ export interface Color3Definition {
   b: number;
 }
 
+class Color3InternalBuffer {
+  public static readonly BufferSize: number = 3;
+  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Color3InternalBuffer.BufferSize);
+  public get r(): number { return this.buffer[0]; }
+  public set r(value: number) { this.buffer[0] = clamp(value, 0, 0xFF); }
+  public get g(): number { return this.buffer[1]; }
+  public set g(value: number) { this.buffer[1] = clamp(value, 0, 0xFF); }
+  public get b(): number { return this.buffer[2]; }
+  public set b(value: number) { this.buffer[2] = clamp(value, 0, 0xFF); }
+}
+
 export class Color3 extends Observable {
-  private _r: number;
-  private _g: number;
-  private _b: number;
+  private readonly internal: Color3InternalBuffer;
 
   public constructor(r: number, g: number, b: number) {
     super();
-
-    this._r = clamp(r, 0, 0xFF);
-    this._g = clamp(g, 0, 0xFF);
-    this._b = clamp(b, 0, 0xFF);
+    this.internal = new Color3InternalBuffer();
+    this.internal.r = r;
+    this.internal.g = g;
+    this.internal.b = b;
   }
 
   public setR(value: number): this {
@@ -53,19 +62,19 @@ export class Color3 extends Observable {
     return `${Color3.name}(${this.r}, ${this.g}, ${this.b})`;
   }
 
-  public get r(): number { return this._r; }
+  public get r(): number { return this.internal.r; }
   public set r(value: number) {
-    this._r = clamp(value, 0, 0xFF);
+    this.internal.r = value;
     this.notifyOnChange();
   }
-  public get g(): number { return this._g; }
+  public get g(): number { return this.internal.g; }
   public set g(value: number) {
-    this._g = clamp(value, 0, 0xFF);
+    this.internal.g = value;
     this.notifyOnChange();
   }
-  public get b(): number { return this._b; }
+  public get b(): number { return this.internal.b; }
   public set b(value: number) {
-    this._b = clamp(value, 0, 0xFF);
+    this.internal.b = value;
     this.notifyOnChange();
   }
 

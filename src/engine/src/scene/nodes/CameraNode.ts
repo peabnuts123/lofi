@@ -1,5 +1,4 @@
 import { Vector3 } from "@lofi/core/math/vector";
-import { Quaternion } from "@lofi/core/math/Quaternion";
 import { DegreesToRadians } from "@lofi/core/math/util";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { Ubo } from "@lofi/engine/materials/Ubo";
@@ -36,7 +35,7 @@ export class CameraNode extends SceneNode {
   public readonly viewMatrix = new Matrix4();
   public readonly projectionMatrix = new Matrix4();
 
-  private pointAt_tmp = Vector3.zero();
+
   private uboCameraPositionData_tmp = new Float32Array(3);
 
   public constructor(scene: IScene, name: string, fov: number, aspectRatio: number, parent?: SceneNode) {
@@ -65,10 +64,12 @@ export class CameraNode extends SceneNode {
     this.recalculateViewProjectionMatrix();
   }
 
+  private tmp_pointAt = Vector3.zero();
   public pointAt(target: Vector3): void {
-    this.pointAt_tmp.setValue(target)
+    this.tmp_pointAt
+      .setValue(target)
       .subtractSelf(this.absolutePosition);
-    this.absoluteRotation.set(Quaternion.fromLookDirection(this.pointAt_tmp));
+    this.absoluteRotation.q.fromLookDirectionSelf(this.tmp_pointAt);
   }
 
   private recalculateViewProjectionMatrix(): void {

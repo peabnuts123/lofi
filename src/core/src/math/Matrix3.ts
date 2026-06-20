@@ -18,18 +18,18 @@ class Matrix3InternalBuffer {
   public set m10(value: number) { this.buffer[1] = value; }
   public get m20(): number { return this.buffer[2]; }
   public set m20(value: number) { this.buffer[2] = value; }
-  public get m01(): number { return this.buffer[4]; }
-  public set m01(value: number) { this.buffer[4] = value; }
-  public get m11(): number { return this.buffer[5]; }
-  public set m11(value: number) { this.buffer[5] = value; }
-  public get m21(): number { return this.buffer[6]; }
-  public set m21(value: number) { this.buffer[6] = value; }
-  public get m02(): number { return this.buffer[8]; }
-  public set m02(value: number) { this.buffer[8] = value; }
-  public get m12(): number { return this.buffer[9]; }
-  public set m12(value: number) { this.buffer[9] = value; }
-  public get m22(): number { return this.buffer[10]; }
-  public set m22(value: number) { this.buffer[10] = value; }
+  public get m01(): number { return this.buffer[3]; }
+  public set m01(value: number) { this.buffer[3] = value; }
+  public get m11(): number { return this.buffer[4]; }
+  public set m11(value: number) { this.buffer[4] = value; }
+  public get m21(): number { return this.buffer[5]; }
+  public set m21(value: number) { this.buffer[5] = value; }
+  public get m02(): number { return this.buffer[6]; }
+  public set m02(value: number) { this.buffer[6] = value; }
+  public get m12(): number { return this.buffer[7]; }
+  public set m12(value: number) { this.buffer[7] = value; }
+  public get m22(): number { return this.buffer[8]; }
+  public set m22(value: number) { this.buffer[8] = value; }
 }
 
 /**

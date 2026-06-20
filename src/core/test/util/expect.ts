@@ -2,7 +2,7 @@ import { expect } from "vitest";
 
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
-import type { IReadonlyVector3 } from "@lofi/core/math/vector";
+import type { Vector3Definition } from "@lofi/core/math/vector";
 
 export function expectQuaternionsToBeEqual(actual: IReadOnlyQuaternion, expected: IReadOnlyQuaternion): void {
   expect(actual.x, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.x, 8);
@@ -11,10 +11,10 @@ export function expectQuaternionsToBeEqual(actual: IReadOnlyQuaternion, expected
   expect(actual.w, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.w, 8);
 }
 
-export function expectVectorsToBeEqual(actual: IReadonlyVector3, expected: IReadonlyVector3): void {
-  expect(actual.x, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.x, 8);
-  expect(actual.y, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.y, 8);
-  expect(actual.z, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.z, 8);
+export function expectVectorsToBeEqual(actual: Vector3Definition, expected: Vector3Definition): void {
+  expect(actual.x, `Expected '${JSON.stringify({ x: actual.x, y: actual.y, z: actual.z })}' to equal ${JSON.stringify({ x: expected.x, y: expected.y, z: expected.z })}`).toBeCloseTo(expected.x, 8);
+  expect(actual.y, `Expected '${JSON.stringify({ x: actual.x, y: actual.y, z: actual.z })}' to equal ${JSON.stringify({ x: expected.x, y: expected.y, z: expected.z })}`).toBeCloseTo(expected.y, 8);
+  expect(actual.z, `Expected '${JSON.stringify({ x: actual.x, y: actual.y, z: actual.z })}' to equal ${JSON.stringify({ x: expected.x, y: expected.y, z: expected.z })}`).toBeCloseTo(expected.z, 8);
 }
 
 export function expectMatrix4sToBeEqual(actual: Matrix4, expected: Matrix4): void {

@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Color3, Quaternion, DegreesToRadians, Matrix4, toFixed } from '@lofi/core/math';
+import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
 import { RateCounter } from '@lofi/core/util/RateCounter';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
@@ -116,7 +116,7 @@ export abstract class Game {
     camera.pointAt(Vector3.zero());
     runLoopHooks.push((dt, time) => {
       const CameraRotationSpeedDegreesPerSecond = 15;
-      cameraOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * CameraRotationSpeedDegreesPerSecond));
+      cameraOrigin.rotation.z += dt * CameraRotationSpeedDegreesPerSecond;
       camera.position.z = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
       camera.pointAt(new Vector3(0, 0, 0));
     });
@@ -234,9 +234,9 @@ export abstract class Game {
       const sunLight = new DirectionalLightNode(scene, 'sun', new Color3(0, 0x50, 0xFF));
       sunLight.absoluteRotation.x = 30;
 
+      const LightRotationSpeedDegreesPerSecond = 25;
       runLoopHooks.push((dt) => {
-        const LightRotationSpeedDegreesPerSecond = 25;
-        lightOrigin.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), dt * LightRotationSpeedDegreesPerSecond));
+        lightOrigin.rotation.z += dt * LightRotationSpeedDegreesPerSecond;
       });
     }
 
@@ -324,8 +324,7 @@ export abstract class Game {
           for (let j = 0; j < testObjects[i].length; j++) {
             const testObject = testObjects[i][j];
             const uniqueParam = (time + (n / 10));
-            // testObject.rotation.y = (uniqueParam * 360 / 8) % 360;
-            testObject.rotation.set(Quaternion.fromAxisAngle(Vector3.up(), (uniqueParam * 360 / 8) % 360));
+            testObject.rotation.z = (uniqueParam * 360 / 8);
             testObject.position = new Vector3(
               (i - testObjects.length / 2) * GridSpacing + 0.5 + Math.sin(uniqueParam) * 0.3,
               (j - testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
@@ -461,7 +460,8 @@ export abstract class Game {
               0,
               Math.cos(time * 6 + hatVertex.y * 3) * noiseFactor,
             );
-            hatVertex.setValue(originalHatVertexPositions[i])
+            hatVertex
+              .setValue(originalHatVertexPositions[i])
               .addSelf(tmp_vector);
           }
 

@@ -45,13 +45,9 @@ export class AnimationChannel {
     }
 
     // Pass off to animation channel to assign correct value
-    // @NOTE For fucks sake TypeScript
-    if (previousTimestampIndex !== undefined && nextTimestampIndex === undefined) {
-      this.assignAnimatedValue(target, previousTimestampIndex, nextTimestampIndex, currentAnimationTime);
-    } else if (previousTimestampIndex === undefined && nextTimestampIndex !== undefined) {
-      this.assignAnimatedValue(target, previousTimestampIndex, nextTimestampIndex, currentAnimationTime);
-    } else if (previousTimestampIndex !== undefined && nextTimestampIndex !== undefined) {
-      this.assignAnimatedValue(target, previousTimestampIndex, nextTimestampIndex, currentAnimationTime);
+    if (previousTimestampIndex !== undefined || nextTimestampIndex !== undefined) {
+      // @NOTE TypeScript is too dumb to figure this one out
+      this.assignAnimatedValue(target, previousTimestampIndex!, nextTimestampIndex!, currentAnimationTime);
     } else {
       throw new Error(`Logic error playing animation, can't locate index of current animation time within animation timestamps. (currentAnimationTime='${currentAnimationTime}') (timestamps='${this.timestamps.join(',')}')`);
     }

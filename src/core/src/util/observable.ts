@@ -22,6 +22,7 @@ export abstract class Observable implements IObservable {
   }
 
   protected notifyOnChange(): void {
+    if (this.onChangeHooks.length === 0) return;
     for (const hook of this.onChangeHooks) {
       try {
         hook();

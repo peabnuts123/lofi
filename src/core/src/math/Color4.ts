@@ -1,5 +1,5 @@
 import { Observable } from "@lofi/core/util";
-import { Color3 } from "./Color3";
+import { type Color3Definition } from "./Color3";
 import { clamp } from "./util";
 
 export interface Color4Definition {
@@ -10,34 +10,38 @@ export interface Color4Definition {
 }
 
 
+class Color4InternalBuffer {
+  public static readonly BufferSize: number = 4;
+  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Color4InternalBuffer.BufferSize);
+  public get r(): number { return this.buffer[0]; }
+  public set r(value: number) { this.buffer[0] = clamp(value, 0, 0xFF); }
+  public get g(): number { return this.buffer[1]; }
+  public set g(value: number) { this.buffer[1] = clamp(value, 0, 0xFF); }
+  public get b(): number { return this.buffer[2]; }
+  public set b(value: number) { this.buffer[2] = clamp(value, 0, 0xFF); }
+  public get a(): number { return this.buffer[3]; }
+  public set a(value: number) { this.buffer[3] = clamp(value, 0, 0xFF); }
+}
+
 export class Color4 extends Observable {
-  private _r: number;
-  private _g: number;
-  private _b: number;
-  private _a: number;
+  private readonly internal: Color4InternalBuffer;
 
-  public constructor(color: Color3, a?: number);
+  public constructor(color: Color3Definition, a?: number);
   public constructor(r: number, g: number, b: number, a?: number);
-  public constructor(redOrColor: number | Color3, greenOrAlpha?: number, blue?: number, alpha?: number) {
+  public constructor(redOrColor: number | Color3Definition, greenOrAlpha?: number, blue?: number, alpha?: number) {
     super();
-
-    let r: number, g: number, b: number, a: number;
-    if (redOrColor instanceof Color3) {
-      r = redOrColor.r;
-      g = redOrColor.g;
-      b = redOrColor.b;
-      a = greenOrAlpha ?? 0xFF;
+    this.internal = new Color4InternalBuffer();
+    if (typeof redOrColor === 'number') {
+      this.internal.r = redOrColor;
+      this.internal.g = greenOrAlpha as number;
+      this.internal.b = blue as number;
+      this.internal.a = alpha ?? 0xFF;
     } else {
-      r = redOrColor;
-      g = greenOrAlpha!;
-      b = blue!;
-      a = alpha ?? 0xFF;
+      this.internal.r = redOrColor.r;
+      this.internal.g = redOrColor.g;
+      this.internal.b = redOrColor.b;
+      this.internal.a = greenOrAlpha ?? 0xFF;
     }
-
-    this._r = clamp(r, 0, 0xFF);
-    this._g = clamp(g, 0, 0xFF);
-    this._b = clamp(b, 0, 0xFF);
-    this._a = clamp(a, 0, 0xFF);
   }
 
   public clone(): Color4 {
@@ -80,24 +84,24 @@ export class Color4 extends Observable {
     return `${Color4.name}(${this.r}, ${this.g}, ${this.b}, ${this.a})`;
   }
 
-  public get r(): number { return this._r; }
+  public get r(): number { return this.internal.r; }
   public set r(value: number) {
-    this._r = clamp(value, 0, 0xFF);
+    this.internal.r = value;
     this.notifyOnChange();
   }
-  public get g(): number { return this._g; }
+  public get g(): number { return this.internal.g; }
   public set g(value: number) {
-    this._g = clamp(value, 0, 0xFF);
+    this.internal.g = value;
     this.notifyOnChange();
   }
-  public get b(): number { return this._b; }
+  public get b(): number { return this.internal.b; }
   public set b(value: number) {
-    this._b = clamp(value, 0, 0xFF);
+    this.internal.b = value;
     this.notifyOnChange();
   }
-  public get a(): number { return this._a; }
+  public get a(): number { return this.internal.a; }
   public set a(value: number) {
-    this._a = clamp(value, 0, 0xFF);
+    this.internal.a = value;
     this.notifyOnChange();
   }
 

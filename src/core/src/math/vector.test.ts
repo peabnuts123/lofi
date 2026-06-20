@@ -4,7 +4,6 @@ import { describe, test, expect } from 'vitest';
 import { Vector2, Vector3 } from './vector';
 import { Quaternion } from './Quaternion';
 import { Matrix4 } from './Matrix4';
-import { WellKnownQuaternions } from '@test/util/quaternions';
 
 /* @TODO Test backlog
   - Vector2
@@ -487,9 +486,9 @@ describe("Vector3", () => {
   });
   test("Calling multiplySelf() with a Quaternion mutates correctly", () => {
     // Setup
-    const vector = WellKnownQuaternions['90X']().euler;
+    const vector = Vector3.forward();
     const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
-    const expectedValue = WellKnownQuaternions['90Y']().euler;
+    const expectedValue = Vector3.left();
 
     // Test
     vector.multiplySelf(rotation);
@@ -547,10 +546,10 @@ describe("Vector3", () => {
   });
   test("Calling multiply() with a Quaternion returns the correct result", () => {
     // Setup
-    const vector = WellKnownQuaternions['90X']().euler;
+    const vector = Vector3.forward();
     const original = vector.clone();
     const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
-    const expectedValue = WellKnownQuaternions['90Y']().euler;
+    const expectedValue = Vector3.left();
 
     // Test
     const result = vector.multiply(rotation);

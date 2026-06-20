@@ -20,9 +20,21 @@ import { MaterialInstance, ShaderBlendingModeTypeEnumValue } from "@lofi/engine/
 import { createBuffer } from "@lofi/engine/util/createBuffer";
 
 import { MeshPrimitive } from "./MeshPrimitive";
-import { Computed, Observable, type Mutable, type TypedArray } from "@lofi/core/util";
+import { Computed, Observable, type Mutable } from "@lofi/core/util";
 
 type MaterialCacheKey = number;
+
+/*
+  @TODO
+  // - Stop and commit working slow low level api
+  - Try removing all references to mutate ()
+  - Think about: why are 350k mutations happening per frame - is that right?
+  - Log when mutations are just writing the same value (? Don’t mutate?)
+  - Approximate BB is still listening to eg part rotations it should probably have next to no dependencies
+  - Remove redundant dependencies where we we are just storing the value / don’t be computed just flat map once
+  - Some way of debouncing geometry mutations / batching. It could be immutable unless you call a mutate function which then batch writes anything that changed. Maybe This can be the access API from the top level
+  - Do we need a hierarchy of computers at all
+ */
 
 /**
  * Cache that holds {@linkcode MeshPrimitive} instances.
@@ -124,10 +136,10 @@ export class TriangleIndices extends Observable implements IReadonlyTriangleIndi
   }
 
   public setValue(a: number, b: number, c: number): void {
-      this._aIndex = a;
-      this._bIndex = b;
-      this._cIndex = c;
-      this.notifyOnChange();
+    this._aIndex = a;
+    this._bIndex = b;
+    this._cIndex = c;
+    this.notifyOnChange();
   }
 
   public get aIndex(): number {
@@ -324,21 +336,22 @@ export class MeshPrimitiveGeometry {
     /* Vertex positions */
     // Parse data
     this.vertexPositions = Object.freeze(this.parsePositionNormalAttribute(definition.positionData));
+
     // Create GL buffer
     this.positionAttribute = this.createVertexAttribute(definition.positionData, gl.ARRAY_BUFFER);
     // Bind updates to GL buffer
-    const tmp_updatedVertexPositionBuffer = this.createTmpBufferForVertexAttribute(this.positionAttribute);
-    this.vertexPositions.forEach((vertexPosition, i) => {
-      vertexPosition.onChange(() => {
-        /* Update vertex position gl buffer */
-        tmp_updatedVertexPositionBuffer[0] = vertexPosition.x;
-        tmp_updatedVertexPositionBuffer[1] = vertexPosition.y;
-        tmp_updatedVertexPositionBuffer[2] = vertexPosition.z;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionAttribute.glBuffer);
-        gl.bufferSubData(gl.ARRAY_BUFFER, i * this.positionAttribute.componentCount * this.positionAttribute.componentSize, tmp_updatedVertexPositionBuffer);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      });
-    });
+    // const tmp_updatedVertexPositionBuffer = this.createTmpBufferForVertexAttribute(this.positionAttribute);
+    // this.vertexPositions.forEach((vertexPosition, i) => {
+    //   vertexPosition.onChange(() => {
+    //     /* Update vertex position gl buffer */
+    //     tmp_updatedVertexPositionBuffer[0] = vertexPosition.x;
+    //     tmp_updatedVertexPositionBuffer[1] = vertexPosition.y;
+    //     tmp_updatedVertexPositionBuffer[2] = vertexPosition.z;
+    //     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionAttribute.glBuffer);
+    //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.positionAttribute.componentCount * this.positionAttribute.componentSize, tmp_updatedVertexPositionBuffer);
+    //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    //   });
+    // });
 
     /* Triangle indices */
     if (definition.indices) {
@@ -388,33 +401,33 @@ export class MeshPrimitiveGeometry {
     // Bind updates to GL buffer
     // @NOTE Need custom logic for tmp buffer for indices since spec says that
     // indices component count is 1, yet triangles need 3 indices.
-    const IndicesBufferCustomLength = 3;
-    let tmp_updatedVertexIndexBuffer: TypedArray;
-    switch (this.indicesAttribute.componentType) {
-      case WebGL2RenderingContext['UNSIGNED_BYTE']:
-        tmp_updatedVertexIndexBuffer = new Uint8Array(IndicesBufferCustomLength);
-        break;
-      case WebGL2RenderingContext['UNSIGNED_SHORT']:
-        tmp_updatedVertexIndexBuffer = new Uint16Array(IndicesBufferCustomLength);
-        break;
-      case WebGL2RenderingContext['UNSIGNED_INT']:
-        tmp_updatedVertexIndexBuffer = new Uint32Array(IndicesBufferCustomLength);
-        break;
-      default:
-        throw new Error(`Unimplemented indices attribute component type: ${(this.indicesAttribute as { componentType: number }).componentType}`);
-    }
-    this.triangleIndices.forEach((triangleIndices, i) => {
-      triangleIndices.onChange(() => {
-        /* Update triangle indices gl buffer */
-        tmp_updatedVertexIndexBuffer[0] = triangleIndices["aIndex"];
-        tmp_updatedVertexIndexBuffer[1] = triangleIndices["bIndex"];
-        tmp_updatedVertexIndexBuffer[2] = triangleIndices["cIndex"];
+    // const IndicesBufferCustomLength = 3;
+    // let tmp_updatedVertexIndexBuffer: TypedArray;
+    // switch (this.indicesAttribute.componentType) {
+    //   case WebGL2RenderingContext['UNSIGNED_BYTE']:
+    //     tmp_updatedVertexIndexBuffer = new Uint8Array(IndicesBufferCustomLength);
+    //     break;
+    //   case WebGL2RenderingContext['UNSIGNED_SHORT']:
+    //     tmp_updatedVertexIndexBuffer = new Uint16Array(IndicesBufferCustomLength);
+    //     break;
+    //   case WebGL2RenderingContext['UNSIGNED_INT']:
+    //     tmp_updatedVertexIndexBuffer = new Uint32Array(IndicesBufferCustomLength);
+    //     break;
+    //   default:
+    //     throw new Error(`Unimplemented indices attribute component type: ${(this.indicesAttribute as { componentType: number }).componentType}`);
+    // }
+    // this.triangleIndices.forEach((triangleIndices, i) => {
+    //   triangleIndices.onChange(() => {
+    //     /* Update triangle indices gl buffer */
+    //     tmp_updatedVertexIndexBuffer[0] = triangleIndices["aIndex"];
+    //     tmp_updatedVertexIndexBuffer[1] = triangleIndices["bIndex"];
+    //     tmp_updatedVertexIndexBuffer[2] = triangleIndices["cIndex"];
 
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indicesAttribute.glBuffer);
-        gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, i * IndicesBufferCustomLength * this.indicesAttribute.componentSize, tmp_updatedVertexIndexBuffer);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-      });
-    });
+    //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indicesAttribute.glBuffer);
+    //     gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, i * IndicesBufferCustomLength * this.indicesAttribute.componentSize, tmp_updatedVertexIndexBuffer);
+    //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+    //   });
+    // });
 
     /* Vertex normals */
     if (definition.normalData !== undefined) {
@@ -447,19 +460,19 @@ export class MeshPrimitiveGeometry {
         normalized: false,
       };
     }
-    // Bind updates to GL buffer
-    const tmp_updatedVertexNormalBuffer = this.createTmpBufferForVertexAttribute(this.normalAttribute);
-    this.vertexNormals.forEach((vertexNormal, i) => {
-      vertexNormal.onChange(() => {
-        /* Update vertex normal gl buffer */
-        tmp_updatedVertexNormalBuffer[0] = vertexNormal.x;
-        tmp_updatedVertexNormalBuffer[1] = vertexNormal.y;
-        tmp_updatedVertexNormalBuffer[2] = vertexNormal.z;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.normalAttribute.glBuffer);
-        gl.bufferSubData(gl.ARRAY_BUFFER, i * this.normalAttribute.componentCount * this.normalAttribute.componentSize, tmp_updatedVertexNormalBuffer);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      });
-    });
+    // // Bind updates to GL buffer
+    // const tmp_updatedVertexNormalBuffer = this.createTmpBufferForVertexAttribute(this.normalAttribute);
+    // this.vertexNormals.forEach((vertexNormal, i) => {
+    //   vertexNormal.onChange(() => {
+    //     /* Update vertex normal gl buffer */
+    //     tmp_updatedVertexNormalBuffer[0] = vertexNormal.x;
+    //     tmp_updatedVertexNormalBuffer[1] = vertexNormal.y;
+    //     tmp_updatedVertexNormalBuffer[2] = vertexNormal.z;
+    //     gl.bindBuffer(gl.ARRAY_BUFFER, this.normalAttribute.glBuffer);
+    //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.normalAttribute.componentCount * this.normalAttribute.componentSize, tmp_updatedVertexNormalBuffer);
+    //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    //   });
+    // });
 
     /* Edges */
     // @NOTE Edges are entirely computed based on parsed geometry
@@ -502,32 +515,32 @@ export class MeshPrimitiveGeometry {
       this.joints0Attribute = this.createVertexAttribute(definition.joints0Data, gl.ARRAY_BUFFER);
       this.weights0Attribute = this.createVertexAttribute(definition.weights0Data, gl.ARRAY_BUFFER);
       // Bind updates to GL buffer
-      const tmp_updatedJointIndicesBuffer = this.createTmpBufferForVertexAttribute(this.joints0Attribute);
-      this.jointIndices.forEach((jointIndices, i) => {
-        jointIndices.onChange(() => {
-          /* Update joint indices gl buffer */
-          tmp_updatedJointIndicesBuffer[0] = jointIndices[0];
-          tmp_updatedJointIndicesBuffer[1] = jointIndices[1];
-          tmp_updatedJointIndicesBuffer[2] = jointIndices[2];
-          tmp_updatedJointIndicesBuffer[3] = jointIndices[3];
-          gl.bindBuffer(gl.ARRAY_BUFFER, this.joints0Attribute!.glBuffer);
-          gl.bufferSubData(gl.ARRAY_BUFFER, i * this.joints0Attribute!.componentCount * this.joints0Attribute!.componentSize, tmp_updatedJointIndicesBuffer);
-          gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        });
-      });
-      const tmp_updatedJointWeightsBuffer = this.createTmpBufferForVertexAttribute(this.weights0Attribute);
-      this.jointWeights.forEach((jointWeights, i) => {
-        jointWeights.onChange(() => {
-          /* Update joint weights gl buffer */
-          tmp_updatedJointWeightsBuffer[0] = this.denormalizeValue(jointWeights[0], this.weights0Attribute!);
-          tmp_updatedJointWeightsBuffer[1] = this.denormalizeValue(jointWeights[1], this.weights0Attribute!);
-          tmp_updatedJointWeightsBuffer[2] = this.denormalizeValue(jointWeights[2], this.weights0Attribute!);
-          tmp_updatedJointWeightsBuffer[3] = this.denormalizeValue(jointWeights[3], this.weights0Attribute!);
-          gl.bindBuffer(gl.ARRAY_BUFFER, this.weights0Attribute!.glBuffer);
-          gl.bufferSubData(gl.ARRAY_BUFFER, i * this.weights0Attribute!.componentCount * this.weights0Attribute!.componentSize, tmp_updatedJointWeightsBuffer);
-          gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        });
-      });
+      // const tmp_updatedJointIndicesBuffer = this.createTmpBufferForVertexAttribute(this.joints0Attribute);
+      // this.jointIndices.forEach((jointIndices, i) => {
+      //   jointIndices.onChange(() => {
+      //     /* Update joint indices gl buffer */
+      //     tmp_updatedJointIndicesBuffer[0] = jointIndices[0];
+      //     tmp_updatedJointIndicesBuffer[1] = jointIndices[1];
+      //     tmp_updatedJointIndicesBuffer[2] = jointIndices[2];
+      //     tmp_updatedJointIndicesBuffer[3] = jointIndices[3];
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.joints0Attribute!.glBuffer);
+      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.joints0Attribute!.componentCount * this.joints0Attribute!.componentSize, tmp_updatedJointIndicesBuffer);
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      //   });
+      // });
+      // const tmp_updatedJointWeightsBuffer = this.createTmpBufferForVertexAttribute(this.weights0Attribute);
+      // this.jointWeights.forEach((jointWeights, i) => {
+      //   jointWeights.onChange(() => {
+      //     /* Update joint weights gl buffer */
+      //     tmp_updatedJointWeightsBuffer[0] = this.denormalizeValue(jointWeights[0], this.weights0Attribute!);
+      //     tmp_updatedJointWeightsBuffer[1] = this.denormalizeValue(jointWeights[1], this.weights0Attribute!);
+      //     tmp_updatedJointWeightsBuffer[2] = this.denormalizeValue(jointWeights[2], this.weights0Attribute!);
+      //     tmp_updatedJointWeightsBuffer[3] = this.denormalizeValue(jointWeights[3], this.weights0Attribute!);
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.weights0Attribute!.glBuffer);
+      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.weights0Attribute!.componentCount * this.weights0Attribute!.componentSize, tmp_updatedJointWeightsBuffer);
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      //   });
+      // });
     }
 
     /* Colors */
@@ -537,21 +550,21 @@ export class MeshPrimitiveGeometry {
       // Create GL buffer
       this.color0Attribute = this.createVertexAttribute(definition.color0Data, gl.ARRAY_BUFFER);
       // Bind updates to GL buffer
-      const tmp_updatedVertexColorBuffer = this.createTmpBufferForVertexAttribute(this.color0Attribute);
-      this.vertexColors.forEach((vertexColor, i) => {
-        vertexColor.onChange(() => {
-          /* Update vertex color gl buffer */
-          tmp_updatedVertexColorBuffer[0] = this.denormalizeValue(vertexColor.r / 0xFF, this.color0Attribute!);
-          tmp_updatedVertexColorBuffer[1] = this.denormalizeValue(vertexColor.g / 0xFF, this.color0Attribute!);
-          tmp_updatedVertexColorBuffer[2] = this.denormalizeValue(vertexColor.b / 0xFF, this.color0Attribute!);
-          if (this.color0Attribute!.componentCount === 4) {
-            tmp_updatedVertexColorBuffer[3] = this.denormalizeValue(vertexColor.a / 0xFF, this.color0Attribute!);
-          }
-          gl.bindBuffer(gl.ARRAY_BUFFER, this.color0Attribute!.glBuffer);
-          gl.bufferSubData(gl.ARRAY_BUFFER, i * this.color0Attribute!.componentCount * this.color0Attribute!.componentSize, tmp_updatedVertexColorBuffer);
-          gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        });
-      });
+      // const tmp_updatedVertexColorBuffer = this.createTmpBufferForVertexAttribute(this.color0Attribute);
+      // this.vertexColors.forEach((vertexColor, i) => {
+      //   vertexColor.onChange(() => {
+      //     /* Update vertex color gl buffer */
+      //     tmp_updatedVertexColorBuffer[0] = this.denormalizeValue(vertexColor.r / 0xFF, this.color0Attribute!);
+      //     tmp_updatedVertexColorBuffer[1] = this.denormalizeValue(vertexColor.g / 0xFF, this.color0Attribute!);
+      //     tmp_updatedVertexColorBuffer[2] = this.denormalizeValue(vertexColor.b / 0xFF, this.color0Attribute!);
+      //     if (this.color0Attribute!.componentCount === 4) {
+      //       tmp_updatedVertexColorBuffer[3] = this.denormalizeValue(vertexColor.a / 0xFF, this.color0Attribute!);
+      //     }
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.color0Attribute!.glBuffer);
+      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.color0Attribute!.componentCount * this.color0Attribute!.componentSize, tmp_updatedVertexColorBuffer);
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      //   });
+      // });
     }
 
     /* Texture coordinates */
@@ -561,57 +574,54 @@ export class MeshPrimitiveGeometry {
       // Create GL buffer
       this.texCoord0Attribute = this.createVertexAttribute(definition.texCoord0Data, gl.ARRAY_BUFFER);
       // Bind updates to GL buffer
-      const tmp_updatedVertexTexCoordBuffer = this.createTmpBufferForVertexAttribute(this.texCoord0Attribute);
-      this.vertexTextureCoordinates.forEach((vertexTexCoord, i) => {
-        vertexTexCoord.onChange(() => {
-          /* Update vertex texCoord gl buffer */
-          tmp_updatedVertexTexCoordBuffer[0] = this.denormalizeValue(vertexTexCoord.x, this.texCoord0Attribute!);
-          tmp_updatedVertexTexCoordBuffer[1] = this.denormalizeValue(vertexTexCoord.y, this.texCoord0Attribute!);
-          gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoord0Attribute!.glBuffer);
-          gl.bufferSubData(gl.ARRAY_BUFFER, i * this.texCoord0Attribute!.componentCount * this.texCoord0Attribute!.componentSize, tmp_updatedVertexTexCoordBuffer);
-          gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        });
-      });
+      // const tmp_updatedVertexTexCoordBuffer = this.createTmpBufferForVertexAttribute(this.texCoord0Attribute);
+      // this.vertexTextureCoordinates.forEach((vertexTexCoord, i) => {
+      //   vertexTexCoord.onChange(() => {
+      //     /* Update vertex texCoord gl buffer */
+      //     tmp_updatedVertexTexCoordBuffer[0] = this.denormalizeValue(vertexTexCoord.x, this.texCoord0Attribute!);
+      //     tmp_updatedVertexTexCoordBuffer[1] = this.denormalizeValue(vertexTexCoord.y, this.texCoord0Attribute!);
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoord0Attribute!.glBuffer);
+      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.texCoord0Attribute!.componentCount * this.texCoord0Attribute!.componentSize, tmp_updatedVertexTexCoordBuffer);
+      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      //   });
+      // });
     }
   }
 
-  private tmp_recomputeVertexNormals_edgeA = Vector3.zero();
-  private tmp_recomputeVertexNormals_edgeB = Vector3.zero();
-  private tmp_recomputeVertexNormals_triangleNormal = Vector3.zero();
-  private tmp_recomputeVertexNormals_normalBuffer: Vector3[] = [];
+  private static readonly tmp_recomputeVertexNormals_edgeA = Vector3.zero();
+  private static readonly tmp_recomputeVertexNormals_edgeB = Vector3.zero();
+  private static readonly tmp_recomputeVertexNormals_triangleNormal = Vector3.zero();
   public recomputeVertexNormals(): void {
-    // Initialise temporary buffer
-    if (this.tmp_recomputeVertexNormals_normalBuffer.length !== this.vertexPositions.length) {
-      this.tmp_recomputeVertexNormals_normalBuffer = this.vertexPositions.map(() => Vector3.zero());
-    } else {
-      this.tmp_recomputeVertexNormals_normalBuffer.forEach((vertexNormal) => vertexNormal.setValue(0, 0, 0));
+    // Zero all normals
+    for (let i = 0; i < this.vertexNormals.length; i++) {
+      this.vertexNormals[i].setValue(0, 0, 0);
     }
 
     // For each triangle
-    for (const triangleIndices of this.triangleIndices) {
+    for (let i = 0; i < this.triangleIndices.length; i++) {
+      const triangleIndices = this.triangleIndices[i];
       // Compute triangle normal from cross product of two edges
-      const edge1 = this.tmp_recomputeVertexNormals_edgeA
-        .setValue(this.vertexPositions[triangleIndices[`bIndex`]])
-        .subtractSelf(this.vertexPositions[triangleIndices[`aIndex`]]);
-      const edge2 = this.tmp_recomputeVertexNormals_edgeB
-        .setValue(this.vertexPositions[triangleIndices[`cIndex`]])
-        .subtractSelf(this.vertexPositions[triangleIndices[`aIndex`]]);
-      const triangleNormal = this.tmp_recomputeVertexNormals_triangleNormal
+      const edge1 = MeshPrimitiveGeometry.tmp_recomputeVertexNormals_edgeA
+        .setValue(this.vertexPositions[triangleIndices.bIndex])
+        .subtractSelf(this.vertexPositions[triangleIndices.aIndex]);
+      const edge2 = MeshPrimitiveGeometry.tmp_recomputeVertexNormals_edgeB
+        .setValue(this.vertexPositions[triangleIndices.cIndex])
+        .subtractSelf(this.vertexPositions[triangleIndices.aIndex]);
+      const triangleNormal = MeshPrimitiveGeometry.tmp_recomputeVertexNormals_triangleNormal
         .setValue(edge1)
         .crossSelf(edge2)
         .normalizeSelf();
 
       // Add triangle normal to each vertices' normal
-      this.tmp_recomputeVertexNormals_normalBuffer[triangleIndices[`aIndex`]].addSelf(triangleNormal);
-      this.tmp_recomputeVertexNormals_normalBuffer[triangleIndices[`bIndex`]].addSelf(triangleNormal);
-      this.tmp_recomputeVertexNormals_normalBuffer[triangleIndices[`cIndex`]].addSelf(triangleNormal);
+      this.vertexNormals[triangleIndices.aIndex].addSelf(triangleNormal);
+      this.vertexNormals[triangleIndices.bIndex].addSelf(triangleNormal);
+      this.vertexNormals[triangleIndices.cIndex].addSelf(triangleNormal);
     }
 
     // Normalise and assign normals (so that we only write each normal once)
-    // this.vertexNormals.forEach((vertexNormal) => vertexNormal.normalizeSelf());
-    this.tmp_recomputeVertexNormals_normalBuffer.forEach((vertexNormal, i) => {
-      this.vertexNormals[i].setValue(vertexNormal.normalizeSelf());
-    });
+    for (let i = 0; i < this.vertexNormals.length; i++) {
+      this.vertexNormals[i].setValue(this.vertexNormals[i].normalizeSelf());
+    };
   }
 
   private createVertexAttribute<TAttributeDefinition extends AnyAttributeDefinition>(attributeDefinition: TAttributeDefinition, bufferType: GLenum = WebGL2RenderingContext.ARRAY_BUFFER): VertexAttribute<TAttributeDefinition> {
@@ -626,25 +636,25 @@ export class MeshPrimitiveGeometry {
     } as unknown as VertexAttribute<TAttributeDefinition>;
   }
 
-  private createTmpBufferForVertexAttribute(attribute: AnyVertexAttribute): TypedArray {
-    switch (attribute.componentType) {
-      case WebGL2RenderingContext['BYTE']:
-        return new Int8Array(attribute.componentCount);
-      case WebGL2RenderingContext['UNSIGNED_BYTE']:
-        return new Uint8Array(attribute.componentCount);
-      case WebGL2RenderingContext['SHORT']:
-        return new Int16Array(attribute.componentCount);
-      case WebGL2RenderingContext['UNSIGNED_SHORT']:
-        return new Uint16Array(attribute.componentCount);
-      // @NOTE Accessors under the GLTF specification cannot be signed INT
-      case WebGL2RenderingContext['UNSIGNED_INT']:
-        return new Uint32Array(attribute.componentCount);
-      case WebGL2RenderingContext['FLOAT']:
-        return new Float32Array(attribute.componentCount);
-      default:
-        throw new Error(`Unimplemented attribute type: ${(attribute as { componentType: number }).componentType}`);
-    }
-  }
+  // private createTmpBufferForVertexAttribute(attribute: AnyVertexAttribute): TypedArray {
+  //   switch (attribute.componentType) {
+  //     case WebGL2RenderingContext['BYTE']:
+  //       return new Int8Array(attribute.componentCount);
+  //     case WebGL2RenderingContext['UNSIGNED_BYTE']:
+  //       return new Uint8Array(attribute.componentCount);
+  //     case WebGL2RenderingContext['SHORT']:
+  //       return new Int16Array(attribute.componentCount);
+  //     case WebGL2RenderingContext['UNSIGNED_SHORT']:
+  //       return new Uint16Array(attribute.componentCount);
+  //     // @NOTE Accessors under the GLTF specification cannot be signed INT
+  //     case WebGL2RenderingContext['UNSIGNED_INT']:
+  //       return new Uint32Array(attribute.componentCount);
+  //     case WebGL2RenderingContext['FLOAT']:
+  //       return new Float32Array(attribute.componentCount);
+  //     default:
+  //       throw new Error(`Unimplemented attribute type: ${(attribute as { componentType: number }).componentType}`);
+  //   }
+  // }
 
   private parsePositionNormalAttribute(attribute: VertexPositionAttributeDefinition | VertexNormalAttributeDefinition): Vector3[] {
     /*
@@ -831,36 +841,36 @@ export class MeshPrimitiveGeometry {
     }
   }
 
-  private denormalizeValue(value: number, attributeDefinition: BaseVertexDefinition<AnyAttributeDefinition>): number {
-    if (attributeDefinition.normalized === false) {
-      // Data does not need normalizing
-      return value;
-    } else {
-      // Data needs to be normalized
-      // @NOTE Slightly cursed normalization logic in GLTF specification.
-      // Maximally negative values (like -128 for BYTE) are clamped to -1.
-      // See: https://github.com/KhronosGroup/glTF/issues/1317
-      switch (attributeDefinition.componentType) {
-        case WebGL2RenderingContext['BYTE']:
-          return value * 0x7F;
-        case WebGL2RenderingContext['UNSIGNED_BYTE']:
-          return value * 0xFF;
-        case WebGL2RenderingContext['SHORT']:
-          return value * 0x7FFF;
-        case WebGL2RenderingContext['UNSIGNED_SHORT']:
-          return value * 0xFFFF;
+  // private denormalizeValue(value: number, attributeDefinition: BaseVertexDefinition<AnyAttributeDefinition>): number {
+  //   if (attributeDefinition.normalized === false) {
+  //     // Data does not need normalizing
+  //     return value;
+  //   } else {
+  //     // Data needs to be normalized
+  //     // @NOTE Slightly cursed normalization logic in GLTF specification.
+  //     // Maximally negative values (like -128 for BYTE) are clamped to -1.
+  //     // See: https://github.com/KhronosGroup/glTF/issues/1317
+  //     switch (attributeDefinition.componentType) {
+  //       case WebGL2RenderingContext['BYTE']:
+  //         return value * 0x7F;
+  //       case WebGL2RenderingContext['UNSIGNED_BYTE']:
+  //         return value * 0xFF;
+  //       case WebGL2RenderingContext['SHORT']:
+  //         return value * 0x7FFF;
+  //       case WebGL2RenderingContext['UNSIGNED_SHORT']:
+  //         return value * 0xFFFF;
 
-        // Unsigned int / float not valid to be normalized
-        // See: https://github.com/KhronosGroup/glTF/blob/4ecfc3bd8c439a1c3feab04218212e6b9b222253/specification/2.0/schema/accessor.schema.json#L66
-        case WebGL2RenderingContext['UNSIGNED_INT']:
-          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${WebGL2RenderingContext['UNSIGNED_INT']})`);
-        case WebGL2RenderingContext['FLOAT']:
-          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${WebGL2RenderingContext['FLOAT']})`);
+  //       // Unsigned int / float not valid to be normalized
+  //       // See: https://github.com/KhronosGroup/glTF/blob/4ecfc3bd8c439a1c3feab04218212e6b9b222253/specification/2.0/schema/accessor.schema.json#L66
+  //       case WebGL2RenderingContext['UNSIGNED_INT']:
+  //         throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${WebGL2RenderingContext['UNSIGNED_INT']})`);
+  //       case WebGL2RenderingContext['FLOAT']:
+  //         throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${WebGL2RenderingContext['FLOAT']})`);
 
-        // Unimplemented / future values
-        default:
-          throw new Error(`Unimplemented attribute component type: ${(attributeDefinition as { componentType: number }).componentType}`);
-      }
-    }
-  }
+  //       // Unimplemented / future values
+  //       default:
+  //         throw new Error(`Unimplemented attribute component type: ${(attributeDefinition as { componentType: number }).componentType}`);
+  //     }
+  //   }
+  // }
 }

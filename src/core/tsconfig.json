@@ -28,5 +28,5 @@
     "test/",
     "eslint.config.mjs",
     "vitest.config.ts",
-  ]
+  ],
 }

@@ -1,6 +1,6 @@
 import { Computed, Observable, WritableComputed } from "@lofi/core/util/observable";
 import { Quaternion, type IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
-import { EulerVector3, Vector3, type Vector3Definition } from "@lofi/core/math/vector";
+import { EulerVector3, type Vector3Definition } from "@lofi/core/math/vector";
 
 // I dub thee... "Eulernion"
 // @TODO put an interface around this for control over exposed types / params
@@ -29,13 +29,11 @@ export class Rotation extends Observable {
       dependencies: [this.q],
       recompute: (value) => {
         // Update Euler from Quaternion
-        value.setValue(this.q.toEuler());
+        value.setValue(this.q);
       },
       onSetValue: (value) => {
         // Update Quaternion from Euler
-        this.q.setValue(
-          Quaternion.fromEuler(value),
-        );
+        this.q.fromEulerSelf(value);
       },
     });
   }
@@ -84,8 +82,8 @@ export class Rotation extends Observable {
   }
 
   /* Euler */
-  public get euler(): Vector3 { return this._euler.value; }
-  public set euler(value: Vector3) { this.euler.setValue(value); }
+  public get euler(): EulerVector3 { return this._euler.value; }
+  public set euler(value: Vector3Definition) { this.euler.setValue(value); }
   public get x(): number { return this.euler.x; }
   public set x(value: number) { this.euler.x = value; }
   public get y(): number { return this.euler.y; }

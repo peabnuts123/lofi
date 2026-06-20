@@ -104,6 +104,7 @@ These items are roughly in priority order.
   - If an Observable (e.g. Vector3) drops out of scope, can it be garbage collected? Or is it captured by the closure of the function that called `.onChange()`?
   - I think we need to use finalizers to clean up held GL resources (e.g. vao in MeshPrimitive, buffers in MeshPrim geometry, etc.)
   - MeshPrimitive geometry: We should be more careful about skin joints/weights being handled separately. For example, if one is set but not the other, the code will not handle it correctly. We should maybe collapse these types into a single type that's either set or not.
+  - Make sure all tmp values are called `tmp_<thing>_<purpose>` and are static where possible
 
 
 ## Ideas
