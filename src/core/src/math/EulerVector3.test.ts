@@ -6,6 +6,7 @@ import { Vector2, EulerVector3, Vector3 } from './vector';
 /*
   @TODO Test Backlog
     - setValue with Quaternion property
+    - setting the same value does not fire onChange
  */
 
 describe("EulerVector3", () => {

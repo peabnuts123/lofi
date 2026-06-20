@@ -4,6 +4,8 @@ import { Color4 } from './Color4';
 /*
   @TODO Test backlog:
     - A bunch of stuff probably. These tests are copied verbatim from PolyZone.
+    - Observability tests
+    - Setting the same value does not fire onChange
  */
 
 describe(Color4.name, () => {

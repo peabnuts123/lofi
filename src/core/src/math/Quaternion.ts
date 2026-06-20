@@ -136,25 +136,38 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
   public setValue(x: number, y: number, z: number, w: number): this;
   public setValue(value: IReadOnlyQuaternion): this;
   public setValue(xOrValue: number | IReadOnlyQuaternion, maybeY?: number, maybeZ?: number, maybeW?: number): this {
+    let valueChanged: boolean;
     if (typeof xOrValue === 'number') {
-      this.setValueXYZW(xOrValue, maybeY as number, maybeZ as number, maybeW as number);
+      valueChanged = this.setValueXYZW(xOrValue, maybeY as number, maybeZ as number, maybeW as number);
     } else {
-      this.setValueQuaternion(xOrValue);
+      valueChanged = this.setValueQuaternion(xOrValue);
     }
-    this.notifyOnChange();
+    if (valueChanged) {
+      this.notifyOnChange();
+    }
     return this;
   }
-  private setValueXYZW(x: number, y: number, z: number, w: number): void {
+  private setValueXYZW(x: number, y: number, z: number, w: number): boolean {
+    if (this.internal.x === x && this.internal.y === y && this.internal.z === z && this.internal.w === w) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = x;
     this.internal.y = y;
     this.internal.z = z;
     this.internal.w = w;
+    return true;
   }
-  private setValueQuaternion(value: IReadOnlyQuaternion): void {
+  private setValueQuaternion(value: IReadOnlyQuaternion): boolean {
+    if (this.internal.x === value.x && this.internal.y === value.y && this.internal.z === value.z && this.internal.w === value.w) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = value.x;
     this.internal.y = value.y;
     this.internal.z = value.z;
     this.internal.w = value.w;
+    return true;
   }
 
   public clone(): Quaternion {
@@ -355,25 +368,33 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
 
   public get x(): number { return this.internal.x; }
   public set x(value: number) {
-    this.internal.x = value;
-    this.notifyOnChange();
+    if (this.internal.x !== value) {
+      this.internal.x = value;
+      this.notifyOnChange();
+    }
   }
 
   public get y(): number { return this.internal.y; }
   public set y(value: number) {
-    this.internal.y = value;
-    this.notifyOnChange();
+    if (this.internal.y !== value) {
+      this.internal.y = value;
+      this.notifyOnChange();
+    }
   }
 
   public get z(): number { return this.internal.z; }
   public set z(value: number) {
-    this.internal.z = value;
-    this.notifyOnChange();
+    if (this.internal.z !== value) {
+      this.internal.z = value;
+      this.notifyOnChange();
+    }
   }
 
   public get w(): number { return this.internal.w; }
   public set w(value: number) {
-    this.internal.w = value;
-    this.notifyOnChange();
+    if (this.internal.w !== value) {
+      this.internal.w = value;
+      this.notifyOnChange();
+    }
   }
 }

@@ -2,6 +2,7 @@ import { Observable } from "@lofi/core/util";
 import { Color4 } from "./Color4";
 import { clamp } from "./util";
 
+// @TODO Rename to Color3Like
 export interface Color3Definition {
   r: number;
   g: number;
@@ -29,6 +30,9 @@ export class Color3 extends Observable {
     this.internal.g = g;
     this.internal.b = b;
   }
+
+  // @TODO setValue(r: number, g: number, b: number): void;
+  // @TODO setValue(color: Color3Definition): void;
 
   public setR(value: number): this {
     this.r = value;
@@ -64,18 +68,24 @@ export class Color3 extends Observable {
 
   public get r(): number { return this.internal.r; }
   public set r(value: number) {
-    this.internal.r = value;
-    this.notifyOnChange();
+    if (this.internal.r !== value) {
+      this.internal.r = value;
+      this.notifyOnChange();
+    }
   }
   public get g(): number { return this.internal.g; }
   public set g(value: number) {
-    this.internal.g = value;
-    this.notifyOnChange();
+    if (this.internal.g !== value) {
+      this.internal.g = value;
+      this.notifyOnChange();
+    }
   }
   public get b(): number { return this.internal.b; }
   public set b(value: number) {
-    this.internal.b = value;
-    this.notifyOnChange();
+    if (this.internal.b !== value) {
+      this.internal.b = value;
+      this.notifyOnChange();
+    }
   }
 
   public static white(): Color3 { return new Color3(0xFF, 0xFF, 0xFF); }

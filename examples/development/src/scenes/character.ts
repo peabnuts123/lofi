@@ -220,7 +220,7 @@ export abstract class Game {
       /* Facing */
       if (playerSpeedH.lengthSquared() > 0) {
         player.playAnimation('Running_A', movementSpeedFactor);
-        player.rotation.q = Quaternion.fromLookDirection(playerSpeed.withZ(0).multiplySelf(-1));
+        player.rotation.q.fromLookDirectionSelf(playerSpeed.withZ(0).multiplySelf(-1));
       } else {
         player.playAnimation('T-Pose');
       }

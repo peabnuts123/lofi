@@ -64,21 +64,34 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
   public setValue(x: number, y: number): this;
   public setValue(value: Vector2Like): this;
   public setValue(valueOrX: Vector2Like | number, maybeY?: number): this {
+    let valueChanged: boolean;
     if (typeof valueOrX === 'number') {
-      this.setValueXY(valueOrX, maybeY as number);
+      valueChanged = this.setValueXY(valueOrX, maybeY as number);
     } else {
-      this.setValueVector(valueOrX);
+      valueChanged = this.setValueVector(valueOrX);
     }
-    this.notifyOnChange();
+    if (valueChanged) {
+      this.notifyOnChange();
+    }
     return this;
   }
-  private setValueXY(x: number, y: number): void {
+  private setValueXY(x: number, y: number): boolean {
+    if (this.internal.x === x && this.internal.y === y) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = x;
     this.internal.y = y;
+    return true;
   }
-  private setValueVector(vector: Vector2Like): void {
+  private setValueVector(vector: Vector2Like): boolean {
+    if (this.internal.x === vector.x && this.internal.y === vector.y) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = vector.x;
     this.internal.y = vector.y;
+    return true;
   }
 
   public addSelf(value: Vector2Like): this {
@@ -250,13 +263,17 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
 
   public get x(): number { return this.internal.x; }
   public set x(value: number) {
-    this.internal.x = value;
-    this.notifyOnChange();
+    if (this.internal.x !== value) {
+      this.internal.x = value;
+      this.notifyOnChange();
+    }
   }
   public get y(): number { return this.internal.y; }
   public set y(value: number) {
-    this.internal.y = value;
-    this.notifyOnChange();
+    if (this.internal.y !== value) {
+      this.internal.y = value;
+      this.notifyOnChange();
+    }
   }
 
   public static zero(): Vector2 { return new Vector2(0, 0); }
@@ -317,23 +334,36 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   public setValue(x: number, y: number, z: number): this;
   public setValue(value: Vector3Definition): this;
   public setValue(valueOrX: Vector3Definition | number, maybeY?: number, maybeZ?: number): this {
+    let valueChanged: boolean;
     if (typeof valueOrX === 'number') {
-      this.setValueXYZ(valueOrX, maybeY as number, maybeZ as number);
+      valueChanged = this.setValueXYZ(valueOrX, maybeY as number, maybeZ as number);
     } else {
-      this.setValueVector(valueOrX);
+      valueChanged = this.setValueVector(valueOrX);
     }
-    this.notifyOnChange();
+    if (valueChanged) {
+      this.notifyOnChange();
+    }
     return this;
   }
-  private setValueXYZ(x: number, y: number, z: number): void {
+  private setValueXYZ(x: number, y: number, z: number): boolean {
+    if (this.internal.x === x && this.internal.y === y && this.internal.z === z) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = x;
     this.internal.y = y;
     this.internal.z = z;
+    return true;
   }
-  private setValueVector(value: Vector3Definition): void {
+  private setValueVector(value: Vector3Definition): boolean {
+    if (this.internal.x === value.x && this.internal.y === value.y && this.internal.z === value.z) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = value.x;
     this.internal.y = value.y;
     this.internal.z = value.z;
+    return true;
   }
 
   public addSelf(value: AnyVectorLike): this {
@@ -578,20 +608,26 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
 
   public get x(): number { return this.internal.x; }
   public set x(value: number) {
-    this.internal.x = value;
-    this.notifyOnChange();
+    if (this.internal.x !== value) {
+      this.internal.x = value;
+      this.notifyOnChange();
+    }
   }
 
   public get y(): number { return this.internal.y; }
   public set y(value: number) {
-    this.internal.y = value;
-    this.notifyOnChange();
+    if (this.internal.y !== value) {
+      this.internal.y = value;
+      this.notifyOnChange();
+    }
   }
 
   public get z(): number { return this.internal.z; }
   public set z(value: number) {
-    this.internal.z = value;
-    this.notifyOnChange();
+    if (this.internal.z !== value) {
+      this.internal.z = value;
+      this.notifyOnChange();
+    }
   }
 
   public static zero(): Vector3 { return new Vector3(0, 0, 0); }
@@ -639,22 +675,30 @@ export class EulerVector3 extends Observable {
   public setValue(vector: Vector3Definition): this;
   public setValue(quaternion: Quaternion): this;
   public setValue(vectorOrQuaternionOrX: Vector3Definition | Quaternion | number, maybeY?: number, maybeZ?: number): this {
+    let valueChanged: boolean;
     if (typeof vectorOrQuaternionOrX === 'number') {
-      this.setValueXYZ(vectorOrQuaternionOrX, maybeY as number, maybeZ as number);
+      valueChanged = this.setValueXYZ(vectorOrQuaternionOrX, maybeY as number, maybeZ as number);
     } else if (vectorOrQuaternionOrX instanceof Quaternion) {
-      this.setValueQuaternion(vectorOrQuaternionOrX);
+      valueChanged = this.setValueQuaternion(vectorOrQuaternionOrX);
     } else {
-      this.setValueVector(vectorOrQuaternionOrX);
+      valueChanged = this.setValueVector(vectorOrQuaternionOrX);
     }
-    this.notifyOnChange();
+    if (valueChanged) {
+      this.notifyOnChange();
+    }
     return this;
   }
-  private setValueXYZ(x: number, y: number, z: number): void {
+  private setValueXYZ(x: number, y: number, z: number): boolean {
+    if (this.internal.x === x && this.internal.y === y && this.internal.z === z) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = x;
     this.internal.y = y;
     this.internal.z = z;
+    return true;
   }
-  private setValueQuaternion(quat: Quaternion): void {
+  private setValueQuaternion(quat: Quaternion): boolean {
     // From: https://github.com/BabylonJS/Babylon.js/blob/86bda66b6f61e482374c1a0597f1f504cd75837d/packages/dev/core/src/Maths/math.vector.ts#L5217
     const { x, y, z, w } = quat;
 
@@ -703,14 +747,28 @@ export class EulerVector3 extends Observable {
     }
 
     // Convert to degrees
-    this.internal.x = resultX * RadiansToDegrees;
-    this.internal.y = resultY * RadiansToDegrees;
-    this.internal.z = resultZ * RadiansToDegrees;
+    resultX *= RadiansToDegrees;
+    resultY *= RadiansToDegrees;
+    resultZ *= RadiansToDegrees;
+
+    if (this.internal.x === resultX && this.internal.y === resultY && this.internal.z === resultZ) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
+    this.internal.x = resultX;
+    this.internal.y = resultY;
+    this.internal.z = resultZ;
+    return true;
   }
-  private setValueVector(value: Vector3Definition): void {
+  private setValueVector(value: Vector3Definition): boolean {
+    if (this.internal.x === value.x && this.internal.y === value.y && this.internal.z === value.z) {
+      // @NOTE Write is not changing the value
+      return false;
+    }
     this.internal.x = value.x;
     this.internal.y = value.y;
     this.internal.z = value.z;
+    return true;
   }
 
   public addSelf(value: AnyVectorLike): this {
@@ -790,20 +848,26 @@ export class EulerVector3 extends Observable {
   }
   public get x(): number { return this.internal.x; }
   public set x(value: number) {
-    this.internal.x = value;
-    this.notifyOnChange();
+    if (this.internal.x !== value) {
+      this.internal.x = value;
+      this.notifyOnChange();
+    }
   }
 
   public get y(): number { return this.internal.y; }
   public set y(value: number) {
-    this.internal.y = value;
-    this.notifyOnChange();
+    if (this.internal.y !== value) {
+      this.internal.y = value;
+      this.notifyOnChange();
+    }
   }
 
   public get z(): number { return this.internal.z; }
   public set z(value: number) {
-    this.internal.z = value;
-    this.notifyOnChange();
+    if (this.internal.z !== value) {
+      this.internal.z = value;
+      this.notifyOnChange();
+    }
   }
 
   public static zero(): EulerVector3 { return new EulerVector3(0, 0, 0); }

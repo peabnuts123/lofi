@@ -34,6 +34,7 @@ class Matrix3InternalBuffer {
 
 /**
  * A 3x3 matrix. Values are stored in column-major order.
+ * @TODO Make observable
  */
 export class Matrix3 {
   private readonly internal: Matrix3InternalBuffer;

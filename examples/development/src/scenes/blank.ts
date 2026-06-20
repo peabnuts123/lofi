@@ -49,7 +49,7 @@ export abstract class Game {
     const defaultCube = new ModelNode(scene, 'default_cube', cubeModel);
     runLoopHooks.push((dt) => {
       // Spin cube
-      defaultCube.rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), 45 * dt));
+      defaultCube.rotation.z += 45 * dt;
     });
 
     /* Run */

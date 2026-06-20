@@ -7,9 +7,9 @@ import { Matrix4 } from './Matrix4';
 
 /* @TODO Test backlog
   - Vector2
-  - EulerVector
   - divideSelf/divide by 0 throws error
   - withX/withY/withZ
+  - Setting the same value(s) does not fire on change
 */
 
 describe("Vector3", () => {

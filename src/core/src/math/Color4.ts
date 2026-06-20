@@ -44,6 +44,9 @@ export class Color4 extends Observable {
     }
   }
 
+  // @TODO setValue(r: number, g: number, b: number, a: number): void;
+  // @TODO setValue(color: Color4Definition): void;
+
   public clone(): Color4 {
     return new Color4(this.r, this.g, this.b, this.a);
   }
@@ -86,23 +89,31 @@ export class Color4 extends Observable {
 
   public get r(): number { return this.internal.r; }
   public set r(value: number) {
-    this.internal.r = value;
-    this.notifyOnChange();
+    if (this.internal.r !== value) {
+      this.internal.r = value;
+      this.notifyOnChange();
+    }
   }
   public get g(): number { return this.internal.g; }
   public set g(value: number) {
-    this.internal.g = value;
-    this.notifyOnChange();
+    if (this.internal.g !== value) {
+      this.internal.g = value;
+      this.notifyOnChange();
+    }
   }
   public get b(): number { return this.internal.b; }
   public set b(value: number) {
-    this.internal.b = value;
-    this.notifyOnChange();
+    if (this.internal.b !== value) {
+      this.internal.b = value;
+      this.notifyOnChange();
+    }
   }
   public get a(): number { return this.internal.a; }
   public set a(value: number) {
-    this.internal.a = value;
-    this.notifyOnChange();
+    if (this.internal.a !== value) {
+      this.internal.a = value;
+      this.notifyOnChange();
+    }
   }
 
   public static white(): Color4 { return new Color4(0xFF, 0xFF, 0xFF); }

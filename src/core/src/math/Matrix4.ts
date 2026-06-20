@@ -94,10 +94,16 @@ export class Matrix4 extends Observable {
   }
 
   public setValue(value: Matrix4): this {
+    let valueChanged = false;
     for (let i = 0; i < Matrix4InternalBuffer.BufferSize; i++) {
+      if (!valueChanged && this.internal.buffer[i] !== value.internal.buffer[i]) {
+        valueChanged = true;
+      }
       this.internal.buffer[i] = value.internal.buffer[i];
     }
-    this.notifyOnChange();
+    if (valueChanged) {
+      this.notifyOnChange();
+    }
     return this;
   }
 
@@ -338,82 +344,114 @@ export class Matrix4 extends Observable {
 
   public get m00(): number { return this.internal.m00; }
   public set m00(value: number) {
-    this.internal.m00 = value;
-    this.notifyOnChange();
+    if (this.internal.m00 !== value) {
+      this.internal.m00 = value;
+      this.notifyOnChange();
+    }
   }
   public get m10(): number { return this.internal.m10; }
   public set m10(value: number) {
-    this.internal.m10 = value;
-    this.notifyOnChange();
+    if (this.internal.m10 !== value) {
+      this.internal.m10 = value;
+      this.notifyOnChange();
+    }
   }
   public get m20(): number { return this.internal.m20; }
   public set m20(value: number) {
-    this.internal.m20 = value;
-    this.notifyOnChange();
+    if (this.internal.m20 !== value) {
+      this.internal.m20 = value;
+      this.notifyOnChange();
+    }
   }
   public get m30(): number { return this.internal.m30; }
   public set m30(value: number) {
-    this.internal.m30 = value;
-    this.notifyOnChange();
+    if (this.internal.m30 !== value) {
+      this.internal.m30 = value;
+      this.notifyOnChange();
+    }
   }
   public get m01(): number { return this.internal.m01; }
   public set m01(value: number) {
-    this.internal.m01 = value;
-    this.notifyOnChange();
+    if (this.internal.m01 !== value) {
+      this.internal.m01 = value;
+      this.notifyOnChange();
+    }
   }
   public get m11(): number { return this.internal.m11; }
   public set m11(value: number) {
-    this.internal.m11 = value;
-    this.notifyOnChange();
+    if (this.internal.m11 !== value) {
+      this.internal.m11 = value;
+      this.notifyOnChange();
+    }
   }
   public get m21(): number { return this.internal.m21; }
   public set m21(value: number) {
-    this.internal.m21 = value;
-    this.notifyOnChange();
+    if (this.internal.m21 !== value) {
+      this.internal.m21 = value;
+      this.notifyOnChange();
+    }
   }
   public get m31(): number { return this.internal.m31; }
   public set m31(value: number) {
-    this.internal.m31 = value;
-    this.notifyOnChange();
+    if (this.internal.m31 !== value) {
+      this.internal.m31 = value;
+      this.notifyOnChange();
+    }
   }
   public get m02(): number { return this.internal.m02; }
   public set m02(value: number) {
-    this.internal.m02 = value;
-    this.notifyOnChange();
+    if (this.internal.m02 !== value) {
+      this.internal.m02 = value;
+      this.notifyOnChange();
+    }
   }
   public get m12(): number { return this.internal.m12; }
   public set m12(value: number) {
-    this.internal.m12 = value;
-    this.notifyOnChange();
+    if (this.internal.m12 !== value) {
+      this.internal.m12 = value;
+      this.notifyOnChange();
+    }
   }
   public get m22(): number { return this.internal.m22; }
   public set m22(value: number) {
-    this.internal.m22 = value;
-    this.notifyOnChange();
+    if (this.internal.m22 !== value) {
+      this.internal.m22 = value;
+      this.notifyOnChange();
+    }
   }
   public get m32(): number { return this.internal.m32; }
   public set m32(value: number) {
-    this.internal.m32 = value;
-    this.notifyOnChange();
+    if (this.internal.m32 !== value) {
+      this.internal.m32 = value;
+      this.notifyOnChange();
+    }
   }
   public get m03(): number { return this.internal.m03; }
   public set m03(value: number) {
-    this.internal.m03 = value;
-    this.notifyOnChange();
+    if (this.internal.m03 !== value) {
+      this.internal.m03 = value;
+      this.notifyOnChange();
+    }
   }
   public get m13(): number { return this.internal.m13; }
   public set m13(value: number) {
-    this.internal.m13 = value;
-    this.notifyOnChange();
+    if (this.internal.m13 !== value) {
+      this.internal.m13 = value;
+      this.notifyOnChange();
+    }
   }
   public get m23(): number { return this.internal.m23; }
   public set m23(value: number) {
-    this.internal.m23 = value;
-    this.notifyOnChange();
+    if (this.internal.m23 !== value) {
+      this.internal.m23 = value;
+      this.notifyOnChange();
+    }
   }
   public get m33(): number { return this.internal.m33; }
   public set m33(value: number) {
-    this.internal.m33 = value;
-    this.notifyOnChange();
+    if (this.internal.m33 !== value) {
+      this.internal.m33 = value;
+      this.notifyOnChange();
+    }
   }
 }

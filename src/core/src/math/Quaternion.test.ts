@@ -9,7 +9,8 @@ import { WellKnownQuaternions } from '@test/util/quaternions';
   @TODO Test Backlog
     - Normalizing quaternion of length 0 gets identity
     - Normalizing quaternion of length 1 gets no change, doesn't notify
-    - ReadOnlyQuaternion
+    - Setting same value does not fire onChange
+
  */
 
 describe("quaternion", () => {
@@ -82,7 +83,7 @@ describe("quaternion", () => {
       });
 
       // Test
-      quaternion.setValue(Quaternion.identity());
+      quaternion.setValue(new Quaternion(0, 1, 0, 0));
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
