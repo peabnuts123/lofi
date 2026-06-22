@@ -20,7 +20,17 @@ class Color3InternalBuffer {
   public set b(value: number) { this.buffer[2] = clamp(value, 0, 0xFF); }
 }
 
-export class Color3 extends Observable {
+export interface IReadonlyColor3 {
+  clone(): Color3;
+  withR(value: number): Color3;
+  withG(value: number): Color3;
+  withB(value: number): Color3;
+  get r(): number;
+  get g(): number;
+  get b(): number;
+}
+
+export class Color3 extends Observable implements IReadonlyColor3 {
   private readonly internal: Color3InternalBuffer;
 
   public constructor(r: number, g: number, b: number) {
@@ -33,6 +43,10 @@ export class Color3 extends Observable {
 
   // @TODO setValue(r: number, g: number, b: number): void;
   // @TODO setValue(color: Color3Definition): void;
+
+  public clone(): Color3 {
+    return new Color3(this.r, this.g, this.b);
+  }
 
   public setR(value: number): this {
     this.r = value;

@@ -1,4 +1,6 @@
-import { Color4, Vector2, Vector3, type IReadonlyVector3 } from "@lofi/core/math";
+import { Color4, Vector2, Vector3, type IReadonlyColor4, type IReadonlyVector2, type IReadonlyVector3 } from "@lofi/core/math";
+import { Computed, Observable, type Mutable, type TypedArray } from "@lofi/core/util";
+import { RateCounter } from "@lofi/core/util/RateCounter";
 import type { IEngine } from "@lofi/engine/Engine";
 import type {
   AnyAttributeDefinition,
@@ -17,24 +19,38 @@ import type {
   TriangleIndicesAttributeDefinition,
 } from "@lofi/engine/loaders/definitions";
 import { MaterialInstance, ShaderBlendingModeTypeEnumValue } from "@lofi/engine/materials";
-import { createBuffer } from "@lofi/engine/util/createBuffer";
+import { createBuffer, GlArrayBuffer, GlElementArrayBuffer, type GlBufferEnum } from "@lofi/engine/util/createBuffer";
 
 import { MeshPrimitive } from "./MeshPrimitive";
-import { Computed, Observable, type Mutable } from "@lofi/core/util";
 
 type MaterialCacheKey = number;
 
 /*
-  @TODO
+  @TODO 2
   // - Stop and commit working slow low level api
-  - Try removing all references to mutate ()
-  - Think about: why are 350k mutations happening per frame - is that right?
-  - Log when mutations are just writing the same value (? Don’t mutate?)
+  // - Try removing all references to mutate ()
+  // - Think about: why are 350k mutations happening per frame - is that right?
+  // - Log when mutations are just writing the same value (? Don’t mutate?)
   - Approximate BB is still listening to eg part rotations it should probably have next to no dependencies
   - Remove redundant dependencies where we we are just storing the value / don’t be computed just flat map once
-  - Some way of debouncing geometry mutations / batching. It could be immutable unless you call a mutate function which then batch writes anything that changed. Maybe This can be the access API from the top level
-  - Do we need a hierarchy of computers at all
+  // - Some way of debouncing geometry mutations / batching. It could be immutable unless you call a mutate function which then batch writes anything that changed. Maybe This can be the access API from the top level
+  - Do we need a hierarchy of computeds at all
  */
+
+/*
+@TODO 1 Low level API work backlog
+  // - Implement `clearPrimitiveCache`
+  - Expose these types from a public place (i.e. iterating model => modelpart => meshprim)
+  - Make Immutable geometry types and use them in parent Geometry classes (e.g. Model.geometry)
+  // - Listen to observable callbacks on parsed geometry values (e.g. vertex position Vector3s) and
+    // update buffers when they change
+  // - Implement the rest of the attributes (e.g. color, texCoords)
+  // - Implement public API to add/clear optional vertex attributes
+  // - Probably we need to sort out this whole definition + parsed data + GL Buffer paired lists thing~
+  // - Need to straighten out `indices` and its relationship to triangles (e.g. triangleIndices?)
+  // - Make types like `TriangleIndices` and `JointIndices` observable
+  // - I GUESS make `EdgeIndices` and `Edge` immutable??
+*/
 
 /**
  * Cache that holds {@linkcode MeshPrimitive} instances.
@@ -164,9 +180,15 @@ export class TriangleIndices extends Observable implements IReadonlyTriangleIndi
     this.notifyOnChange();
   }
 }
-// @TODO REVIEW Rename singular
+
+export interface IReadonlyJointIndices {
+  get [0](): number;
+  get [1](): number;
+  get [2](): number;
+  get [3](): number;
+}
 export type JointIndicesKey = 0 | 1 | 2 | 3;
-export class JointsIndices extends Observable {
+export class JointIndices extends Observable implements IReadonlyJointIndices {
   private _0: number;
   private _1: number;
   private _2: number;
@@ -209,9 +231,15 @@ export class JointsIndices extends Observable {
     this.notifyOnChange();
   }
 }
-// @TODO Rename this and other things to `JointWeights` (singular)
+
+export interface IReadonlyJointWeights {
+  get [0](): number;
+  get [1](): number;
+  get [2](): number;
+  get [3](): number;
+}
 export type JointWeightsKey = 0 | 1 | 2 | 3;
-export class JointsWeights extends Observable {
+export class JointWeights extends Observable implements IReadonlyJointWeights {
   private _0: number;
   private _1: number;
   private _2: number;
@@ -260,21 +288,6 @@ export interface MeshPrimitiveGeometryArgs {
   definition: MeshPrimitiveDefinition;
 }
 
-/*
-  @TODO Low level API work backlog
-    // - Implement `clearPrimitiveCache`
-    - Expose these types from a public place (i.e. iterating model => modelpart => meshprim)
-    - Make Immutable geometry types and use them in parent Geometry classes (e.g. Model.geometry)
-    // - Listen to observable callbacks on parsed geometry values (e.g. vertex position Vector3s) and
-      // update buffers when they change
-    // - Implement the rest of the attributes (e.g. color, texCoords)
-    // - Implement public API to add/clear optional vertex attributes
-    // - Probably we need to sort out this whole definition + parsed data + GL Buffer paired lists thing~
-    // - Need to straighten out `indices` and its relationship to triangles (e.g. triangleIndices?)
-    // - Make types like `TriangleIndices` and `JointsIndices` observable
-    // - I GUESS make `EdgeIndices` and `Edge` immutable??
- */
-
 export type BaseVertexDefinition<TAttributeDefinition extends AnyAttributeDefinition> =
   TAttributeDefinition extends AttributeDefinition<infer ComponentCount, infer ComponentType> ?
   // Common keys of `TAttributeDefinition` and `BaseAttributeDefinition`
@@ -297,6 +310,89 @@ export type VertexJointIndicesAttribute = VertexAttribute<VertexJointIndicesAttr
 export type VertexJointWeightsAttribute = VertexAttribute<VertexJointWeightsAttributeDefinition>;
 export type TriangleIndicesAttribute = VertexAttribute<TriangleIndicesAttributeDefinition>;
 
+export interface MutableMeshPrimitiveGeometry {
+  get vertexPositions(): readonly Vector3[];
+  get vertexNormals(): readonly Vector3[];
+  get triangleIndices(): readonly TriangleIndices[];
+  get jointIndices(): readonly JointIndices[] | undefined;
+  get jointWeights(): readonly JointWeights[] | undefined;
+  get vertexColors(): readonly Color4[] | undefined;
+  get vertexTextureCoordinates(): readonly Vector2[] | undefined;
+  recomputeVertexNormals(): void;
+}
+
+class ObservableEvent extends Observable {
+  public changed(): void {
+    this.notifyOnChange();
+  }
+}
+type AttributeMutationDirtyRange = [min: number | undefined, max: number | undefined];
+
+type WriteDatumToBufferFunc<TData extends Observable> = (datum: TData, buffer: TypedArray, offset: number) => void;
+class VertexAttributeMutationObserver<TData extends Observable> {
+  // References
+  public readonly data: readonly TData[];
+  public readonly attribute: AnyVertexAttribute;
+  public readonly observableEvent: ObservableEvent;
+  public readonly scratchBuffer: TypedArray;
+  public readonly writeDatumToBuffer: WriteDatumToBufferFunc<TData>;
+  public readonly bufferType: GlBufferEnum;
+
+  // State
+  public readonly dirtyRange: AttributeMutationDirtyRange = [undefined, undefined];
+  private enabled: boolean = false;
+  /**
+   * Alias for `attribute.componentCount`.
+   * This is primarily an escape hatch for TriangleIndices, since the logic needs
+   * to override the attribute definition with a custom value.
+   */
+  public componentCount: number;
+
+  public constructor(
+    data: readonly TData[],
+    attribute: AnyVertexAttribute,
+    observableEvent: ObservableEvent,
+    scratchBuffer: TypedArray,
+    writeDatumToBuffer: WriteDatumToBufferFunc<TData>,
+    bufferType: GlBufferEnum = GlArrayBuffer,
+  ) {
+    // Store references
+    this.data = data;
+    this.attribute = attribute;
+    this.observableEvent = observableEvent;
+    this.scratchBuffer = scratchBuffer;
+    this.writeDatumToBuffer = writeDatumToBuffer;
+    this.bufferType = bufferType;
+
+    this.componentCount = attribute.componentCount;
+
+    // Subscribe to all data changes
+    for (let i = 0; i < data.length; i++) {
+      data[i].onChange(() => {
+        // Only react to changes if observing is enabled
+        if (this.enabled) {
+          if (this.dirtyRange[0] === undefined || i < this.dirtyRange[0]) {
+            this.dirtyRange[0] = i;
+          }
+          if (this.dirtyRange[1] === undefined || i > this.dirtyRange[1]) {
+            this.dirtyRange[1] = i;
+          }
+        }
+      });
+    }
+  }
+
+  public reset(): void {
+    this.dirtyRange[0] = undefined;
+    this.dirtyRange[1] = undefined;
+    this.enabled = true;
+  }
+
+  public disable(): void {
+    this.enabled = false;
+  }
+}
+
 export class MeshPrimitiveGeometry {
   private readonly engine: IEngine;
 
@@ -308,6 +404,7 @@ export class MeshPrimitiveGeometry {
   /* Vertex attributes */
   public readonly positionAttribute: Readonly<VertexPositionAttribute>;
   public readonly normalAttribute: Readonly<VertexNormalAttribute>;
+  // @TODO Rename this attribute + some other properties
   public readonly indicesAttribute: Readonly<TriangleIndicesAttribute>;
   public readonly joints0Attribute: Readonly<VertexJointIndicesAttribute> | undefined;
   public readonly weights0Attribute: Readonly<VertexJointWeightsAttribute> | undefined;
@@ -315,14 +412,32 @@ export class MeshPrimitiveGeometry {
   public readonly texCoord0Attribute: Readonly<VertexTextureCoordinateAttribute> | undefined;
 
   /* Parsed data */
-  public readonly vertexPositions: readonly Vector3[];
-  public readonly vertexNormals: readonly Vector3[];
-  public readonly triangleIndices: readonly TriangleIndices[];
-  public readonly edgeIndices: Computed<readonly EdgeIndices[]>;
-  public readonly jointIndices: readonly JointsIndices[] | undefined;
-  public readonly jointWeights: readonly JointsWeights[] | undefined;
-  public readonly vertexColors: readonly Color4[] | undefined;
-  public readonly vertexTextureCoordinates: readonly Vector2[] | undefined;
+  private readonly _vertexPositions: readonly Vector3[];
+  private readonly _vertexNormals: readonly Vector3[];
+  private readonly _triangleIndices: readonly TriangleIndices[];
+  private readonly _edgeIndices: Computed<readonly EdgeIndices[]>;
+  private readonly _jointIndices: readonly JointIndices[] | undefined;
+  private readonly _jointWeights: readonly JointWeights[] | undefined;
+  private readonly _vertexColors: readonly Color4[] | undefined;
+  private readonly _vertexTextureCoordinates: readonly Vector2[] | undefined;
+
+  /* Observable events - fired when any underlying data is changed via `mutate()` */
+  public readonly vertexPositionsChanged: ObservableEvent;
+  public readonly vertexNormalsChanged: ObservableEvent;
+  public readonly triangleIndicesChanged: ObservableEvent;
+  public readonly jointIndicesChanged: ObservableEvent;
+  public readonly jointWeightsChanged: ObservableEvent;
+  public readonly vertexColorsChanged: ObservableEvent;
+  public readonly vertexTextureCoordinatesChanged: ObservableEvent;
+
+  /* Mutation observers */
+  private readonly vertexPositionsMutationObserver: VertexAttributeMutationObserver<Vector3>;
+  private readonly vertexNormalsMutationObserver: VertexAttributeMutationObserver<Vector3>;
+  private readonly triangleIndicesMutationObserver: VertexAttributeMutationObserver<TriangleIndices>;
+  private readonly jointIndicesMutationObserver: VertexAttributeMutationObserver<JointIndices> | undefined;
+  private readonly jointWeightsMutationObserver: VertexAttributeMutationObserver<JointWeights> | undefined;
+  private readonly vertexColorsMutationObserver: VertexAttributeMutationObserver<Color4> | undefined;
+  private readonly vertexTextureCoordinatesMutationObserver: VertexAttributeMutationObserver<Vector2> | undefined;
 
   public constructor({ engine, definition }: MeshPrimitiveGeometryArgs) {
     this.engine = engine;
@@ -333,39 +448,46 @@ export class MeshPrimitiveGeometry {
 
     const { gl } = engine;
 
+    /* Observable events */
+    this.vertexPositionsChanged = new ObservableEvent();
+    this.vertexNormalsChanged = new ObservableEvent();
+    this.triangleIndicesChanged = new ObservableEvent();
+    this.jointIndicesChanged = new ObservableEvent();
+    this.jointWeightsChanged = new ObservableEvent();
+    this.vertexColorsChanged = new ObservableEvent();
+    this.vertexTextureCoordinatesChanged = new ObservableEvent();
+
     /* Vertex positions */
     // Parse data
-    this.vertexPositions = Object.freeze(this.parsePositionNormalAttribute(definition.positionData));
-
+    this._vertexPositions = Object.freeze(this.parsePositionNormalAttribute(definition.positionData));
     // Create GL buffer
     this.positionAttribute = this.createVertexAttribute(definition.positionData, gl.ARRAY_BUFFER);
-    // Bind updates to GL buffer
-    // const tmp_updatedVertexPositionBuffer = this.createTmpBufferForVertexAttribute(this.positionAttribute);
-    // this.vertexPositions.forEach((vertexPosition, i) => {
-    //   vertexPosition.onChange(() => {
-    //     /* Update vertex position gl buffer */
-    //     tmp_updatedVertexPositionBuffer[0] = vertexPosition.x;
-    //     tmp_updatedVertexPositionBuffer[1] = vertexPosition.y;
-    //     tmp_updatedVertexPositionBuffer[2] = vertexPosition.z;
-    //     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionAttribute.glBuffer);
-    //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.positionAttribute.componentCount * this.positionAttribute.componentSize, tmp_updatedVertexPositionBuffer);
-    //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    //   });
-    // });
+    // Create mutation observer
+    this.vertexPositionsMutationObserver = new VertexAttributeMutationObserver(
+      this._vertexPositions,
+      this.positionAttribute,
+      this.vertexPositionsChanged,
+      this.createTmpBufferForVertexAttribute(this.positionAttribute, this._vertexPositions.length),
+      (vertexPosition, buffer, offset) => {
+        buffer[offset + 0] = vertexPosition.x;
+        buffer[offset + 1] = vertexPosition.y;
+        buffer[offset + 2] = vertexPosition.z;
+      },
+    );
 
     /* Triangle indices */
     if (definition.indices) {
       // Triangles defined by vertex indices
       // Parse data
-      this.triangleIndices = Object.freeze(this.parseIndicesAttribute(definition.indices));
+      this._triangleIndices = Object.freeze(this.parseIndicesAttribute(definition.indices));
       // Create GL buffer
       this.indicesAttribute = this.createVertexAttribute(definition.indices, gl.ELEMENT_ARRAY_BUFFER);
     } else {
       // Triangles assumed to be sequential
       // Generate data
-      const triangleIndices: TriangleIndices[] = this.triangleIndices = [];
-      const glBufferData = new Uint32Array(this.vertexPositions.length);
-      for (let i = 2; i < this.vertexPositions.length; i += 3) {
+      const triangleIndices: TriangleIndices[] = this._triangleIndices = [];
+      const glBufferData = new Uint32Array(this._vertexPositions.length);
+      for (let i = 2; i < this._vertexPositions.length; i += 3) {
         triangleIndices.push(new TriangleIndices(
           i - 2,
           i - 1,
@@ -390,62 +512,64 @@ export class MeshPrimitiveGeometry {
       };
     }
     // @NOTE Sanity check triangle indices
-    this.triangleIndices.forEach((triangle, triangleIndex) => {
+    this._triangleIndices.forEach((triangle, triangleIndex) => {
       for (const i of ['aIndex', 'bIndex', 'cIndex'] as const) {
         const vertexIndex = triangle[i];
-        if (this.vertexPositions[vertexIndex] === undefined) {
+        if (this._vertexPositions[vertexIndex] === undefined) {
           throw new Error(`Triangle ${triangleIndex} vertex ${i} is out of bounds: ${vertexIndex}`);
         }
       }
     });
-    // Bind updates to GL buffer
-    // @NOTE Need custom logic for tmp buffer for indices since spec says that
+    // Create mutation observer
+    // @NOTE Triangle indices need custom component count since the spec says that
     // indices component count is 1, yet triangles need 3 indices.
-    // const IndicesBufferCustomLength = 3;
-    // let tmp_updatedVertexIndexBuffer: TypedArray;
-    // switch (this.indicesAttribute.componentType) {
-    //   case WebGL2RenderingContext['UNSIGNED_BYTE']:
-    //     tmp_updatedVertexIndexBuffer = new Uint8Array(IndicesBufferCustomLength);
-    //     break;
-    //   case WebGL2RenderingContext['UNSIGNED_SHORT']:
-    //     tmp_updatedVertexIndexBuffer = new Uint16Array(IndicesBufferCustomLength);
-    //     break;
-    //   case WebGL2RenderingContext['UNSIGNED_INT']:
-    //     tmp_updatedVertexIndexBuffer = new Uint32Array(IndicesBufferCustomLength);
-    //     break;
-    //   default:
-    //     throw new Error(`Unimplemented indices attribute component type: ${(this.indicesAttribute as { componentType: number }).componentType}`);
-    // }
-    // this.triangleIndices.forEach((triangleIndices, i) => {
-    //   triangleIndices.onChange(() => {
-    //     /* Update triangle indices gl buffer */
-    //     tmp_updatedVertexIndexBuffer[0] = triangleIndices["aIndex"];
-    //     tmp_updatedVertexIndexBuffer[1] = triangleIndices["bIndex"];
-    //     tmp_updatedVertexIndexBuffer[2] = triangleIndices["cIndex"];
-
-    //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indicesAttribute.glBuffer);
-    //     gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, i * IndicesBufferCustomLength * this.indicesAttribute.componentSize, tmp_updatedVertexIndexBuffer);
-    //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-    //   });
-    // });
+    const TriangleIndicesCustomComponentCount = 3;
+    let triangleIndicesScratchBuffer: TypedArray;
+    switch (this.indicesAttribute.componentType) {
+      case WebGL2RenderingContext['UNSIGNED_BYTE']:
+        triangleIndicesScratchBuffer = new Uint8Array(TriangleIndicesCustomComponentCount * this._triangleIndices.length);
+        break;
+      case WebGL2RenderingContext['UNSIGNED_SHORT']:
+        triangleIndicesScratchBuffer = new Uint16Array(TriangleIndicesCustomComponentCount * this._triangleIndices.length);
+        break;
+      case WebGL2RenderingContext['UNSIGNED_INT']:
+        triangleIndicesScratchBuffer = new Uint32Array(TriangleIndicesCustomComponentCount * this._triangleIndices.length);
+        break;
+      default:
+        throw new Error(`Unimplemented indices attribute component type: ${(this.indicesAttribute as { componentType: number }).componentType}`);
+    }
+    this.triangleIndicesMutationObserver = new VertexAttributeMutationObserver(
+      this._triangleIndices,
+      this.indicesAttribute,
+      this.triangleIndicesChanged,
+      triangleIndicesScratchBuffer,
+      (triangleIndices, buffer, offset) => {
+        buffer[offset + 0] = triangleIndices.aIndex;
+        buffer[offset + 1] = triangleIndices.bIndex;
+        buffer[offset + 2] = triangleIndices.cIndex;
+      },
+      GlElementArrayBuffer,
+    );
+    // @NOTE Override component count
+    this.triangleIndicesMutationObserver.componentCount = 3;
 
     /* Vertex normals */
     if (definition.normalData !== undefined) {
       // Normals provided by asset
       // Parse data
-      this.vertexNormals = Object.freeze(this.parsePositionNormalAttribute(definition.normalData));
+      this._vertexNormals = Object.freeze(this.parsePositionNormalAttribute(definition.normalData));
       // Create GL buffer
       this.normalAttribute = this.createVertexAttribute(definition.normalData, gl.ARRAY_BUFFER);
     } else {
       // Normals MISSING from asset
       // Generate data
-      this.vertexNormals = Object.freeze(this.vertexPositions.map(() => Vector3.zero()));
+      this._vertexNormals = Object.freeze(this._vertexPositions.map(() => Vector3.zero()));
       this.recomputeVertexNormals();
 
       // Write data to GL buffer
-      const glBufferData = new Float32Array(this.vertexNormals.length * 3);
-      for (let i = 0; i < this.vertexNormals.length; i++) {
-        const vertexNormal = this.vertexNormals[i];
+      const glBufferData = new Float32Array(this._vertexNormals.length * 3);
+      for (let i = 0; i < this._vertexNormals.length; i++) {
+        const vertexNormal = this._vertexNormals[i];
         glBufferData[i * 3] = vertexNormal.x;
         glBufferData[i * 3 + 1] = vertexNormal.y;
         glBufferData[i * 3 + 2] = vertexNormal.z;
@@ -460,24 +584,24 @@ export class MeshPrimitiveGeometry {
         normalized: false,
       };
     }
-    // // Bind updates to GL buffer
-    // const tmp_updatedVertexNormalBuffer = this.createTmpBufferForVertexAttribute(this.normalAttribute);
-    // this.vertexNormals.forEach((vertexNormal, i) => {
-    //   vertexNormal.onChange(() => {
-    //     /* Update vertex normal gl buffer */
-    //     tmp_updatedVertexNormalBuffer[0] = vertexNormal.x;
-    //     tmp_updatedVertexNormalBuffer[1] = vertexNormal.y;
-    //     tmp_updatedVertexNormalBuffer[2] = vertexNormal.z;
-    //     gl.bindBuffer(gl.ARRAY_BUFFER, this.normalAttribute.glBuffer);
-    //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.normalAttribute.componentCount * this.normalAttribute.componentSize, tmp_updatedVertexNormalBuffer);
-    //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    //   });
-    // });
+    // Create mutation observer
+    this.vertexNormalsMutationObserver = new VertexAttributeMutationObserver(
+      this._vertexNormals,
+      this.normalAttribute,
+      this.vertexNormalsChanged,
+      this.createTmpBufferForVertexAttribute(this.normalAttribute, this._vertexNormals.length),
+      (vertexNormal, buffer, offset) => {
+        buffer[offset + 0] = vertexNormal.x;
+        buffer[offset + 1] = vertexNormal.y;
+        buffer[offset + 2] = vertexNormal.z;
+      },
+    );
 
     /* Edges */
     // @NOTE Edges are entirely computed based on parsed geometry
-    this.edgeIndices = new Computed<readonly EdgeIndices[]>([], {
-      dependencies: this.triangleIndices,
+    this._edgeIndices = new Computed<readonly EdgeIndices[]>([], {
+      // @TODO Update to observable event
+      dependencies: this._triangleIndices,
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
@@ -494,7 +618,7 @@ export class MeshPrimitiveGeometry {
             edgeMap.set(edgeKey, edge);
           }
         }
-        this.triangleIndices.forEach((triangle) => {
+        this._triangleIndices.forEach((triangle) => {
           addEdge(triangle['aIndex'], triangle['bIndex']);
           addEdge(triangle['bIndex'], triangle['cIndex']);
           addEdge(triangle['cIndex'], triangle['aIndex']);
@@ -509,82 +633,193 @@ export class MeshPrimitiveGeometry {
     /* Skin */
     if (definition.joints0Data && definition.weights0Data) {
       // Parse data
-      this.jointIndices = Object.freeze(this.parseJointIndicesAttribute(definition.joints0Data));
-      this.jointWeights = Object.freeze(this.parseJointWeightsAttribute(definition.weights0Data));
-      // Create GL buffer
+      this._jointIndices = Object.freeze(this.parseJointIndicesAttribute(definition.joints0Data));
+      this._jointWeights = Object.freeze(this.parseJointWeightsAttribute(definition.weights0Data));
+      // Create GL buffers
       this.joints0Attribute = this.createVertexAttribute(definition.joints0Data, gl.ARRAY_BUFFER);
       this.weights0Attribute = this.createVertexAttribute(definition.weights0Data, gl.ARRAY_BUFFER);
-      // Bind updates to GL buffer
-      // const tmp_updatedJointIndicesBuffer = this.createTmpBufferForVertexAttribute(this.joints0Attribute);
-      // this.jointIndices.forEach((jointIndices, i) => {
-      //   jointIndices.onChange(() => {
-      //     /* Update joint indices gl buffer */
-      //     tmp_updatedJointIndicesBuffer[0] = jointIndices[0];
-      //     tmp_updatedJointIndicesBuffer[1] = jointIndices[1];
-      //     tmp_updatedJointIndicesBuffer[2] = jointIndices[2];
-      //     tmp_updatedJointIndicesBuffer[3] = jointIndices[3];
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.joints0Attribute!.glBuffer);
-      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.joints0Attribute!.componentCount * this.joints0Attribute!.componentSize, tmp_updatedJointIndicesBuffer);
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      //   });
-      // });
-      // const tmp_updatedJointWeightsBuffer = this.createTmpBufferForVertexAttribute(this.weights0Attribute);
-      // this.jointWeights.forEach((jointWeights, i) => {
-      //   jointWeights.onChange(() => {
-      //     /* Update joint weights gl buffer */
-      //     tmp_updatedJointWeightsBuffer[0] = this.denormalizeValue(jointWeights[0], this.weights0Attribute!);
-      //     tmp_updatedJointWeightsBuffer[1] = this.denormalizeValue(jointWeights[1], this.weights0Attribute!);
-      //     tmp_updatedJointWeightsBuffer[2] = this.denormalizeValue(jointWeights[2], this.weights0Attribute!);
-      //     tmp_updatedJointWeightsBuffer[3] = this.denormalizeValue(jointWeights[3], this.weights0Attribute!);
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.weights0Attribute!.glBuffer);
-      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.weights0Attribute!.componentCount * this.weights0Attribute!.componentSize, tmp_updatedJointWeightsBuffer);
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      //   });
-      // });
+      // Create mutation observers
+      this.jointIndicesMutationObserver = new VertexAttributeMutationObserver(
+        this._jointIndices,
+        this.joints0Attribute,
+        this.jointIndicesChanged,
+        this.createTmpBufferForVertexAttribute(this.joints0Attribute, this._jointIndices.length),
+        (jointIndices, buffer, offset) => {
+          buffer[offset + 0] = jointIndices[0];
+          buffer[offset + 1] = jointIndices[1];
+          buffer[offset + 2] = jointIndices[2];
+          buffer[offset + 3] = jointIndices[3];
+        },
+      );
+      this.jointWeightsMutationObserver = new VertexAttributeMutationObserver(
+        this._jointWeights,
+        this.weights0Attribute,
+        this.jointWeightsChanged,
+        this.createTmpBufferForVertexAttribute(this.weights0Attribute, this._jointWeights.length),
+        (jointWeights, buffer, offset) => {
+          buffer[offset + 0] = this.denormalizeValue(jointWeights[0], this.weights0Attribute!);
+          buffer[offset + 1] = this.denormalizeValue(jointWeights[1], this.weights0Attribute!);
+          buffer[offset + 2] = this.denormalizeValue(jointWeights[2], this.weights0Attribute!);
+          buffer[offset + 3] = this.denormalizeValue(jointWeights[3], this.weights0Attribute!);
+        },
+      );
     }
 
     /* Colors */
     if (definition.color0Data) {
       // Parse data
-      this.vertexColors = Object.freeze(this.parseVertexColorAttribute(definition.color0Data));
+      this._vertexColors = Object.freeze(this.parseVertexColorAttribute(definition.color0Data));
       // Create GL buffer
       this.color0Attribute = this.createVertexAttribute(definition.color0Data, gl.ARRAY_BUFFER);
-      // Bind updates to GL buffer
-      // const tmp_updatedVertexColorBuffer = this.createTmpBufferForVertexAttribute(this.color0Attribute);
-      // this.vertexColors.forEach((vertexColor, i) => {
-      //   vertexColor.onChange(() => {
-      //     /* Update vertex color gl buffer */
-      //     tmp_updatedVertexColorBuffer[0] = this.denormalizeValue(vertexColor.r / 0xFF, this.color0Attribute!);
-      //     tmp_updatedVertexColorBuffer[1] = this.denormalizeValue(vertexColor.g / 0xFF, this.color0Attribute!);
-      //     tmp_updatedVertexColorBuffer[2] = this.denormalizeValue(vertexColor.b / 0xFF, this.color0Attribute!);
-      //     if (this.color0Attribute!.componentCount === 4) {
-      //       tmp_updatedVertexColorBuffer[3] = this.denormalizeValue(vertexColor.a / 0xFF, this.color0Attribute!);
-      //     }
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.color0Attribute!.glBuffer);
-      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.color0Attribute!.componentCount * this.color0Attribute!.componentSize, tmp_updatedVertexColorBuffer);
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      //   });
-      // });
+      // Create mutation observer
+      this.vertexColorsMutationObserver = new VertexAttributeMutationObserver(
+        this._vertexColors,
+        this.color0Attribute,
+        this.vertexColorsChanged,
+        this.createTmpBufferForVertexAttribute(this.color0Attribute, this._vertexColors.length),
+        (vertexColor, buffer, offset) => {
+          buffer[offset + 0] = this.denormalizeValue(vertexColor.r / 0xFF, this.color0Attribute!);
+          buffer[offset + 1] = this.denormalizeValue(vertexColor.g / 0xFF, this.color0Attribute!);
+          buffer[offset + 2] = this.denormalizeValue(vertexColor.b / 0xFF, this.color0Attribute!);
+          if (this.color0Attribute!.componentCount === 4) {
+            buffer[offset + 3] = this.denormalizeValue(vertexColor.a / 0xFF, this.color0Attribute!);
+          }
+        },
+      );
     }
 
     /* Texture coordinates */
     if (definition.texCoord0Data) {
       // Parse data
-      this.vertexTextureCoordinates = Object.freeze(this.parseVertexTextureCoordinatesAttribute(definition.texCoord0Data));
+      this._vertexTextureCoordinates = Object.freeze(this.parseVertexTextureCoordinatesAttribute(definition.texCoord0Data));
       // Create GL buffer
       this.texCoord0Attribute = this.createVertexAttribute(definition.texCoord0Data, gl.ARRAY_BUFFER);
-      // Bind updates to GL buffer
-      // const tmp_updatedVertexTexCoordBuffer = this.createTmpBufferForVertexAttribute(this.texCoord0Attribute);
-      // this.vertexTextureCoordinates.forEach((vertexTexCoord, i) => {
-      //   vertexTexCoord.onChange(() => {
-      //     /* Update vertex texCoord gl buffer */
-      //     tmp_updatedVertexTexCoordBuffer[0] = this.denormalizeValue(vertexTexCoord.x, this.texCoord0Attribute!);
-      //     tmp_updatedVertexTexCoordBuffer[1] = this.denormalizeValue(vertexTexCoord.y, this.texCoord0Attribute!);
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoord0Attribute!.glBuffer);
-      //     gl.bufferSubData(gl.ARRAY_BUFFER, i * this.texCoord0Attribute!.componentCount * this.texCoord0Attribute!.componentSize, tmp_updatedVertexTexCoordBuffer);
-      //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      //   });
-      // });
+      // Create mutation observer
+      this.vertexTextureCoordinatesMutationObserver = new VertexAttributeMutationObserver(
+        this._vertexTextureCoordinates,
+        this.texCoord0Attribute,
+        this.vertexTextureCoordinatesChanged,
+        this.createTmpBufferForVertexAttribute(this.texCoord0Attribute, this._vertexTextureCoordinates.length),
+        (vertexTexCoord, buffer, offset) => {
+          buffer[offset + 0] = this.denormalizeValue(vertexTexCoord.x, this.texCoord0Attribute!);
+          buffer[offset + 1] = this.denormalizeValue(vertexTexCoord.y, this.texCoord0Attribute!);
+        },
+      );
+    }
+  }
+
+  // @TODO @DEBUG REMOVE all these debug counters (added: 2026-06-21)
+  private static debug_MuteRateCounters = true;
+  private static tmp_rateCounter_vertexPositionsBytesWritten = new RateCounter('bytes:vertexPositions', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  private static tmp_rateCounter_vertexNormalsBytesWritten = new RateCounter('bytes:vertexNormals', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  private static tmp_rateCounter_triangleIndicesBytesWritten = new RateCounter('bytes:triangleIndices', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  private static tmp_rateCounter_jointIndicesBytesWritten = new RateCounter('bytes:jointIndices', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  private static tmp_rateCounter_jointWeightsBytesWritten = new RateCounter('bytes:jointWeights', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  private static tmp_rateCounter_vertexColorsBytesWritten = new RateCounter('bytes:vertexColors', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  private static tmp_rateCounter_vertexTextureCoordinatesBytesWritten = new RateCounter('bytes:vertexTextureCoordinates', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
+  public mutate(callback: (mutableGeometry: MutableMeshPrimitiveGeometry) => void): void {
+    /*
+      @TODO (third nested todo block, lol)
+        // - Add observable events for other properties
+        - Update callers to reference observable events
+        // - Can this pattern be repeated easily?
+        // - Repeat this pattern
+        - Go back to the other TODO blocks
+     */
+
+    try {
+      // Enable mutation observers
+      this.vertexPositionsMutationObserver.reset();
+      this.vertexNormalsMutationObserver.reset();
+      this.triangleIndicesMutationObserver.reset();
+      this.jointIndicesMutationObserver?.reset();
+      this.jointWeightsMutationObserver?.reset();
+      this.vertexColorsMutationObserver?.reset();
+      this.vertexTextureCoordinatesMutationObserver?.reset();
+
+      // @NOTE Sad, the whole point of this pattern is that we can make this cast. But TypeScript won't allow it.
+      callback(this as unknown as MutableMeshPrimitiveGeometry);
+
+      // Write changes (if any) to GPU
+      /* Vertex positions */
+      this.writeDirtyData(
+        this.vertexPositionsMutationObserver,
+        MeshPrimitiveGeometry.tmp_rateCounter_vertexPositionsBytesWritten,
+      );
+      /* Vertex normals */
+      this.writeDirtyData(
+        this.vertexNormalsMutationObserver,
+        MeshPrimitiveGeometry.tmp_rateCounter_vertexNormalsBytesWritten,
+      );
+      /* Triangle indices */
+      this.writeDirtyData(
+        this.triangleIndicesMutationObserver,
+        MeshPrimitiveGeometry.tmp_rateCounter_triangleIndicesBytesWritten,
+      );
+      /* Joint indices */
+      if (this.jointIndicesMutationObserver !== undefined) {
+        this.writeDirtyData(
+          this.jointIndicesMutationObserver,
+          MeshPrimitiveGeometry.tmp_rateCounter_jointIndicesBytesWritten,
+        );
+      }
+      /* Joint weights */
+      if (this.jointWeightsMutationObserver !== undefined) {
+        this.writeDirtyData(
+          this.jointWeightsMutationObserver,
+          MeshPrimitiveGeometry.tmp_rateCounter_jointWeightsBytesWritten,
+        );
+      }
+      /* Vertex colors */
+      if (this.vertexColorsMutationObserver !== undefined) {
+        this.writeDirtyData(
+          this.vertexColorsMutationObserver,
+          MeshPrimitiveGeometry.tmp_rateCounter_vertexColorsBytesWritten,
+        );
+      }
+      /* Vertex texture coordinates */
+      if (this.vertexTextureCoordinatesMutationObserver !== undefined) {
+        this.writeDirtyData(
+          this.vertexTextureCoordinatesMutationObserver,
+          MeshPrimitiveGeometry.tmp_rateCounter_vertexTextureCoordinatesBytesWritten,
+        );
+      }
+    } finally {
+      // Stop observing mutations
+      this.vertexPositionsMutationObserver.disable();
+      this.vertexNormalsMutationObserver.disable();
+      this.triangleIndicesMutationObserver.disable();
+      this.jointIndicesMutationObserver?.disable();
+      this.jointWeightsMutationObserver?.disable();
+      this.vertexColorsMutationObserver?.disable();
+      this.vertexTextureCoordinatesMutationObserver?.disable();
+    }
+  }
+  private writeDirtyData<TData extends Observable>(
+    mutationObserver: VertexAttributeMutationObserver<TData>,
+    debug_bytesWrittenRateCounter: RateCounter,
+  ): void {
+    const { observableEvent, dirtyRange, scratchBuffer, attribute, componentCount, bufferType } = mutationObserver;
+    // Check if data is dirty
+    if (dirtyRange[0] !== undefined && dirtyRange[1] !== undefined) {
+      // Notify listeners
+      observableEvent.changed();
+
+      // Write dirty range to scratch buffer (starting at offset 0)
+      const [minDirtyIndex, maxDirtyIndex] = dirtyRange;
+      const rangeSize = maxDirtyIndex - minDirtyIndex + 1;
+      for (let i = 0; i < rangeSize; i++) {
+        mutationObserver.writeDatumToBuffer(mutationObserver.data[minDirtyIndex + i], scratchBuffer, i * componentCount);
+      }
+
+      // Write dirty range of scratch buffer to GL
+      const { gl } = this.engine;
+      gl.bindBuffer(bufferType, attribute.glBuffer);
+      gl.bufferSubData(bufferType, minDirtyIndex * componentCount * attribute.componentSize, scratchBuffer, 0, rangeSize * componentCount);
+      gl.bindBuffer(bufferType, null);
+
+      // @DEBUG write kb amount to rate counter
+      debug_bytesWrittenRateCounter.count(rangeSize * componentCount * scratchBuffer.BYTES_PER_ELEMENT / 1024);
     }
   }
 
@@ -593,38 +828,38 @@ export class MeshPrimitiveGeometry {
   private static readonly tmp_recomputeVertexNormals_triangleNormal = Vector3.zero();
   public recomputeVertexNormals(): void {
     // Zero all normals
-    for (let i = 0; i < this.vertexNormals.length; i++) {
-      this.vertexNormals[i].setValue(0, 0, 0);
+    for (let i = 0; i < this._vertexNormals.length; i++) {
+      this._vertexNormals[i].setValue(0, 0, 0);
     }
 
     // For each triangle
-    for (let i = 0; i < this.triangleIndices.length; i++) {
-      const triangleIndices = this.triangleIndices[i];
+    for (let i = 0; i < this._triangleIndices.length; i++) {
+      const triangleIndices = this._triangleIndices[i];
       // Compute triangle normal from cross product of two edges
       const edge1 = MeshPrimitiveGeometry.tmp_recomputeVertexNormals_edgeA
-        .setValue(this.vertexPositions[triangleIndices.bIndex])
-        .subtractSelf(this.vertexPositions[triangleIndices.aIndex]);
+        .setValue(this._vertexPositions[triangleIndices.bIndex])
+        .subtractSelf(this._vertexPositions[triangleIndices.aIndex]);
       const edge2 = MeshPrimitiveGeometry.tmp_recomputeVertexNormals_edgeB
-        .setValue(this.vertexPositions[triangleIndices.cIndex])
-        .subtractSelf(this.vertexPositions[triangleIndices.aIndex]);
+        .setValue(this._vertexPositions[triangleIndices.cIndex])
+        .subtractSelf(this._vertexPositions[triangleIndices.aIndex]);
       const triangleNormal = MeshPrimitiveGeometry.tmp_recomputeVertexNormals_triangleNormal
         .setValue(edge1)
         .crossSelf(edge2)
         .normalizeSelf();
 
       // Add triangle normal to each vertices' normal
-      this.vertexNormals[triangleIndices.aIndex].addSelf(triangleNormal);
-      this.vertexNormals[triangleIndices.bIndex].addSelf(triangleNormal);
-      this.vertexNormals[triangleIndices.cIndex].addSelf(triangleNormal);
+      this._vertexNormals[triangleIndices.aIndex].addSelf(triangleNormal);
+      this._vertexNormals[triangleIndices.bIndex].addSelf(triangleNormal);
+      this._vertexNormals[triangleIndices.cIndex].addSelf(triangleNormal);
     }
 
-    // Normalise and assign normals (so that we only write each normal once)
-    for (let i = 0; i < this.vertexNormals.length; i++) {
-      this.vertexNormals[i].setValue(this.vertexNormals[i].normalizeSelf());
+    // Normalise normals
+    for (let i = 0; i < this._vertexNormals.length; i++) {
+      this._vertexNormals[i].setValue(this._vertexNormals[i].normalizeSelf());
     };
   }
 
-  private createVertexAttribute<TAttributeDefinition extends AnyAttributeDefinition>(attributeDefinition: TAttributeDefinition, bufferType: GLenum = WebGL2RenderingContext.ARRAY_BUFFER): VertexAttribute<TAttributeDefinition> {
+  private createVertexAttribute<TAttributeDefinition extends AnyAttributeDefinition>(attributeDefinition: TAttributeDefinition, bufferType: GlBufferEnum = GlArrayBuffer): VertexAttribute<TAttributeDefinition> {
     const { gl } = this.engine;
     // @NOTE Type laundering because types like `attributeDefinition.componentCount` are getting widened to e.g. `number`
     return {
@@ -636,25 +871,25 @@ export class MeshPrimitiveGeometry {
     } as unknown as VertexAttribute<TAttributeDefinition>;
   }
 
-  // private createTmpBufferForVertexAttribute(attribute: AnyVertexAttribute): TypedArray {
-  //   switch (attribute.componentType) {
-  //     case WebGL2RenderingContext['BYTE']:
-  //       return new Int8Array(attribute.componentCount);
-  //     case WebGL2RenderingContext['UNSIGNED_BYTE']:
-  //       return new Uint8Array(attribute.componentCount);
-  //     case WebGL2RenderingContext['SHORT']:
-  //       return new Int16Array(attribute.componentCount);
-  //     case WebGL2RenderingContext['UNSIGNED_SHORT']:
-  //       return new Uint16Array(attribute.componentCount);
-  //     // @NOTE Accessors under the GLTF specification cannot be signed INT
-  //     case WebGL2RenderingContext['UNSIGNED_INT']:
-  //       return new Uint32Array(attribute.componentCount);
-  //     case WebGL2RenderingContext['FLOAT']:
-  //       return new Float32Array(attribute.componentCount);
-  //     default:
-  //       throw new Error(`Unimplemented attribute type: ${(attribute as { componentType: number }).componentType}`);
-  //   }
-  // }
+  private createTmpBufferForVertexAttribute(attribute: AnyVertexAttribute, length: number): TypedArray {
+    switch (attribute.componentType) {
+      case WebGL2RenderingContext['BYTE']:
+        return new Int8Array(attribute.componentCount * length);
+      case WebGL2RenderingContext['UNSIGNED_BYTE']:
+        return new Uint8Array(attribute.componentCount * length);
+      case WebGL2RenderingContext['SHORT']:
+        return new Int16Array(attribute.componentCount * length);
+      case WebGL2RenderingContext['UNSIGNED_SHORT']:
+        return new Uint16Array(attribute.componentCount * length);
+      // @NOTE Accessors under the GLTF specification cannot be signed INT
+      case WebGL2RenderingContext['UNSIGNED_INT']:
+        return new Uint32Array(attribute.componentCount * length);
+      case WebGL2RenderingContext['FLOAT']:
+        return new Float32Array(attribute.componentCount * length);
+      default:
+        throw new Error(`Unimplemented attribute type: ${(attribute as { componentType: number }).componentType}`);
+    }
+  }
 
   private parsePositionNormalAttribute(attribute: VertexPositionAttributeDefinition | VertexNormalAttributeDefinition): Vector3[] {
     /*
@@ -702,7 +937,7 @@ export class MeshPrimitiveGeometry {
     return result;
   }
 
-  private parseJointIndicesAttribute(attribute: VertexJointIndicesAttributeDefinition): JointsIndices[] {
+  private parseJointIndicesAttribute(attribute: VertexJointIndicesAttributeDefinition): JointIndices[] {
     /*
       @NOTE Mesh primitive joint indices attributes must be VEC4 and unsigned integer type.
       See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview
@@ -712,10 +947,10 @@ export class MeshPrimitiveGeometry {
       throw new Error(`Cannot parse attribute as Joints Indices: component count is not 4 (componentCount='${attribute.componentCount}')`);
     }
 
-    const result: JointsIndices[] = [];
+    const result: JointIndices[] = [];
 
     for (let i = 3; i < attribute.buffer.length; i += 4) {
-      result.push(new JointsIndices(
+      result.push(new JointIndices(
         attribute.buffer[i - 3],
         attribute.buffer[i - 2],
         attribute.buffer[i - 1],
@@ -726,7 +961,7 @@ export class MeshPrimitiveGeometry {
     return result;
   }
 
-  private parseJointWeightsAttribute(attribute: VertexJointWeightsAttributeDefinition): JointsWeights[] {
+  private parseJointWeightsAttribute(attribute: VertexJointWeightsAttributeDefinition): JointWeights[] {
     /*
       @NOTE Mesh primitive joint weights attributes must be VEC4 and float or normalized unsigned integer type.
       See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview
@@ -736,10 +971,10 @@ export class MeshPrimitiveGeometry {
       throw new Error(`Cannot parse attribute as Joints Weights: component count is not 4 (componentCount='${attribute.componentCount}')`);
     }
 
-    const result: JointsWeights[] = [];
+    const result: JointWeights[] = [];
 
     for (let i = 3; i < attribute.buffer.length; i += 4) {
-      result.push(new JointsWeights(
+      result.push(new JointWeights(
         this.normalizeValue(attribute.buffer[i - 3], attribute),
         this.normalizeValue(attribute.buffer[i - 2], attribute),
         this.normalizeValue(attribute.buffer[i - 1], attribute),
@@ -841,36 +1076,45 @@ export class MeshPrimitiveGeometry {
     }
   }
 
-  // private denormalizeValue(value: number, attributeDefinition: BaseVertexDefinition<AnyAttributeDefinition>): number {
-  //   if (attributeDefinition.normalized === false) {
-  //     // Data does not need normalizing
-  //     return value;
-  //   } else {
-  //     // Data needs to be normalized
-  //     // @NOTE Slightly cursed normalization logic in GLTF specification.
-  //     // Maximally negative values (like -128 for BYTE) are clamped to -1.
-  //     // See: https://github.com/KhronosGroup/glTF/issues/1317
-  //     switch (attributeDefinition.componentType) {
-  //       case WebGL2RenderingContext['BYTE']:
-  //         return value * 0x7F;
-  //       case WebGL2RenderingContext['UNSIGNED_BYTE']:
-  //         return value * 0xFF;
-  //       case WebGL2RenderingContext['SHORT']:
-  //         return value * 0x7FFF;
-  //       case WebGL2RenderingContext['UNSIGNED_SHORT']:
-  //         return value * 0xFFFF;
+  private denormalizeValue(value: number, attributeDefinition: BaseVertexDefinition<AnyAttributeDefinition>): number {
+    if (attributeDefinition.normalized === false) {
+      // Data does not need normalizing
+      return value;
+    } else {
+      // Data needs to be normalized
+      // @NOTE Slightly cursed normalization logic in GLTF specification.
+      // Maximally negative values (like -128 for BYTE) are clamped to -1.
+      // See: https://github.com/KhronosGroup/glTF/issues/1317
+      switch (attributeDefinition.componentType) {
+        case WebGL2RenderingContext['BYTE']:
+          return value * 0x7F;
+        case WebGL2RenderingContext['UNSIGNED_BYTE']:
+          return value * 0xFF;
+        case WebGL2RenderingContext['SHORT']:
+          return value * 0x7FFF;
+        case WebGL2RenderingContext['UNSIGNED_SHORT']:
+          return value * 0xFFFF;
 
-  //       // Unsigned int / float not valid to be normalized
-  //       // See: https://github.com/KhronosGroup/glTF/blob/4ecfc3bd8c439a1c3feab04218212e6b9b222253/specification/2.0/schema/accessor.schema.json#L66
-  //       case WebGL2RenderingContext['UNSIGNED_INT']:
-  //         throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${WebGL2RenderingContext['UNSIGNED_INT']})`);
-  //       case WebGL2RenderingContext['FLOAT']:
-  //         throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${WebGL2RenderingContext['FLOAT']})`);
+        // Unsigned int / float not valid to be normalized
+        // See: https://github.com/KhronosGroup/glTF/blob/4ecfc3bd8c439a1c3feab04218212e6b9b222253/specification/2.0/schema/accessor.schema.json#L66
+        case WebGL2RenderingContext['UNSIGNED_INT']:
+          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${WebGL2RenderingContext['UNSIGNED_INT']})`);
+        case WebGL2RenderingContext['FLOAT']:
+          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${WebGL2RenderingContext['FLOAT']})`);
 
-  //       // Unimplemented / future values
-  //       default:
-  //         throw new Error(`Unimplemented attribute component type: ${(attributeDefinition as { componentType: number }).componentType}`);
-  //     }
-  //   }
-  // }
+        // Unimplemented / future values
+        default:
+          throw new Error(`Unimplemented attribute component type: ${(attributeDefinition as { componentType: number }).componentType}`);
+      }
+    }
+  }
+
+  public get vertexPositions(): readonly IReadonlyVector3[] { return this._vertexPositions; }
+  public get vertexNormals(): readonly IReadonlyVector3[] { return this._vertexNormals; }
+  public get triangleIndices(): readonly IReadonlyTriangleIndices[] { return this._triangleIndices; }
+  public get edgeIndices(): Computed<readonly EdgeIndices[]> { return this._edgeIndices; }
+  public get jointIndices(): readonly IReadonlyJointIndices[] | undefined { return this._jointIndices; }
+  public get jointWeights(): readonly IReadonlyJointWeights[] | undefined { return this._jointWeights; }
+  public get vertexColors(): readonly IReadonlyColor4[] | undefined { return this._vertexColors; }
+  public get vertexTextureCoordinates(): readonly IReadonlyVector2[] | undefined { return this._vertexTextureCoordinates; }
 }

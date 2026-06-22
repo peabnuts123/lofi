@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed } from '@lofi/core/math';
+import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
 import { RateCounter } from '@lofi/core/util/RateCounter';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
@@ -12,7 +12,7 @@ import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
 import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
-import type { ModelDefinition } from '@lofi/engine/loaders/definitions';
+import type { ModelDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
 import { DrawDebug } from '@lofi/engine/util/DrawDebug';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
@@ -441,32 +441,82 @@ export abstract class Game {
     /* Animation */
     if (Flags.AnimationTestEnabled) {
       const animatedModel = await Model.fromDefinition(engine, models[4]);
-      const nonAnimatedModel = await Model.fromDefinition(engine, models[5]);
+      const nonAnimatedModel = await Model.fromDefinition(engine,
+        addVertexColors(models[5]),
+      );
 
       // @TODO Probably should be its own feature (not dependent on Animation flag)
       if (Flags.LowLevelApiDemoEnabled) {
-        const noiseFactor = 0.15;
-        const allPrimitives = nonAnimatedModel.allParts
-          .flatMap((part) => part.primitiveCaches);
-        const allVertexPositions = allPrimitives
-          .flatMap((primitive) => primitive.geometry.vertexPositions);
-        const originalHatVertexPositions = allVertexPositions.map((x) => x.clone());
+        // @TODO bake this API into the types
+        const primitiveGeometries = nonAnimatedModel.allParts
+          .flatMap((part) => part.primitiveCaches)
+          .map((primitive) => primitive.geometry);
+        const originalHatVertexPositions = primitiveGeometries.map((primitive) => primitive.vertexPositions.map(x => x.clone()));
         const tmp_vector = Vector3.zero();
         runLoopHooks.push((_dt, time) => {
-          for (let i = 0; i < allVertexPositions.length; i++) {
-            const hatVertex = allVertexPositions[i];
-            tmp_vector.setValue(
-              Math.sin(time * 6 + hatVertex.y * 3) * noiseFactor,
-              0,
-              Math.cos(time * 6 + hatVertex.y * 3) * noiseFactor,
-            );
-            hatVertex
-              .setValue(originalHatVertexPositions[i])
-              .addSelf(tmp_vector);
-          }
+          for (let i = 0; i < primitiveGeometries.length; i++) {
+            const primitive = primitiveGeometries[i];
+            primitive.mutate((geometry) => {
+              /* Positions */
+              for (let vertexIndex = 0; vertexIndex < geometry.vertexPositions.length; vertexIndex++) {
+                const hatVertex = geometry.vertexPositions[vertexIndex];
+                const p = hatVertex.x + hatVertex.y + hatVertex.z;
+                const originalPosition = originalHatVertexPositions[i][vertexIndex];
+                tmp_vector.setValue(
+                  sin(time * 6 + (p * 3), 10, 0.7, 1.0),
+                  sin(0.2 + time * 6 + (p * 3), 10, 0.95, 1.0),
+                  cos(time * 6 + (p * 3), 10, 0.7, 1.0),
+                );
+                hatVertex
+                  .setValue(originalPosition)
+                  .multiplySelf(tmp_vector);
+              }
 
-          for (const primitive of allPrimitives) {
-            primitive.geometry.recomputeVertexNormals();
+              /* Triangle indices */
+              // const randomTriangleIndices = geometry.triangleIndices[randInt(0, geometry.triangleIndices.length)];
+              // const x = randInt(0, 3);
+              // // const newValue = randInt(0, geometry.vertexPositions.length);
+              // const newValue = 0
+              // if (x === 0) randomTriangleIndices.aIndex = newValue;
+              // else if (x === 1) randomTriangleIndices.bIndex = newValue
+              // else if (x === 2) randomTriangleIndices.cIndex = newValue
+
+              /* Vertex normals */
+              geometry.recomputeVertexNormals();
+
+              /* Joint indices */
+              // if (geometry.jointIndices) {
+              //   const randomJointIndices = geometry.jointIndices[randInt(0, geometry.jointIndices.length)];
+              //   const newValue = randInt(0, 5);
+              //   randomJointIndices[0] = newValue;
+              // }
+
+              /* Joint Weights */
+              // if (geometry.jointWeights) {
+              //   const randomJointWeights = geometry.jointWeights[randInt(0, geometry.jointWeights.length)];
+              //   randomJointWeights[0] = 0;
+              // }
+
+              /* Vertex colors */
+              // if (geometry.vertexColors) {
+              //   for (let vertexIndex = 0; vertexIndex < geometry.vertexColors.length; vertexIndex++) {
+              //     const color = geometry.vertexColors[vertexIndex];
+              //     const p = vertexIndex;
+              //     color.r = sin(time + p, 2 + (p % 5), 0x50, 0xFF);
+              //     color.g = sin(time + p + 3, 2 + (p % 5), 0x50, 0xFF);
+              //     color.b = cos(time + p + 5, 2 + (p % 5), 0x50, 0xFF);
+              //   }
+              // }
+
+              /* Texture coordinates */
+              // if (geometry.vertexTextureCoordinates) {
+              //   for (let vertexIndex = 0; vertexIndex < geometry.vertexTextureCoordinates.length; vertexIndex++) {
+              //     const texCoord = geometry.vertexTextureCoordinates[vertexIndex];
+              //     texCoord.x += 0.1 * _dt;
+              //     texCoord.y += 0.08 * _dt;
+              //   }
+              // }
+            });
           }
         });
       }
@@ -748,4 +798,35 @@ export class DrawDebugVisualiser extends DrawableSceneNode {
     drawQueue.push(...this.frameDrawTasks);
     this.frameDrawTasks.length = 0;
   }
+}
+
+function addVertexColors(modelDefinition: ModelDefinition): ModelDefinition {
+  const forEachModelPart = (modelPartDefinitions: ModelPartDefinition[], callbackFn: (partDefinition: ModelPartDefinition) => void): void => {
+    modelPartDefinitions.forEach((partDefinition) => {
+      callbackFn(partDefinition);
+      forEachModelPart(partDefinition.children, callbackFn);
+    });
+  }
+
+  forEachModelPart(modelDefinition.rootParts, (partDefinition) => {
+    if (partDefinition.mesh !== undefined) {
+      for (const primitiveDefinition of partDefinition.mesh.primitives) {
+        if (primitiveDefinition.color0Data === undefined) {
+          const numVertices = primitiveDefinition.positionData.buffer.length / primitiveDefinition.positionData.componentCount;
+          primitiveDefinition.color0Data = {
+            componentCount: 4,
+            componentSize: 4,
+            componentType: WebGL2RenderingContext['FLOAT'],
+            normalized: false,
+            buffer: new Float32Array(numVertices * 4)
+          };
+          for (let i = 0; i < primitiveDefinition.color0Data.buffer.length; i++) {
+            primitiveDefinition.color0Data.buffer[i] = 1;
+          }
+        }
+      }
+    }
+  });
+
+  return modelDefinition;
 }

@@ -68,6 +68,17 @@ export function tan(value: number, period: number): number {
   return Math.tan(value / period * Tau);
 }
 
+/** Get a random number between `min` (inclusive) and `max` (exclusive).  */
+export function rand(min: number, max: number): number {
+  return Math.random() * (max - min) + min;
+}
+/** Get a random integer between `min` (inclusive) and `max` (exclusive).  */
+export function randInt(min: number, max: number): number {
+  min = Math.trunc(min);
+  max = Math.trunc(max);
+  return Math.trunc(Math.random() * (max - min) + min);
+}
+
 
 /**
  * Utility similar to `Number.toFixed()` except integer values

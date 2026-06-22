@@ -199,9 +199,10 @@ export class ModelPartGeometry {
     this.allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         localMatrixComputed,
-        ...primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexPositions),
-        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.jointIndices).filter((jointIndices) => jointIndices !== undefined).flat(),
-        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.jointWeights).filter((jointWeights) => jointWeights !== undefined).flat(),
+        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.vertexPositionsChanged),
+        // @TODO
+        // ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.jointIndices).filter((jointIndices) => jointIndices !== undefined).flat(),
+        // ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.jointWeights).filter((jointWeights) => jointWeights !== undefined).flat(),
         ...(hasSkin ? [skinJointMatricesComputed] : []),
       ],
       recompute: (_self) => {
@@ -234,6 +235,7 @@ export class ModelPartGeometry {
 
               if (totalWeight > 0) {
 
+                // @TODO This needs to normalize the weights or some such
                 /*
                   Compute linear sum:
                     weight_0 * jointMatrix[index_0]

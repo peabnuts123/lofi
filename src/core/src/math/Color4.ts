@@ -23,7 +23,19 @@ class Color4InternalBuffer {
   public set a(value: number) { this.buffer[3] = clamp(value, 0, 0xFF); }
 }
 
-export class Color4 extends Observable {
+export interface IReadonlyColor4 {
+  clone(): Color4;
+  withR(value: number): Color4;
+  withG(value: number): Color4;
+  withB(value: number): Color4;
+  withA(value: number): Color4;
+  get r(): number;
+  get g(): number;
+  get b(): number;
+  get a(): number;
+}
+
+export class Color4 extends Observable implements IReadonlyColor4 {
   private readonly internal: Color4InternalBuffer;
 
   public constructor(color: Color3Definition, a?: number);
