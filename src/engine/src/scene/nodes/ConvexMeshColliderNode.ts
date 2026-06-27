@@ -18,7 +18,6 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
     this.geometry = new ModelNodeGeometry({
       model,
       worldMatrixComputed: this.worldMatrixComputed,
-      absoluteRotationQuaternion: this.absoluteRotation.q,
     });
   }
 
@@ -97,7 +96,6 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
     this.geometry = new ModelNodeGeometry({
       model: this._model,
       worldMatrixComputed: this.worldMatrixComputed,
-      absoluteRotationQuaternion: this.absoluteRotation.q,
     });
   }
 }

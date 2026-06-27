@@ -103,7 +103,6 @@ export class DrawDebug {
       material: MaterialInstance.fromMaterial(Material.DefaultMaterial),
       uniforms: {
         worldMatrix: drawOptions.worldMatrix,
-        localMatrix: Matrix4.identity(),
       },
       draw: {
         id: Math.trunc(Math.random() * 0xF000_0000) + 0x1000_0000, //  @NOTE Always unique

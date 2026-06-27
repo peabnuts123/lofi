@@ -74,8 +74,8 @@ export function rand(min: number, max: number): number {
 }
 /** Get a random integer between `min` (inclusive) and `max` (exclusive).  */
 export function randInt(min: number, max: number): number {
-  min = Math.trunc(min);
-  max = Math.trunc(max);
+  min = min < 0 ? Math.floor(min) : Math.ceil(min);
+  max = max < 0 ? Math.floor(max) : Math.ceil(max);
   return Math.trunc(Math.random() * (max - min) + min);
 }
 

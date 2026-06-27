@@ -453,72 +453,100 @@ export abstract class Game {
           .map((primitive) => primitive.geometry);
         const originalHatVertexPositions = primitiveGeometries.map((primitive) => primitive.vertexPositions.map(x => x.clone()));
         const tmp_vector = Vector3.zero();
-        runLoopHooks.push((_dt, time) => {
-          for (let i = 0; i < primitiveGeometries.length; i++) {
+        const LowLevelMutationFlags = {
+          ...{
+            vertexPositions: false,
+            triangleIndices: false,
+            vertexNormals: false,
+            jointIndices: false,
+            jointWeights: false,
+            vertexColors: false,
+            vertexTexCoords: false,
+          },
+          vertexPositions: true,
+          // triangleIndices: true,
+          vertexNormals: true,
+          // jointIndices: true,
+          // jointWeights: true,
+          // vertexColors: true,
+          // vertexTexCoords: true,
+        }
+        for (let i = 0; i < primitiveGeometries.length; i++) {
+          runLoopHooks.push((_dt, time) => {
             const primitive = primitiveGeometries[i];
             primitive.mutate((geometry) => {
               /* Positions */
-              for (let vertexIndex = 0; vertexIndex < geometry.vertexPositions.length; vertexIndex++) {
-                const hatVertex = geometry.vertexPositions[vertexIndex];
-                const p = hatVertex.x + hatVertex.y + hatVertex.z;
-                const originalPosition = originalHatVertexPositions[i][vertexIndex];
-                tmp_vector.setValue(
-                  sin(time * 6 + (p * 3), 10, 0.7, 1.0),
-                  sin(0.2 + time * 6 + (p * 3), 10, 0.95, 1.0),
-                  cos(time * 6 + (p * 3), 10, 0.7, 1.0),
-                );
-                hatVertex
-                  .setValue(originalPosition)
-                  .multiplySelf(tmp_vector);
+              if (LowLevelMutationFlags.vertexPositions) {
+                for (let vertexIndex = 0; vertexIndex < geometry.vertexPositions.length; vertexIndex++) {
+                  const hatVertex = geometry.vertexPositions[vertexIndex];
+                  const p = hatVertex.x + hatVertex.y + hatVertex.z;
+                  const originalPosition = originalHatVertexPositions[i][vertexIndex];
+                  tmp_vector.setValue(
+                    sin(time * 6 + (p * 3), 10, 0.7, 1.0),
+                    sin(0.2 + time * 6 + (p * 3), 10, 0.95, 1.0),
+                    cos(time * 6 + (p * 3), 10, 0.7, 1.0),
+                  );
+                  hatVertex
+                    .setValue(originalPosition)
+                    .multiplySelf(tmp_vector);
+                }
               }
 
               /* Triangle indices */
-              // const randomTriangleIndices = geometry.triangleIndices[randInt(0, geometry.triangleIndices.length)];
-              // const x = randInt(0, 3);
-              // // const newValue = randInt(0, geometry.vertexPositions.length);
-              // const newValue = 0
-              // if (x === 0) randomTriangleIndices.aIndex = newValue;
-              // else if (x === 1) randomTriangleIndices.bIndex = newValue
-              // else if (x === 2) randomTriangleIndices.cIndex = newValue
+              if (LowLevelMutationFlags.triangleIndices) {
+                const randomTriangleIndices = geometry.triangleIndices[randInt(0, geometry.triangleIndices.length)];
+                const vertexIndex = randInt(0, 3);
+                // const newValue = randInt(0, geometry.vertexPositions.length);
+                const newValue = 0
+                if (vertexIndex === 0) randomTriangleIndices.aIndex = newValue;
+                else if (vertexIndex === 1) randomTriangleIndices.bIndex = newValue
+                else if (vertexIndex === 2) randomTriangleIndices.cIndex = newValue
+              }
 
               /* Vertex normals */
-              geometry.recomputeVertexNormals();
+              if (LowLevelMutationFlags.vertexNormals) {
+                geometry.recomputeVertexNormals();
+              }
 
               /* Joint indices */
-              // if (geometry.jointIndices) {
-              //   const randomJointIndices = geometry.jointIndices[randInt(0, geometry.jointIndices.length)];
-              //   const newValue = randInt(0, 5);
-              //   randomJointIndices[0] = newValue;
-              // }
+              if (LowLevelMutationFlags.jointIndices) {
+                if (geometry.jointIndices) {
+                  const randomJointIndices = geometry.jointIndices[randInt(0, geometry.jointIndices.length)];
+                  const newValue = randInt(0, 5);
+                  randomJointIndices[0] = newValue;
+                }
+              }
 
               /* Joint Weights */
-              // if (geometry.jointWeights) {
-              //   const randomJointWeights = geometry.jointWeights[randInt(0, geometry.jointWeights.length)];
-              //   randomJointWeights[0] = 0;
-              // }
+              if (LowLevelMutationFlags.jointWeights) {
+                if (geometry.jointWeights) {
+                  const randomJointWeights = geometry.jointWeights[randInt(0, geometry.jointWeights.length)];
+                  randomJointWeights[0] = 0;
+                }
+              }
 
               /* Vertex colors */
-              // if (geometry.vertexColors) {
-              //   for (let vertexIndex = 0; vertexIndex < geometry.vertexColors.length; vertexIndex++) {
-              //     const color = geometry.vertexColors[vertexIndex];
-              //     const p = vertexIndex;
-              //     color.r = sin(time + p, 2 + (p % 5), 0x50, 0xFF);
-              //     color.g = sin(time + p + 3, 2 + (p % 5), 0x50, 0xFF);
-              //     color.b = cos(time + p + 5, 2 + (p % 5), 0x50, 0xFF);
-              //   }
-              // }
+              if (LowLevelMutationFlags.vertexColors && geometry.vertexColors) {
+                for (let vertexIndex = 0; vertexIndex < geometry.vertexColors.length; vertexIndex++) {
+                  const color = geometry.vertexColors[vertexIndex];
+                  const p = vertexIndex;
+                  color.r = sin(time + p, 2 + (p % 5), 0x50, 0xFF);
+                  color.g = sin(time + p + 3, 2 + (p % 5), 0x50, 0xFF);
+                  color.b = cos(time + p + 5, 2 + (p % 5), 0x50, 0xFF);
+                }
+              }
 
               /* Texture coordinates */
-              // if (geometry.vertexTextureCoordinates) {
-              //   for (let vertexIndex = 0; vertexIndex < geometry.vertexTextureCoordinates.length; vertexIndex++) {
-              //     const texCoord = geometry.vertexTextureCoordinates[vertexIndex];
-              //     texCoord.x += 0.1 * _dt;
-              //     texCoord.y += 0.08 * _dt;
-              //   }
-              // }
+              if (LowLevelMutationFlags.vertexTexCoords && geometry.vertexTextureCoordinates) {
+                for (let vertexIndex = 0; vertexIndex < geometry.vertexTextureCoordinates.length; vertexIndex++) {
+                  const texCoord = geometry.vertexTextureCoordinates[vertexIndex];
+                  texCoord.x += 0.1 * _dt;
+                  texCoord.y += 0.08 * _dt;
+                }
+              }
             });
-          }
-        });
+          });
+        }
       }
 
       const figure2 = new ModelNode(scene, 'figure-2', nonAnimatedModel);

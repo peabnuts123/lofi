@@ -1,5 +1,6 @@
 import { Observable } from "@lofi/core/util/observable";
 
+import { Matrix3 } from "./Matrix3";
 import { Matrix4 } from "./Matrix4";
 import { Quaternion, type IReadOnlyQuaternion } from "./Quaternion";
 import { RadiansToDegrees } from "./util";
@@ -291,6 +292,7 @@ export interface IReadonlyVector3 {
   multiply(factor: number): Vector3;
   multiply(other: Vector3Definition): Vector3;
   multiply(quaternion: IReadOnlyQuaternion): Vector3;
+  multiply(matrix: Matrix3): Vector3;
   multiply(matrix: Matrix4): Vector3;
   divide(factor: number): Vector3;
   divide(other: Vector3Definition): Vector3;
@@ -413,14 +415,17 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   public multiplySelf(factor: number): this;
   public multiplySelf(other: Vector3Definition): this;
   public multiplySelf(quaternion: IReadOnlyQuaternion): this;
+  public multiplySelf(matrix: Matrix3): this;
   public multiplySelf(matrix: Matrix4): this;
-  public multiplySelf(operand: number | Vector3Definition | IReadOnlyQuaternion | Matrix4): this {
+  public multiplySelf(operand: number | Vector3Definition | IReadOnlyQuaternion | Matrix3 | Matrix4): this {
     if (typeof operand === 'number') {
       this.multiplySelfNumber(operand);
     } else if (operand instanceof Matrix4) {
       this.multiplySelfMatrix4(operand);
     } else if ('w' in operand) {
       this.multiplySelfQuaternion(operand);
+    } else if (operand instanceof Matrix3) {
+      this.multiplySelfMatrix3(operand);
     } else {
       this.multiplySelfVector3(operand);
     }
@@ -438,6 +443,12 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
     this.internal.x = (matrix.m00 * x + matrix.m01 * y + matrix.m02 * z + matrix.m03) / w;
     this.internal.y = (matrix.m10 * x + matrix.m11 * y + matrix.m12 * z + matrix.m13) / w;
     this.internal.z = (matrix.m20 * x + matrix.m21 * y + matrix.m22 * z + matrix.m23) / w;
+  }
+  private multiplySelfMatrix3(matrix: Matrix3): void {
+    const { x, y, z } = this;
+    this.internal.x = matrix.m00 * x + matrix.m01 * y + matrix.m02 * z;
+    this.internal.y = matrix.m10 * x + matrix.m11 * y + matrix.m12 * z;
+    this.internal.z = matrix.m20 * x + matrix.m21 * y + matrix.m22 * z;
   }
   private multiplySelfQuaternion(quat: IReadOnlyQuaternion): void {
     // Fast Vector Rotation using Quaternions by Robert Eisele
@@ -466,8 +477,9 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
   public multiply(factor: number): Vector3;
   public multiply(other: Vector3Definition): Vector3;
   public multiply(quaternion: IReadOnlyQuaternion): Vector3;
+  public multiply(matrix: Matrix3): Vector3;
   public multiply(matrix: Matrix4): Vector3;
-  public multiply(operand: number | Vector3Definition | IReadOnlyQuaternion | Matrix4): Vector3 {
+  public multiply(operand: number | Vector3Definition | IReadOnlyQuaternion | Matrix3 | Matrix4): Vector3 {
     // @NOTE TypeScript is too dumb to figure this one out
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.clone().multiplySelf(operand as any);

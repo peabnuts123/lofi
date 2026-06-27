@@ -35,6 +35,7 @@ type MaterialCacheKey = number;
   - Remove redundant dependencies where we we are just storing the value / don’t be computed just flat map once
   // - Some way of debouncing geometry mutations / batching. It could be immutable unless you call a mutate function which then batch writes anything that changed. Maybe This can be the access API from the top level
   - Do we need a hierarchy of computeds at all
+  - Skinned normals need to be normalized as if using homogenous coordinates I think
  */
 
 /*
@@ -51,6 +52,10 @@ type MaterialCacheKey = number;
   // - Make types like `TriangleIndices` and `JointIndices` observable
   // - I GUESS make `EdgeIndices` and `Edge` immutable??
 */
+
+/* @TODO Block 0
+  - Split types up into separate files
+ */
 
 /**
  * Cache that holds {@linkcode MeshPrimitive} instances.
@@ -326,7 +331,6 @@ class ObservableEvent extends Observable {
     this.notifyOnChange();
   }
 }
-type AttributeMutationDirtyRange = [min: number | undefined, max: number | undefined];
 
 type WriteDatumToBufferFunc<TData extends Observable> = (datum: TData, buffer: TypedArray, offset: number) => void;
 class VertexAttributeMutationObserver<TData extends Observable> {
@@ -339,7 +343,8 @@ class VertexAttributeMutationObserver<TData extends Observable> {
   public readonly bufferType: GlBufferEnum;
 
   // State
-  public readonly dirtyRange: AttributeMutationDirtyRange = [undefined, undefined];
+  private readonly dirtyRange: Uint32Array;
+  private _dirtyRangeIsEmpty: boolean = true;
   private enabled: boolean = false;
   /**
    * Alias for `attribute.componentCount`.
@@ -366,16 +371,21 @@ class VertexAttributeMutationObserver<TData extends Observable> {
 
     this.componentCount = attribute.componentCount;
 
+    this.dirtyRange = new Uint32Array(2);
+    this._dirtyRangeIsEmpty = true;
+
     // Subscribe to all data changes
     for (let i = 0; i < data.length; i++) {
       data[i].onChange(() => {
         // Only react to changes if observing is enabled
         if (this.enabled) {
-          if (this.dirtyRange[0] === undefined || i < this.dirtyRange[0]) {
-            this.dirtyRange[0] = i;
+          if (this.dirtyRangeIsEmpty || i < this.minDirtyRange) {
+            this.dirtyRangeIsEmpty = false;
+            this.minDirtyRange = i;
           }
-          if (this.dirtyRange[1] === undefined || i > this.dirtyRange[1]) {
-            this.dirtyRange[1] = i;
+          if (this.dirtyRangeIsEmpty || i > this.maxDirtyRange) {
+            this.dirtyRangeIsEmpty = false;
+            this.maxDirtyRange = i;
           }
         }
       });
@@ -383,14 +393,22 @@ class VertexAttributeMutationObserver<TData extends Observable> {
   }
 
   public reset(): void {
-    this.dirtyRange[0] = undefined;
-    this.dirtyRange[1] = undefined;
+    this.minDirtyRange = 0;
+    this.maxDirtyRange = 0;
+    this.dirtyRangeIsEmpty = true;
     this.enabled = true;
   }
 
   public disable(): void {
     this.enabled = false;
   }
+
+  public get minDirtyRange(): number { return this.dirtyRange[0]; }
+  private set minDirtyRange(value: number) { this.dirtyRange[0] = value; }
+  public get maxDirtyRange(): number { return this.dirtyRange[1]; }
+  private set maxDirtyRange(value: number) { this.dirtyRange[1] = value; }
+  public get dirtyRangeIsEmpty(): boolean { return this._dirtyRangeIsEmpty; }
+  private set dirtyRangeIsEmpty(value: boolean) { this._dirtyRangeIsEmpty = value; }
 }
 
 export class MeshPrimitiveGeometry {
@@ -600,8 +618,9 @@ export class MeshPrimitiveGeometry {
     /* Edges */
     // @NOTE Edges are entirely computed based on parsed geometry
     this._edgeIndices = new Computed<readonly EdgeIndices[]>([], {
-      // @TODO Update to observable event
-      dependencies: this._triangleIndices,
+      dependencies: [
+        this.triangleIndicesChanged,
+      ],
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
@@ -619,9 +638,9 @@ export class MeshPrimitiveGeometry {
           }
         }
         this._triangleIndices.forEach((triangle) => {
-          addEdge(triangle['aIndex'], triangle['bIndex']);
-          addEdge(triangle['bIndex'], triangle['cIndex']);
-          addEdge(triangle['cIndex'], triangle['aIndex']);
+          addEdge(triangle.aIndex, triangle.bIndex);
+          addEdge(triangle.bIndex, triangle.cIndex);
+          addEdge(triangle.cIndex, triangle.aIndex);
         });
 
         for (const edge of edgeMap.values()) {
@@ -718,15 +737,6 @@ export class MeshPrimitiveGeometry {
   private static tmp_rateCounter_vertexColorsBytesWritten = new RateCounter('bytes:vertexColors', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
   private static tmp_rateCounter_vertexTextureCoordinatesBytesWritten = new RateCounter('bytes:vertexTextureCoordinates', 120, { mute: MeshPrimitiveGeometry.debug_MuteRateCounters });
   public mutate(callback: (mutableGeometry: MutableMeshPrimitiveGeometry) => void): void {
-    /*
-      @TODO (third nested todo block, lol)
-        // - Add observable events for other properties
-        - Update callers to reference observable events
-        // - Can this pattern be repeated easily?
-        // - Repeat this pattern
-        - Go back to the other TODO blocks
-     */
-
     try {
       // Enable mutation observers
       this.vertexPositionsMutationObserver.reset();
@@ -799,23 +809,22 @@ export class MeshPrimitiveGeometry {
     mutationObserver: VertexAttributeMutationObserver<TData>,
     debug_bytesWrittenRateCounter: RateCounter,
   ): void {
-    const { observableEvent, dirtyRange, scratchBuffer, attribute, componentCount, bufferType } = mutationObserver;
+    const { observableEvent, minDirtyRange, maxDirtyRange, dirtyRangeIsEmpty, scratchBuffer, attribute, componentCount, bufferType } = mutationObserver;
     // Check if data is dirty
-    if (dirtyRange[0] !== undefined && dirtyRange[1] !== undefined) {
+    if (!dirtyRangeIsEmpty) {
       // Notify listeners
       observableEvent.changed();
 
       // Write dirty range to scratch buffer (starting at offset 0)
-      const [minDirtyIndex, maxDirtyIndex] = dirtyRange;
-      const rangeSize = maxDirtyIndex - minDirtyIndex + 1;
+      const rangeSize = maxDirtyRange - minDirtyRange + 1;
       for (let i = 0; i < rangeSize; i++) {
-        mutationObserver.writeDatumToBuffer(mutationObserver.data[minDirtyIndex + i], scratchBuffer, i * componentCount);
+        mutationObserver.writeDatumToBuffer(mutationObserver.data[minDirtyRange + i], scratchBuffer, i * componentCount);
       }
 
       // Write dirty range of scratch buffer to GL
       const { gl } = this.engine;
       gl.bindBuffer(bufferType, attribute.glBuffer);
-      gl.bufferSubData(bufferType, minDirtyIndex * componentCount * attribute.componentSize, scratchBuffer, 0, rangeSize * componentCount);
+      gl.bufferSubData(bufferType, minDirtyRange * componentCount * attribute.componentSize, scratchBuffer, 0, rangeSize * componentCount);
       gl.bindBuffer(bufferType, null);
 
       // @DEBUG write kb amount to rate counter

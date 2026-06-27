@@ -1,5 +1,6 @@
-import { type IReadonlyVector3 } from "@lofi/core/math/vector";
+import { type IReadonlyVector2, type IReadonlyVector3 } from "@lofi/core/math/vector";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
+import type { IReadonlyColor4 } from "@lofi/core/math/Color4";
 import { Computed, Observable } from "@lofi/core/util/observable";
 import { Optional, type Mutable } from "@lofi/core/util/types";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
@@ -253,31 +254,49 @@ export class Model {
 
 export class ModelGeometry {
   public readonly allVertexPositions: Computed<readonly IReadonlyVector3[]>;
-  // public readonly allVertexNormals: Computed<Vector3[]>;
+  public readonly allVertexNormals: Computed<readonly IReadonlyVector3[]>;
   public readonly allTriangleIndices: Computed<readonly IReadonlyTriangleIndices[]>;
   public readonly allTriangles: Computed<readonly Triangle[]>;
   public readonly allTriangleNormals: Computed<readonly IReadonlyVector3[]>;
   public readonly allEdgeIndices: Computed<readonly EdgeIndices[]>;
   public readonly allEdges: Computed<readonly Edge[]>;
+  public readonly allVertexColors: Computed<readonly (IReadonlyColor4 | undefined)[]>;
+  public readonly allVertexTextureCoordinates: Computed<readonly (IReadonlyVector2 | undefined)[]>;
   public readonly aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
   public readonly approximateAabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
 
   public constructor(parts: ModelPart[], modelConfig: ModelConfig) {
-    /* Vertices */
+    /* Vertex positions */
     this.allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
-        // @NOTE We barely need these dependencies, since we just store the vertex references. We can potentially
-        // optimise this by never recomputing.
         ...parts.map((part) => part.geometry.allVertexPositions),
       ],
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        let vertexCount = 0;
+        // @NOTE No-op on subsequent recomputation
+        // We're just collecting instances which can't change so no need to ever recompute
+        if (self.length > 0) return;
+
         for (const part of parts) {
-          for (const vertexPosition of part.geometry.allVertexPositions.value) {
-            self[vertexCount++] = vertexPosition;
-          }
+          self.push(...part.geometry.allVertexPositions.value);
+        }
+      },
+    });
+    /* Vertex normals */
+    this.allVertexNormals = new Computed<readonly IReadonlyVector3[]>([], {
+      dependencies: [
+        ...parts.map((part) => part.geometry.allVertexNormals),
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
+        // @NOTE No-op on subsequent recomputation
+        // We're just collecting instances which can't change so no need to ever recompute
+        if (self.length > 0) return;
+
+        for (const part of parts) {
+          self.push(...part.geometry.allVertexNormals.value);
         }
       },
     });
@@ -289,7 +308,7 @@ export class ModelGeometry {
         ...parts.map((part) => part.geometry.allTriangleIndices),
       ],
       recompute: (_self) => {
-        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+        const self = _self as TriangleIndices[]; // @NOTE type laundering for mutability
 
         /**
          * We need to keep track of an offset for vertex indices,
@@ -299,12 +318,12 @@ export class ModelGeometry {
         let triangleCount = 0;
         for (const part of parts) {
           for (const triangleIndices of part.geometry.allTriangleIndices.value) {
-            const aIndex = triangleIndices["aIndex"] + vertexIndexOffset;
-            const bIndex = triangleIndices["bIndex"] + vertexIndexOffset;
-            const cIndex = triangleIndices["cIndex"] + vertexIndexOffset;
+            const aIndex = triangleIndices.aIndex + vertexIndexOffset;
+            const bIndex = triangleIndices.bIndex + vertexIndexOffset;
+            const cIndex = triangleIndices.cIndex + vertexIndexOffset;
             if (self[triangleCount] !== undefined) {
               // Re-use existing instances
-              (self[triangleCount] as TriangleIndices).setValue(aIndex, bIndex, cIndex);
+              self[triangleCount].setValue(aIndex, bIndex, cIndex);
             } else {
               // Build up array for the first time
               self[triangleCount] = new TriangleIndices(aIndex, bIndex, cIndex);
@@ -317,23 +336,24 @@ export class ModelGeometry {
     });
     this.allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
-        this.allVertexPositions,
+        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
+        // A triangle's vertices only need to recompute when the indices change.
         this.allTriangleIndices,
       ],
       recompute: (_self) => {
-        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+        const self = _self as Mutable<Triangle>[]; // @NOTE type laundering for mutability
 
         let triangleCount = 0;
         const allVertexPositions = this.allVertexPositions.value;
         for (const triangleIndices of this.allTriangleIndices.value) {
-          const aTriangle = allVertexPositions[triangleIndices["aIndex"]];
-          const bTriangle = allVertexPositions[triangleIndices["bIndex"]];
-          const cTriangle = allVertexPositions[triangleIndices["cIndex"]];
+          const aTriangle = allVertexPositions[triangleIndices.aIndex];
+          const bTriangle = allVertexPositions[triangleIndices.bIndex];
+          const cTriangle = allVertexPositions[triangleIndices.cIndex];
           if (self[triangleCount] !== undefined) {
             // Re-use existing instances
-            (self[triangleCount] as Mutable<Triangle>)[0] = aTriangle;
-            (self[triangleCount] as Mutable<Triangle>)[1] = bTriangle;
-            (self[triangleCount] as Mutable<Triangle>)[2] = cTriangle;
+            self[triangleCount][0] = aTriangle;
+            self[triangleCount][1] = bTriangle;
+            self[triangleCount][2] = cTriangle;
           } else {
             // Build up array for the first time
             self[triangleCount] = [
@@ -348,17 +368,17 @@ export class ModelGeometry {
     });
     this.allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
-        // @TODO Like allVertexPositions, do we ever need to recompute?
         ...parts.map((part) => part.geometry.allTriangleNormals),
       ],
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        let triangleCount = 0;
+        // @NOTE No-op on subsequent recomputation
+        // We're just collecting instances which can't change so no need to ever recompute
+        if (self.length > 0) return;
+
         for (const part of parts) {
-          for (const triangleNormal of part.geometry.allTriangleNormals.value) {
-            self[triangleCount++] = triangleNormal;
-          }
+          self.push(...part.geometry.allTriangleNormals.value);
         }
       },
     });
@@ -370,7 +390,7 @@ export class ModelGeometry {
         ...parts.map((part) => part.geometry.allEdgeIndices),
       ],
       recompute: (_self) => {
-        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+        const self = _self as Mutable<EdgeIndices>[]; // @NOTE type laundering for mutability
 
         /**
          * We need to keep track of an offset for vertex indices,
@@ -384,8 +404,8 @@ export class ModelGeometry {
             const bIndex = edgeIndices[1] + vertexIndexOffset;
             if (self[edgeCount] !== undefined) {
               // Re-use existing instances
-              (self[edgeCount] as Mutable<EdgeIndices>)[0] = aIndex;
-              (self[edgeCount] as Mutable<EdgeIndices>)[1] = bIndex;
+              self[edgeCount][0] = aIndex;
+              self[edgeCount][1] = bIndex;
             } else {
               // Build up array for the first time
               self[edgeCount] = [
@@ -406,11 +426,12 @@ export class ModelGeometry {
     });
     this.allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
-        this.allVertexPositions,
+        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
+        // An edge's vertices only need to recompute when the indices change.
         this.allEdgeIndices,
       ],
       recompute: (_self) => {
-        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+        const self = _self as Mutable<Edge>[]; // @NOTE type laundering for mutability
 
         let edgeCount = 0;
         const allVertexPositions = this.allVertexPositions.value;
@@ -419,8 +440,8 @@ export class ModelGeometry {
           const bVertex = allVertexPositions[edgeIndices[1]];
           if (self[edgeCount] !== undefined) {
             // Re-use existing instances
-            (self[edgeCount] as Mutable<Edge>)[0] = aVertex;
-            (self[edgeCount] as Mutable<Edge>)[1] = bVertex;
+            self[edgeCount][0] = aVertex;
+            self[edgeCount][1] = bVertex;
           } else {
             // Build up array for the first time
             self[edgeCount] = [
@@ -436,10 +457,47 @@ export class ModelGeometry {
       },
     });
 
+    /* Colors */
+    this.allVertexColors = new Computed<readonly (IReadonlyColor4 | undefined)[]>([], {
+      dependencies: [
+        ...parts.map((part) => part.geometry.allVertexColors),
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
+        // @NOTE No-op on subsequent recomputation
+        // We're just collecting instances which can't change so no need to ever recompute
+        if (self.length > 0) return;
+
+        for (const part of parts) {
+          self.push(...part.geometry.allVertexColors.value);
+        }
+      },
+    });
+
+    /* Texture coordinates */
+    this.allVertexTextureCoordinates = new Computed<readonly (IReadonlyVector2 | undefined)[]>([], {
+      dependencies: [
+        ...parts.map((part) => part.geometry.allVertexTextureCoordinates),
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
+
+        // @NOTE No-op on subsequent recomputation
+        // We're just collecting instances which can't change so no need to ever recompute
+        if (self.length > 0) return;
+
+        for (const part of parts) {
+          self.push(...part.geometry.allVertexTextureCoordinates.value);
+        }
+      },
+    });
+
     /* AABB */
     this.aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
-        this.allVertexPositions,
+        // @NOTE Depend on the underlying `ModelPart` geometries as `Model` geometry has no dependencies / does not recompute
+        ...parts.map((part) => part.geometry.allVertexPositions),
       ],
       recompute: (self) => {
         const allVertexPositions = this.allVertexPositions.value;
@@ -457,10 +515,16 @@ export class ModelGeometry {
     });
     this.approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
+        /* @TODO */
+        /* @TODO */
+        /* @TODO */
+        /* @TODO */
+        /* @TODO */
         modelConfig,
         ...parts.map((part) => part.geometry.approximateAabb),
       ],
       recompute: (self) => {
+        // @TODO _self as mutable
         if (modelConfig.aabbApproximationPolicy.type === 'fixed') {
           // @TODO What's the expectation if you set type 'fixed' for non-skinned models? That it is the value you set, or that it matches?
           // @TODO Probably it is more predictable if we say "aabbApproximationPolicy only applies to skinned models"

@@ -3,6 +3,7 @@ import { expectVectorsToBeEqual } from '@test/util/expect';
 import { describe, test, expect } from 'vitest';
 import { Vector2, Vector3 } from './vector';
 import { Quaternion } from './Quaternion';
+import { Matrix3 } from './Matrix3';
 import { Matrix4 } from './Matrix4';
 
 /* @TODO Test backlog
@@ -170,6 +171,21 @@ describe("Vector3", () => {
 
       // Test
       vector.multiplySelf(Quaternion.identity());
+
+      // Assert
+      expect(timesOnChangeCalled).toBe(1);
+    });
+    test("Calling multiplySelf() with Matrix3 fires onChange() once", () => {
+      // Setup
+      const vector = Vector3.zero();
+
+      let timesOnChangeCalled = 0;
+      vector.onChange(() => {
+        timesOnChangeCalled++;
+      });
+
+      // Test
+      vector.multiplySelf(new Matrix3());
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
@@ -516,6 +532,22 @@ describe("Vector3", () => {
     // Assert
     expectVectorsToBeEqual(vector, expectedValue);
   });
+  test("Calling multiplySelf() with a Matrix3 mutates correctly", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const matrix = new Matrix3([
+      1, 2, 3,
+      4, 5, 6,
+      7, 8, 9,
+    ]);
+    const expectedValue = new Vector3(30, 36, 42);
+
+    // Test
+    vector.multiplySelf(matrix);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
   test("Calling multiply() with a numeric factor returns the correct result", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
@@ -572,6 +604,24 @@ describe("Vector3", () => {
     // 2. Rotation
     // 3. Translation
     const expectedValue = new Vector3(1, 3, 1);
+
+    // Test
+    const result = vector.multiply(matrix);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
+  });
+  test("Calling multiply() with a Matrix3 returns the correct result", () => {
+    // Setup
+    const vector = new Vector3(1, 2, 3);
+    const original = vector.clone();
+    const matrix = new Matrix3([
+      1, 2, 3,
+      4, 5, 6,
+      7, 8, 9,
+    ]);
+    const expectedValue = new Vector3(30, 36, 42);
 
     // Test
     const result = vector.multiply(matrix);

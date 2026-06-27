@@ -21,7 +21,6 @@ export interface DrawTaskCommon {
   material: MaterialInstance;
   uniforms: {
     worldMatrix: Matrix4;
-    localMatrix: Matrix4;
     skinWeights?: Float32Array; // @TODO poorly named? Should be skin matrix bytes
   },
   draw: {
@@ -419,13 +418,6 @@ export class Engine implements IEngine {
       if (worldMatrixUniform) {
         task.uniforms.worldMatrix.writeTo(this.tmp_draw_mat4Buffer);
         gl.uniformMatrix4fv(worldMatrixUniform, false, this.tmp_draw_mat4Buffer);
-      }
-
-      // Local matrix uniform
-      const localMatrixUniform = currentShaderVariant.getUniform('localMatrix');
-      if (localMatrixUniform) {
-        task.uniforms.localMatrix.writeTo(this.tmp_draw_mat4Buffer);
-        gl.uniformMatrix4fv(localMatrixUniform, false, this.tmp_draw_mat4Buffer);
       }
 
       // Lighting uniform

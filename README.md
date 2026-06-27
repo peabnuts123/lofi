@@ -41,12 +41,17 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Remove old shaders~~
   - [ ] Fix DebugModule
   - [ ] Build pipeline and CD
+  - [ ] Split up combined files
+    - [ ] vector.ts
+    - [ ] observable.ts
+    - [ ] ____Geometry
 
 ## Milestone: 0.2
   - [ ] Collision handling for concave geometry e.g. levels
   - [ ] Ability to reset / stop animation
     - [ ] Config e.g. animation looping
   - [ ] At least write down what tests need to be written
+  - [ ] Implement CUBICSPLINE animation
 
 ## Backlog
 These items are roughly in priority order.
@@ -84,7 +89,7 @@ These items are roughly in priority order.
   - Support for 2 players 1 keyboard (etc) (basically just assign the same device to multiple players)
   - Callbacks for input devices disconnecting / connecting (what do we care about?)
   - Virtual input devices (on screen)
-  - [ ] `Color3` observable
+  - [ ] `Matrix3` observable
   - [ ] `Vector2` tests
   - Still a bunch of stuff @TODO left in GltfLoader
   - Dreaded ArrayBuffer / Uint8Array refactor / audit. WHAT IS THE CORRECT THING
@@ -105,6 +110,7 @@ These items are roughly in priority order.
   - I think we need to use finalizers to clean up held GL resources (e.g. vao in MeshPrimitive, buffers in MeshPrim geometry, etc.)
   - MeshPrimitive geometry: We should be more careful about skin joints/weights being handled separately. For example, if one is set but not the other, the code will not handle it correctly. We should maybe collapse these types into a single type that's either set or not.
   - Make sure all tmp values are called `tmp_<thing>_<purpose>` and are static where possible
+  - Model coordinates are Y-up in low-level API; can we do anything about that?
 
 
 ## Ideas

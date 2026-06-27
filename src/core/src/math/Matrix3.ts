@@ -1,7 +1,7 @@
 
 import type { TypedArray } from "@lofi/core/util/types";
 
-import type { Matrix4 } from "./Matrix4";
+import { Matrix4 } from "./Matrix4";
 
 export type Matrix3InitialValues = [
   m00: number, m10: number, m20: number,
@@ -64,10 +64,31 @@ export class Matrix3 {
     return new Matrix3(this.internal.buffer);
   }
 
-  public setValue(value: Matrix3): this {
+  public setValue(value: Matrix3): this;
+  public setValue(value: Matrix4): this;
+  public setValue(value: Matrix3 | Matrix4): this {
+    if (value instanceof Matrix4) {
+      return this.setValueMatrix4(value);
+    } else {
+      return this.setValueMatrix3(value);
+    }
+  }
+  private setValueMatrix3(value: Matrix3): this {
     for (let i = 0; i < 9; i++) {
       this.internal.buffer[i] = value.internal.buffer[i];
     }
+    return this;
+  }
+  private setValueMatrix4(value: Matrix4): this {
+    this.internal.m00 = value.m00;
+    this.internal.m10 = value.m10;
+    this.internal.m20 = value.m20;
+    this.internal.m01 = value.m01;
+    this.internal.m11 = value.m11;
+    this.internal.m21 = value.m21;
+    this.internal.m02 = value.m02;
+    this.internal.m12 = value.m12;
+    this.internal.m22 = value.m22;
     return this;
   }
 

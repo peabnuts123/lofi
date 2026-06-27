@@ -29,7 +29,6 @@ in vec4 vertexWeights;
 /* Uniforms */
 // Required
 uniform mat4 worldMatrix;
-uniform mat4 localMatrix;
 uniform mat3 normalMatrix;
 // Optional
 #ifdef DIFFUSE_COLOR
@@ -79,7 +78,8 @@ void main() {
   }
   vec4 worldPositionVec4 = worldMatrix * skinMatrix * vec4(vertexPosition, 1.0f);
 #else
-  vec4 worldPositionVec4 = worldMatrix * localMatrix * vec4(vertexPosition, 1.0f);
+  // @NOTE `worldMatrix` is premultiplied by `localMatrix` if no skin
+  vec4 worldPositionVec4 = worldMatrix * vec4(vertexPosition, 1.0f);
 #endif
   worldPosition = vec3(worldPositionVec4);
   gl_Position = viewProjectionMatrix * worldPositionVec4;
@@ -100,9 +100,10 @@ void main() {
 
   // Lighting
 #ifdef SKIN
-  vec3 skinnedNormal = normalize(transpose(inverse(mat3(skinMatrix))) * vertexNormal);
-  worldNormal = normalize(normalMatrix * skinnedNormal);
+  mat3 skinNormalMatrix = transpose(inverse(mat3(skinMatrix)));
+  worldNormal = normalize(normalMatrix * skinNormalMatrix * vertexNormal);
 #else
+  // @NOTE `normalMatrix` is premultiplied (before inverting/transposing) by `localMatrix` if no skin
   worldNormal = normalize(normalMatrix * vertexNormal);
 #endif
 #ifdef UNLIT
