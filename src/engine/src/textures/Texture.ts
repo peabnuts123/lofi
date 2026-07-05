@@ -28,19 +28,19 @@ export class Texture {
 
   public static async load(engine: IEngine, path: string): Promise<Texture> {
     const textureFile = await engine.fileSystem.readFile(path);
-    const blob = new Blob([textureFile.bytes as Uint8Array<ArrayBuffer>]);
+    const blob = new Blob([textureFile.bytes]);
     const bitmap = await window.createImageBitmap(blob);
     return new Texture(engine, bitmap);
   }
 
-  public static async loadFromBuffer(engine: IEngine, buffer: Uint8Array): Promise<Texture> {
-    const blob = new Blob([buffer as Uint8Array<ArrayBuffer>]);
+  public static async loadFromBuffer(engine: IEngine, buffer: Uint8Array<ArrayBuffer>): Promise<Texture> {
+    const blob = new Blob([buffer]);
     const bitmap = await window.createImageBitmap(blob);
     return new Texture(engine, bitmap);
   }
 
-  public static async decodeBuffer(buffer: Uint8Array): Promise<ImageData> {
-    const blob = new Blob([buffer as Uint8Array<ArrayBuffer>]);
+  public static async decodeBuffer(buffer: Uint8Array<ArrayBuffer>): Promise<ImageData> {
+    const blob = new Blob([buffer]);
     const bitmap = await window.createImageBitmap(blob);
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     const ctx = canvas.getContext("2d")!;

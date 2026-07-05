@@ -53,6 +53,10 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
     }
   }
 
+  public clone(): AxisAlignedBoundingBox {
+    return new AxisAlignedBoundingBox(this);
+  }
+
   public intersects(other: AxisAlignedBoundingBox): boolean {
     return !(
       this.xMax < other.xMin ||
@@ -127,6 +131,14 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
     if (other.zMax > this.zMax) this.zMax = other.zMax;
 
     return this;
+  }
+
+  public getMin(): Vector3 {
+    return new Vector3(this.xMin, this.yMin, this.zMin);
+  }
+
+  public getMax(): Vector3 {
+    return new Vector3(this.xMax, this.yMax, this.zMax);
   }
 
   private tmp_getVertices: Vector3[] = Array.from({ length: 8 }, () => Vector3.zero());

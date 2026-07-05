@@ -14,17 +14,6 @@ export type CameraUbo = Ubo<CameraUboPropertyName>;
 export const CameraUboName = 'Camera';
 export const CameraUboIndex = 1;
 
-/**
- * Transform to convert world "+Z up" coordinates into
- * native WebGL "+Y up" coordinates for rendering.
- */
-export const ZUpViewMatrixTransform = new Matrix4([
-  1, 0, 0, 0,
-  0, 0, -1, 0,
-  0, 1, 0, 0,
-  0, 0, 0, 1,
-]);
-
 export class CameraNode extends SceneNode {
   public fov: number;
   public aspectRatio: number; // @TODO remove, derive from canvas
@@ -75,8 +64,7 @@ export class CameraNode extends SceneNode {
   private recalculateViewProjectionMatrix(): void {
     this.viewMatrix
       .setValue(this.worldMatrix)
-      .invertSelf()
-      .reverseMultiplySelf(ZUpViewMatrixTransform);
+      .invertSelf();
 
     // @TODO cache this matrix
     this.projectionMatrix.perspectiveSelf(

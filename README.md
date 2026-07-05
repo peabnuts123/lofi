@@ -45,6 +45,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
     - [ ] vector.ts
     - [ ] observable.ts
     - [ ] ____Geometry
+  - [ ] MATH API REFACTOR: Flip the order of math operators (e.g. `Matrix4.transform(Vector3)` instead of `Vector3.multiplySelf(Matrix4)`)
 
 ## Milestone: 0.2
   - [ ] Collision handling for concave geometry e.g. levels
@@ -52,6 +53,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
     - [ ] Config e.g. animation looping
   - [ ] At least write down what tests need to be written
   - [ ] Implement CUBICSPLINE animation
+  - [ ] Allow camera to look straight down with pointAt()
 
 ## Backlog
 These items are roughly in priority order.
@@ -110,7 +112,6 @@ These items are roughly in priority order.
   - I think we need to use finalizers to clean up held GL resources (e.g. vao in MeshPrimitive, buffers in MeshPrim geometry, etc.)
   - MeshPrimitive geometry: We should be more careful about skin joints/weights being handled separately. For example, if one is set but not the other, the code will not handle it correctly. We should maybe collapse these types into a single type that's either set or not.
   - Make sure all tmp values are called `tmp_<thing>_<purpose>` and are static where possible
-  - Model coordinates are Y-up in low-level API; can we do anything about that?
 
 
 ## Ideas

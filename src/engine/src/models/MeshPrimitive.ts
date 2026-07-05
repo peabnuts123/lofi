@@ -1,7 +1,7 @@
 import { Vector3 } from "@lofi/core/math/vector";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { IdPool } from "@lofi/core/util/IdPool";
-import type { DrawTask, IEngine, OpaqueDrawTask, TransparentDrawTask } from "@lofi/engine/Engine";
+import { type DrawTask, type IEngine, type OpaqueDrawTask, type TransparentDrawTask } from "@lofi/engine/Engine";
 import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
 import type { MeshPrimitiveGeometry, VertexTextureCoordinateAttribute } from "./MeshPrimitiveCache";
 
@@ -67,7 +67,7 @@ export class MeshPrimitive {
       drawQueue.push({
         renderLayer,
         isTransparent: isMaterialTransparent,
-        depth: this._cameraSpacePositionTmp.z,
+        depth: this._cameraSpacePositionTmp.y,
         shaderVariant: this.shader,
         material,
         uniforms,
@@ -98,21 +98,6 @@ export class MeshPrimitive {
     if (!vao) {
       throw new Error('Failed to create VAO');
     }
-
-    /**
-     * @NOTE TO FUTURE:
-     * When low-level APIs land and the ability to edit mesh geometry is possible,
-     * we needn't rebuild or edit the VAO. Because it binds a shader attribute (e.g. vertexPosition)
-     * to a buffer in memory, editing the buffer still maintains that binding.
-     * So we can call gl.bufferData (or possibly more attractive: gl.bufferSubData) on
-     * a buffer to edit it in-place and everything should work fine.
-     * Future implementation note: We can theoretically write an abstraction
-     * around mesh geometry which internally stores (parsed geometry + buffers) and exposes
-     * methods for mutating it (e.g. set position) OR creates the parsed geometry as observable.
-     * Then when modifying (or reacting to an observed modification) the data, we can just pull
-     * the relevant buffer and mutate it with `gl.bufferSubData()` to get realtime efficient
-     * edits to this data.
-     */
 
     gl.bindVertexArray(vao);
 
@@ -222,10 +207,13 @@ export class MeshPrimitive {
 
     gl.bindVertexArray(null);
 
+    /* Extents */
+    const extentsMin = primitive.extents.getMin();
+    const extentsMax = primitive.extents.getMax();
     const meshExtents: MeshPrimitiveExtents = {
-      min: primitive.extents.min,
-      max: primitive.extents.max,
-      center: primitive.extents.min.add(primitive.extents.max).divideSelf(2),
+      min: extentsMin,
+      max: extentsMax,
+      center: extentsMin.add(extentsMax).divideSelf(2),
     };
 
     // @NOTE Since `primitive.indicesAttribute` is not-nullable

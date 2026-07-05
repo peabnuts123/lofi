@@ -11,7 +11,7 @@ export interface Color3Definition {
 
 class Color3InternalBuffer {
   public static readonly BufferSize: number = 3;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Color3InternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(Color3InternalBuffer.BufferSize);
   public get r(): number { return this.buffer[0]; }
   public set r(value: number) { this.buffer[0] = clamp(value, 0, 0xFF); }
   public get g(): number { return this.buffer[1]; }

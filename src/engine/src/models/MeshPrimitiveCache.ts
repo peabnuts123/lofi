@@ -6,7 +6,6 @@ import type {
   AnyAttributeDefinition,
   AttributeDefinition,
   BaseAttributeDefinition,
-  Extents,
   MaterialDefinition,
   MeshPrimitiveDefinition,
   MeshPrimitiveMode,
@@ -20,41 +19,21 @@ import type {
 } from "@lofi/engine/loaders/definitions";
 import { MaterialInstance, ShaderBlendingModeTypeEnumValue } from "@lofi/engine/materials";
 import { createBuffer, GlArrayBuffer, GlElementArrayBuffer, type GlBufferEnum } from "@lofi/engine/util/createBuffer";
+import type { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 import { MeshPrimitive } from "./MeshPrimitive";
 
 type MaterialCacheKey = number;
 
 /*
-  @TODO 2
-  // - Stop and commit working slow low level api
-  // - Try removing all references to mutate ()
-  // - Think about: why are 350k mutations happening per frame - is that right?
-  // - Log when mutations are just writing the same value (? Don’t mutate?)
-  - Approximate BB is still listening to eg part rotations it should probably have next to no dependencies
-  - Remove redundant dependencies where we we are just storing the value / don’t be computed just flat map once
-  // - Some way of debouncing geometry mutations / batching. It could be immutable unless you call a mutate function which then batch writes anything that changed. Maybe This can be the access API from the top level
-  - Do we need a hierarchy of computeds at all
+  @TODO Low Level API backlog
+  // - Approximate BB is still listening to eg part rotations it should probably have next to no dependencies
+  // - Approximate AABB should only apply to unskinned models
   - Skinned normals need to be normalized as if using homogenous coordinates I think
- */
-
-/*
-@TODO 1 Low level API work backlog
-  // - Implement `clearPrimitiveCache`
   - Expose these types from a public place (i.e. iterating model => modelpart => meshprim)
-  - Make Immutable geometry types and use them in parent Geometry classes (e.g. Model.geometry)
-  // - Listen to observable callbacks on parsed geometry values (e.g. vertex position Vector3s) and
-    // update buffers when they change
-  // - Implement the rest of the attributes (e.g. color, texCoords)
-  // - Implement public API to add/clear optional vertex attributes
-  // - Probably we need to sort out this whole definition + parsed data + GL Buffer paired lists thing~
-  // - Need to straighten out `indices` and its relationship to triangles (e.g. triangleIndices?)
-  // - Make types like `TriangleIndices` and `JointIndices` observable
-  // - I GUESS make `EdgeIndices` and `Edge` immutable??
-*/
-
-/* @TODO Block 0
   - Split types up into separate files
+  - Have a go writing some unit tests but probably don't exhaust it
+  - AABB is not correct for cylindrical object (?) is it being aggregated instead of computed?
  */
 
 /**
@@ -416,7 +395,7 @@ export class MeshPrimitiveGeometry {
 
   /* Mesh primitive */
   public readonly glMode: MeshPrimitiveMode;
-  public readonly extents: Extents;
+  public readonly extents: AxisAlignedBoundingBox;
   public readonly defaultMaterialDefinition: MaterialDefinition | undefined;
 
   /* Vertex attributes */
@@ -438,6 +417,9 @@ export class MeshPrimitiveGeometry {
   private readonly _jointWeights: readonly JointWeights[] | undefined;
   private readonly _vertexColors: readonly Color4[] | undefined;
   private readonly _vertexTextureCoordinates: readonly Vector2[] | undefined;
+  /* Parsed data - readonly */
+  public readonly triangles: Computed<readonly Triangle[]>;
+  public readonly edges: Computed<readonly Edge[]>;
 
   /* Observable events - fired when any underlying data is changed via `mutate()` */
   public readonly vertexPositionsChanged: ObservableEvent;
@@ -571,6 +553,38 @@ export class MeshPrimitiveGeometry {
     // @NOTE Override component count
     this.triangleIndicesMutationObserver.componentCount = 3;
 
+    /* Triangles */
+    this.triangles = new Computed<readonly Triangle[]>([], {
+      dependencies: [
+        this.vertexPositionsChanged,
+        this.triangleIndicesChanged,
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<Triangle>[]; // @NOTE type laundering for mutability
+
+        let triangleCount = 0;
+        for (const triangleIndices of this.triangleIndices) {
+          const aTriangle = this.vertexPositions[triangleIndices.aIndex];
+          const bTriangle = this.vertexPositions[triangleIndices.bIndex];
+          const cTriangle = this.vertexPositions[triangleIndices.cIndex];
+          if (self[triangleCount] !== undefined) {
+            // Re-use existing instances
+            self[triangleCount][0] = aTriangle;
+            self[triangleCount][1] = bTriangle;
+            self[triangleCount][2] = cTriangle;
+          } else {
+            // Build up array for the first time
+            self[triangleCount] = [
+              aTriangle,
+              bTriangle,
+              cTriangle,
+            ];
+          }
+          triangleCount++;
+        }
+      },
+    });
+
     /* Vertex normals */
     if (definition.normalData !== undefined) {
       // Normals provided by asset
@@ -646,6 +660,37 @@ export class MeshPrimitiveGeometry {
         for (const edge of edgeMap.values()) {
           self.push(edge);
         }
+      },
+    });
+    this.edges = new Computed<readonly Edge[]>([], {
+      dependencies: [
+        this.vertexPositionsChanged,
+        this.edgeIndices,
+      ],
+      recompute: (_self) => {
+        const self = _self as Mutable<Edge>[]; // @NOTE type laundering for mutability
+
+        let edgeCount = 0;
+        const allVertexPositions = this.vertexPositions;
+        for (const edgeIndices of this.edgeIndices.value) {
+          const aVertex = allVertexPositions[edgeIndices[0]];
+          const bVertex = allVertexPositions[edgeIndices[1]];
+          if (self[edgeCount] !== undefined) {
+            // Re-use existing instances
+            self[edgeCount][0] = aVertex;
+            self[edgeCount][1] = bVertex;
+          } else {
+            // Build up array for the first time
+            self[edgeCount] = [
+              aVertex,
+              bVertex,
+            ];
+          }
+          edgeCount++;
+        }
+
+        // Number of unique edges can change, so ensure array is always correct size
+        self.length = edgeCount;
       },
     });
 

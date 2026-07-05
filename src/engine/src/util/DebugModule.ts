@@ -447,8 +447,8 @@ export class DebugModule {
       files['audio.webm'] = audioData;
     }
 
-    const zipped = zipSync(files);
-    const blob = new Blob([zipped as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
+    const zipped = new Uint8Array(zipSync(files));
+    const blob = new Blob([zipped], { type: 'application/zip' });
     await this.saveFile(blob, 'frames.zip');
   }
 

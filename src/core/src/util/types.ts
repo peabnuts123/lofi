@@ -38,7 +38,7 @@ export type ClassReference<TClass> = abstract new (...args: any[]) => TClass;
  * Extract the values from an enum constant.
  * @example
  * ```
- * const Colors = {
+ * const Color = {
  *   Red: 'red',
  *   Green: 'green',
  *   Blue: 'blue',
@@ -48,7 +48,7 @@ export type ClassReference<TClass> = abstract new (...args: any[]) => TClass;
  */
 export type Enum<T> = T[keyof T];
 
-export type TypedArray = Float64Array<ArrayBuffer> | Float32Array<ArrayBuffer> | Uint32Array<ArrayBuffer> | Uint16Array<ArrayBuffer> | Uint8Array<ArrayBuffer> | Int16Array<ArrayBuffer> | Int8Array<ArrayBuffer>;
+export type TypedArray = Float64Array | Float32Array | Uint32Array | Uint16Array | Uint8Array | Int16Array | Int8Array;
 
 export interface Optional<T> {
   value: T | undefined;

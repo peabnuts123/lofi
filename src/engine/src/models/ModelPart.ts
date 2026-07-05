@@ -200,7 +200,7 @@ export class ModelPartGeometry {
   public readonly allVertexColors: Computed<readonly (IReadonlyColor4 | undefined)[]>;
   public readonly allVertexTextureCoordinates: Computed<readonly (IReadonlyVector2 | undefined)[]>;
   public readonly aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
-  public readonly approximateAabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
+  public readonly approximateAabb: IReadonlyAxisAlignedBoundingBox | undefined;
 
   public constructor({ primitiveCaches, localMatrixComputed, skinJointMatricesComputed }: ModelPartGeometryArgs) {
 
@@ -386,8 +386,7 @@ export class ModelPartGeometry {
     });
     this.allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
-        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
-        // A triangle's vertices only need to recompute when the indices change.
+        this.allVertexPositions,
         this.allTriangleIndices,
       ],
       recompute: (_self) => {
@@ -486,8 +485,7 @@ export class ModelPartGeometry {
     });
     this.allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
-        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
-        // An edge's vertices only need to recompute when the indices change.
+        this.allVertexPositions,
         this.allEdgeIndices,
       ],
       recompute: (_self) => {
@@ -525,10 +523,7 @@ export class ModelPartGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const primitiveCache of primitiveCaches) {
           // @NOTE Must retain parity with vertex indices so fill missing attributes with undefined
           if (primitiveCache.geometry.vertexColors !== undefined) {
@@ -552,10 +547,7 @@ export class ModelPartGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const primitiveCache of primitiveCaches) {
           // @NOTE Must retain parity with vertex indices so fill missing attributes with undefined
           if (primitiveCache.geometry.vertexTextureCoordinates !== undefined) {
@@ -576,7 +568,9 @@ export class ModelPartGeometry {
       dependencies: [
         this.allVertexPositions,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Optional<AxisAlignedBoundingBox>; // @NOTE type laundering for mutability
+
         const allVertexPositions = this.allVertexPositions.value;
         if (allVertexPositions.length === 0) {
           // No geometry
@@ -584,66 +578,33 @@ export class ModelPartGeometry {
           return;
         } else {
           // Ensure value is initialised
-          const aabb: AxisAlignedBoundingBox = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
+          const aabb: AxisAlignedBoundingBox = self.value ??= AxisAlignedBoundingBox.zero();
 
           // Recompute AABB based on vertex positions
           aabb.fromVerticesSelf(allVertexPositions);
         }
       },
     });
-    const tmp_approximateAabb_vertex = Vector3.zero();
-    this.approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
-      dependencies: [
-        // @TODO I don't think so actually
-        // @TODO I don't think so actually
-        // @TODO I don't think so actually
-        // @TODO I don't think so actually
-        // @TODO I don't think so actually
-        localMatrixComputed,
-        // @NOTE Depends on mesh primitive vertices instead of `this.allVertexPositions.value` because calculating that involves skinning which is what we're trying to avoid
-        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.vertexPositionsChanged),
-      ],
-      recompute: (self) => {
-        if (primitiveCaches.length === 0) {
-          // Model part has no geometry
-          self.value = undefined;
-          return;
-        } else {
-          // Ensure value is initialised
-          const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
-          // Initialise to extreme values
-          aabb.setValue({
-            xMin: Infinity,
-            yMin: Infinity,
-            zMin: Infinity,
-            xMax: -Infinity,
-            yMax: -Infinity,
-            zMax: -Infinity,
-          });
+    /* AABB - approximate */
+    /*
+      @NOTE Calculate proactively since we don't need to allocate anything beyond a tmp value
+      and the actual AABB instance which doesn't take much memory.
+      This also helps calculate the approximate AABB based on the initial rest post rather than
+      whatever pose the model is in the first time you computed it.
+    */
+    let approximateAabb: AxisAlignedBoundingBox | undefined;
 
-          const localMatrix = localMatrixComputed.value;
+    for (const primitiveCache of primitiveCaches) {
+      // @NOTE Let `approximateAabb` remain undefined if ModelPart has no geometry
+      if (primitiveCache.geometry.vertexPositions.length === 0) continue;
 
-          // Iterate all vertices of all mesh primitives manually (do not apply skinning)
-          // We can't re-use `AxisAlignedBoundingBox.fromVerticesSelf()` because we'd have to allocate an array
-          for (const primitiveCache of primitiveCaches) {
-            const vertexPositions = primitiveCache.geometry.vertexPositions;
-            for (let i = 0; i < vertexPositions.length; i++) {
-
-              // Multiply by local transform
-              const currentVertex = tmp_approximateAabb_vertex.setValue(vertexPositions[i]).multiplySelf(localMatrix);
-
-              // Update AABB accordingly
-              if (currentVertex.x < aabb.xMin) aabb.xMin = currentVertex.x;
-              if (currentVertex.y < aabb.yMin) aabb.yMin = currentVertex.y;
-              if (currentVertex.z < aabb.zMin) aabb.zMin = currentVertex.z;
-              if (currentVertex.x > aabb.xMax) aabb.xMax = currentVertex.x;
-              if (currentVertex.y > aabb.yMax) aabb.yMax = currentVertex.y;
-              if (currentVertex.z > aabb.zMax) aabb.zMax = currentVertex.z;
-            }
-          }
-        }
-      },
-    });
+      if (approximateAabb === undefined) {
+        approximateAabb = primitiveCache.geometry.extents.clone();
+      } else {
+        approximateAabb.unionSelf(primitiveCache.geometry.extents);
+      }
+    }
+    this.approximateAabb = approximateAabb?.transformSelf(localMatrixComputed.value);
   }
 }

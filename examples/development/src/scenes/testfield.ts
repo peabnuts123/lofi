@@ -1,6 +1,7 @@
-import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt } from '@lofi/core/math';
+import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt, Quaternion } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
 import { RateCounter } from '@lofi/core/util/RateCounter';
+import type { Enum } from '@lofi/core/util/types';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model, type Triangle } from '@lofi/engine/models';
 import { Engine, type DrawTask, type IEngine } from '@lofi/engine/Engine';
@@ -13,11 +14,11 @@ import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import type { ModelDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
-import { DrawDebug } from '@lofi/engine/util/DrawDebug';
+import { DrawDebug, type IWireframeDrawable } from '@lofi/engine/util/DrawDebug';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 
-const MaxRuntimeSeconds = 60;
+const MaxRuntimeSeconds = 30;
 const GridW = 20;
 const GridH = 20;
 const GridSpacing = 0.5;
@@ -113,12 +114,11 @@ export abstract class Game {
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
     const camera = new CameraNode(scene, 'camera', 70, canvas.width / canvas.height, cameraOrigin);
     camera.position = new Vector3(-3.5, -3.5, 2);
-    camera.pointAt(Vector3.zero());
     runLoopHooks.push((dt, time) => {
       const CameraRotationSpeedDegreesPerSecond = 15;
       cameraOrigin.rotation.z += dt * CameraRotationSpeedDegreesPerSecond;
       camera.position.z = Math.sin(time * CameraRotationSpeedDegreesPerSecond * 2 * DegreesToRadians) * 1 + 3;
-      camera.pointAt(new Vector3(0, 0, 0));
+      camera.pointAt(cameraOrigin.absolutePosition);
     });
 
     /* Audio */
@@ -142,37 +142,31 @@ export abstract class Game {
     /* Ray casting */
     if (Flags.RayCasting) {
       const rayOrigin = new ObjectNode(scene, 'ray:origin');
-      rayOrigin.position.z = 0.5;
 
-      const rayTarget = new ModelNode(scene, 'ray:target', boxModel, rayOrigin);
-      rayTarget.scale.multiplySelf(0.2);
-      rayTarget.position.x = -2;
+      const rayTarget = new ObjectNode(scene, 'ray:target', rayOrigin);
+      rayTarget.position.y = 1;
       rayTarget.position.z = 2;
-      rayTarget.setMaterialOverride('ground', new Material({
-        diffuseColor: Color4.yellow(),
-        unlit: true,
-      }), 'replace');
 
-      const rayDirection = rayTarget.absolutePosition.subtract(rayOrigin.absolutePosition);
+      const rayDirection = Vector3.zero();
 
       const frameCounter = new RateCounter('ray:fps', undefined, { mute: true });
       const rayCastDurationCounter = new RateCounter('ray:duration', frameCounter);
 
       runLoopHooks.push((dt) => {
-        rayOrigin.rotation.z += 15 * dt;
+        rayOrigin.rotation.z -= 15 * dt;
 
         rayDirection
           .setValue(rayTarget.absolutePosition)
-          .subtractSelf(rayOrigin.absolutePosition)
-          .normalizeSelf();
+          .subtractSelf(rayOrigin.absolutePosition);
 
         const raycastStart = performance.now();
         let raycastResult = rayCastScene(rayOrigin.absolutePosition, rayDirection, scene);
         const raycastEnd = performance.now();
         const raycastHitPosition = raycastResult?.[1] ?? rayTarget.absolutePosition;
         debug_visualiser.add(
-          DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, raycastHitPosition], { overlay: true }),
+          DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, raycastHitPosition], { overlay: true, color: Color3.yellow() }),
           DrawDebug.drawPolyLine(engine, [raycastHitPosition, rayTarget.absolutePosition], { overlay: true, color: Color3.red(), }),
+          DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, rayTarget.absolutePosition.withZ(rayOrigin.absolutePosition.z)], { overlay: true, color: new Color3(0x80, 0, 0), }),
         );
 
         frameCounter.count();
@@ -338,18 +332,19 @@ export abstract class Game {
     }
     /* Blending test stuff */
     if (Flags.BlendingTestsEnabled) {
+      const space = 1.5
       const blendingModel = await Model.fromDefinition(engine, models[2]);
       const blendingAverage = new ModelNode(scene, 'blending_average', blendingModel);
-      blendingAverage.position.x = 1.5;
-      blendingAverage.position.y = 1.5;
+      blendingAverage.position.x = space;
+      blendingAverage.position.y = space;
       blendingAverage.position.z = 0.5;
       blendingAverage.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Average(),
         diffuseColor: Color4.white().withA(0),
       }));
       const blendingAdditive = new ModelNode(scene, 'blending_additive', blendingModel);
-      blendingAdditive.position.x = -1.5;
-      blendingAdditive.position.y = 1.5;
+      blendingAdditive.position.x = -space;
+      blendingAdditive.position.y = space;
       blendingAdditive.position.z = 0.5;
       blendingAdditive.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Additive(),
@@ -357,8 +352,8 @@ export abstract class Game {
         unlit: true,
       }));
       const blendingSubtractive = new ModelNode(scene, 'blending_subtractive', blendingModel);
-      blendingSubtractive.position.x = 1.5;
-      blendingSubtractive.position.y = -1.5;
+      blendingSubtractive.position.x = space;
+      blendingSubtractive.position.y = -space;
       blendingSubtractive.position.z = 0.5;
       blendingSubtractive.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.Subtractive(),
@@ -366,8 +361,8 @@ export abstract class Game {
         unlit: true,
       }));
       const blendingAlphaBlend = new ModelNode(scene, 'blending_alphaBlend', blendingModel);
-      blendingAlphaBlend.position.x = -1.5;
-      blendingAlphaBlend.position.y = -1.5;
+      blendingAlphaBlend.position.x = -space;
+      blendingAlphaBlend.position.y = -space;
       blendingAlphaBlend.position.z = 0.5;
       blendingAlphaBlend.setMaterialOverride('blending', new Material({
         blendingMode: ShaderBlendingMode.AlphaClip(),
@@ -445,12 +440,13 @@ export abstract class Game {
         addVertexColors(models[5]),
       );
 
+      // @TODO bake this API into the types
+      const primitiveGeometries = nonAnimatedModel.allParts
+        .flatMap((part) => part.primitiveCaches)
+        .map((primitive) => primitive.geometry);
+
       // @TODO Probably should be its own feature (not dependent on Animation flag)
       if (Flags.LowLevelApiDemoEnabled) {
-        // @TODO bake this API into the types
-        const primitiveGeometries = nonAnimatedModel.allParts
-          .flatMap((part) => part.primitiveCaches)
-          .map((primitive) => primitive.geometry);
         const originalHatVertexPositions = primitiveGeometries.map((primitive) => primitive.vertexPositions.map(x => x.clone()));
         const tmp_vector = Vector3.zero();
         const LowLevelMutationFlags = {
@@ -483,8 +479,8 @@ export abstract class Game {
                   const originalPosition = originalHatVertexPositions[i][vertexIndex];
                   tmp_vector.setValue(
                     sin(time * 6 + (p * 3), 10, 0.7, 1.0),
-                    sin(0.2 + time * 6 + (p * 3), 10, 0.95, 1.0),
                     cos(time * 6 + (p * 3), 10, 0.7, 1.0),
+                    sin(0.2 + time * 6 + (p * 3), 10, 0.95, 1.0),
                   );
                   hatVertex
                     .setValue(originalPosition)
@@ -589,22 +585,6 @@ export abstract class Game {
       }
     }
 
-    // @DEBUG Visualise wireframes
-    // scene.forEachNodeInHierarchy((sceneNode) => {
-    //   if (sceneNode instanceof ModelNode) {
-    //     runLoopHooks.push(() => {
-    //       const aabb = sceneNode.geometry.aabb;
-    //       const approximateAabb = sceneNode.geometry.approximateAabb;
-    //       debug_visualiser.add(
-    //         ...[
-    //           aabb && DrawDebug.drawWireframe(engine, aabb, { color: Color3.green(), }),
-    //           approximateAabb && DrawDebug.drawWireframe(engine, approximateAabb, { color: Color3.fuchsia(), overlay: true }),
-    //         ].filter(Boolean) as []
-    //       )
-    //     });
-    //   }
-    // })
-
     /* Helpers */
     const CyclePeriod = 4;
     function cycleBehaviours(time: number, reset: () => void, behaviours: Array<() => void>): void {
@@ -649,11 +629,20 @@ function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, s
   return rayCastScene(camera.absolutePosition, rayDirection, scene);
 }
 
+const RayCastMode = {
+  /** Ray cast will only return results shorter than the passed ray parameter. */
+  Bounded: 'Bounded',
+  /** Ray cast will return any result at any positive distance. */
+  Infinite: 'Infinite',
+} as const;
+type RayCastMode = Enum<typeof RayCastMode>;
 const tmp_PerformRayCastTriangleAABB = AxisAlignedBoundingBox.zero();
 const tmp_PerformRayCastRayDirection = Vector3.zero();
-function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene): [target: ModelNode, hitPosition: Vector3] | undefined {
-  let shortestRayDistance: number = Number.MAX_SAFE_INTEGER;
+function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene, mode: RayCastMode = RayCastMode.Bounded): [target: ModelNode, hitPosition: Vector3] | undefined {
+  let shortestRayLength: number = Number.MAX_SAFE_INTEGER;
   let shortestRayResult: ModelNode | undefined = undefined;
+
+  const rayLength = rayDirection.length();
 
   // @TODO Should this be returning a distance and not returning a result
   // if the distance is longer than `rayDirection`?
@@ -661,40 +650,23 @@ function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene):
     .setValue(rayDirection)
     .normalizeSelf();
 
-  const debug_phaseMaster = 3 as (1 | 2 | 3);
-
   /*
     ========
-    PHASE 1: AABB
+    PHASE 1: Approximate AABB
     ========
    */
   const possibleModels: ModelNode[] = [];
   scene.forEachNodeInHierarchy((node) => {
     if (node instanceof ModelNode) {
-      const aabb = node.geometry.approximateAabb;
-      if (aabb) {
-        const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, aabb);
-        if (result !== undefined) {
+      const approximateAABB = node.geometry.approximateAabb;
+      if (approximateAABB) {
+        const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, approximateAABB);
+        if (result !== undefined && !(mode === RayCastMode.Bounded && result > rayLength)) {
           possibleModels.push(node);
-        }
-
-        if (debug_phaseMaster === 1) {
-          if (result && result < shortestRayDistance) {
-            shortestRayDistance = result;
-            shortestRayResult = node;
-          }
         }
       }
     }
   });
-
-  if (debug_phaseMaster === 1) {
-    if (shortestRayResult) {
-      return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayDistance).addSelf(rayOrigin)];
-    } else {
-      return undefined;
-    }
-  }
 
   /*
     ========
@@ -713,27 +685,12 @@ function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene):
       tmp_PerformRayCastTriangleAABB.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
 
       const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, tmp_PerformRayCastTriangleAABB);
-      if (result !== undefined) {
+      if (result !== undefined && !(mode === RayCastMode.Bounded && result > rayLength)) {
         possibleTriangles.push([
           triangle,
           possibleModel,
         ]);
       }
-
-      if (debug_phaseMaster === 2) {
-        if (result && result < shortestRayDistance) {
-          shortestRayDistance = result;
-          shortestRayResult = possibleModel;
-        }
-      }
-    }
-  }
-
-  if (debug_phaseMaster === 2) {
-    if (shortestRayResult) {
-      return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayDistance).addSelf(rayOrigin)];
-    } else {
-      return undefined;
     }
   }
 
@@ -744,14 +701,14 @@ function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene):
    */
   for (const [triangle, node] of possibleTriangles) {
     const result = rayTriangleIntersection(rayOrigin, rayDirectionNormalized, triangle);
-    if (result && result < shortestRayDistance) {
-      shortestRayDistance = result;
+    if (result !== undefined && result < shortestRayLength && !(mode === RayCastMode.Bounded && result > rayLength)) {
+      shortestRayLength = result;
       shortestRayResult = node;
     }
   }
 
   if (shortestRayResult) {
-    return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayDistance).addSelf(rayOrigin)];
+    return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayLength).addSelf(rayOrigin)];
   } else {
     return undefined;
   }

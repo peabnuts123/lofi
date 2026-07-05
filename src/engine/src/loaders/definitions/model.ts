@@ -5,6 +5,7 @@ import type { Vector3 } from "@lofi/core/math/vector";
 import type { AnimationDefinition } from "./animation";
 import type { MaterialDefinition } from "./material";
 import type { VirtualFile } from "@lofi/engine/filesystem";
+import type { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 /**
  * Any valid GL data type e.g. `gl.FLOAT`, `gl.UNSIGNED_SHORT`, etc.
@@ -97,7 +98,7 @@ export interface MeshDefinition {
 export interface MeshPrimitiveDefinition {
   /** GL rendering mode e.g. TRIANGLES, LINES, TRIANGLE_FAN, etc. */
   mode: MeshPrimitiveMode;
-  extents: Extents,
+  extents: AxisAlignedBoundingBox;
   positionData: VertexPositionAttributeDefinition;
   normalData?: VertexNormalAttributeDefinition;
   texCoord0Data?: VertexTextureCoordinateAttributeDefinition;

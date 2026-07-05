@@ -154,6 +154,7 @@ export class Engine implements IEngine {
 
     // Count number of frames drawn per second
     const fps = new RateCounter('FPS');
+    // RateCounter.tmp = new RateCounter('tmp_per_frame', fps);
 
     const Debug_ResourceCountersEnabled = false;
     const debug_resourceCounters = {
@@ -469,7 +470,9 @@ export class Engine implements IEngine {
         (taskA.isTransparent - taskB.isTransparent) ||
         (taskA.isTransparent ? (
           /* Transparent */
-          taskA.depth - (taskB as TransparentDrawTask).depth
+          // @NOTE We only enter this "branch" if `isTransparent` is the same for both tasks
+          // Sort descending (draw most distant tasks first)
+          (taskB as TransparentDrawTask).depth - taskA.depth
         ) : (
           /* Opaque */
           (taskA.shaderVariant.id - taskB.shaderVariant.id) ||

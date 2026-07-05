@@ -4,6 +4,7 @@ import { Quaternion } from "@lofi/core/math/Quaternion";
 import type { AnimationChannelDefinition, AnimationChannelTargetPath, AnimationChannelValues, AnimationSamplerInterpolation, AnimationTypeValue } from "@lofi/engine/loaders/definitions";
 import type { Model, ModelPart } from "@lofi/engine/models";
 
+// @TODO Could have subclasses for Translation, Rotation, Scale
 export class AnimationChannel {
   private readonly targetNodeName: string;
   private readonly timestamps: Float32Array;
@@ -147,9 +148,6 @@ export class AnimationChannel {
       case 'scale':
         this.currentModelTarget.scale.setValue(value as Vector3);
         break;
-      case 'weights':
-        // @TODO
-        throw new Error(`Unimplemented animation value setter property 'weights'`);
       default:
         throw new Error(`Unimplemented animation value setter property '${this.targetNodeProperty}'`);
     }

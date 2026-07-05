@@ -3,7 +3,7 @@ import type { Vector2, Vector3 } from "@lofi/core/math/vector";
 import type { Quaternion } from "@lofi/core/math/Quaternion";
 
 export type AnimationSamplerInterpolation = 'LINEAR' | 'STEP' | 'CUBICSPLINE';
-export type AnimationChannelTargetPath = 'translation' | 'rotation' | 'scale' | 'weights';
+export type AnimationChannelTargetPath = 'translation' | 'rotation' | 'scale';
 
 export interface AnimationDefinition {
   name: string;
@@ -11,13 +11,27 @@ export interface AnimationDefinition {
   channels: AnimationChannelDefinition[];
 }
 
-export interface AnimationChannelDefinition {
+export interface BaseAnimationChannelDefinition {
   targetPartName: string;
-  targetPartProperty: AnimationChannelTargetPath;
   timestamps: Float32Array;
   interpolation: AnimationSamplerInterpolation;
-  values: AnimationChannelValues;
 }
+export interface TranslationAnimationChannelDefinition extends BaseAnimationChannelDefinition {
+  targetPartProperty: 'translation';
+  values: Vec3AnimationChannelValues;
+}
+export interface RotationAnimationChannelDefinition extends BaseAnimationChannelDefinition {
+  targetPartProperty: 'rotation';
+  values: QuatAnimationChannelValues;
+}
+export interface ScaleAnimationChannelDefinition extends BaseAnimationChannelDefinition {
+  targetPartProperty: 'scale';
+  values: Vec3AnimationChannelValues;
+}
+export type AnimationChannelDefinition = TranslationAnimationChannelDefinition | RotationAnimationChannelDefinition | ScaleAnimationChannelDefinition;
+export type AnimationChannelDefinitionOfType<TAssetType extends AnimationChannelDefinition['targetPartProperty']> = Extract<AnimationChannelDefinition, { targetPartProperty: TAssetType }>;
+
+
 
 export interface ScalarAnimationChannelValues {
   type: 'scalar';

@@ -15,7 +15,7 @@ export class AudioClip {
 
   public static async load(engine: IEngine, path: string, options?: AudioClipOptions): Promise<AudioClip> {
     const audioFile = await engine.fileSystem.readFile(path);
-    const buffer = await engine.audioSystem.context.decodeAudioData(audioFile.bytes.buffer as ArrayBuffer);
+    const buffer = await engine.audioSystem.context.decodeAudioData(audioFile.bytes.buffer);
     return new AudioClip(buffer, options);
   }
 

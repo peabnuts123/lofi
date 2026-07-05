@@ -15,7 +15,7 @@ export type Matrix4InitialValues = [
 
 class Matrix4InternalBuffer {
   public static readonly BufferSize: number = 16;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Matrix4InternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(Matrix4InternalBuffer.BufferSize);
   public get m00(): number { return this.buffer[0]; }
   public set m00(value: number) { this.buffer[0] = value; }
   public get m10(): number { return this.buffer[1]; }
@@ -237,21 +237,23 @@ export class Matrix4 extends Observable {
     this.m20 = 0;
     this.m30 = 0;
     this.m01 = 0;
-    this.m11 = f;
-    this.m21 = 0;
-    this.m31 = 0;
+    this.m11 = 0;
+    // this.m21 = -(f + n)/(n - f)
+    this.m31 = 1;
     this.m02 = 0;
-    this.m12 = 0;
-    this.m32 = -1;
+    this.m12 = f;
+    this.m22 = 0;
+    this.m32 = 0;
     this.m03 = 0;
     this.m13 = 0;
+    // this.m23 = 2fn/(n - f);
     this.m33 = 0;
     if (far != null && far !== Infinity) {
       const nf = 1 / (near - far);
-      this.m22 = (far + near) * nf;
+      this.m21 = -(far + near) * nf;
       this.m23 = 2 * far * near * nf;
     } else {
-      this.m22 = -1;
+      this.m21 = 1;
       this.m23 = -2 * near;
     }
     this.notifyOnChange();

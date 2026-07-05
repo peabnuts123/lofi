@@ -15,6 +15,8 @@ import { Color4 } from '@lofi/core/math/Color4';
 import { canonicalisePath, getFileExtension } from '@lofi/core/util/path';
 import type { Color3Definition } from '@lofi/core/math/Color3';
 import type { IFileSystem, VirtualFile } from '@lofi/engine/filesystem';
+import { Texture } from '@lofi/engine/textures';
+import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 
 import type {
   MaterialDefinition,
@@ -23,8 +25,7 @@ import type {
   ModelDefinitionDependency,
   ModelPartDefinition,
 } from './definitions';
-import { Texture } from '../textures';
-import { transformDefinition } from './util';
+import { changeYUpModelDefinitionToZUp } from './util';
 
 export class ObjLoader {
   private readonly objPath: string;
@@ -81,7 +82,6 @@ export class ObjLoader {
         for (const { path, file } of newFiles) {
           const fileExt = getFileExtension(path).toLocaleLowerCase();
           if (fileExt !== '.mtl') {
-            console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) Encountered .obj dependency: ${path}`);
             // @TODO More robust, explicit list of supported file extensions / header bytes
             dependencies.textures.push({
               path,
@@ -93,22 +93,15 @@ export class ObjLoader {
       }
     } while (newFilePaths.length > 0);
 
-    console.log(`[DEBUG] [${ObjLoader.name}] (${ObjLoader.loadModel.name}) parsedModel:`, parsedObj);
-
     const loader = new ObjLoader(objPath, filesystem, parsedObj);
 
     const rootPartDefinition = await loader.parsePart(parsedObj.root);
 
-    return {
-      // @NOTE For ease of authoring, expect .obj to be exported with +Y-up. Convert to +Z-up by rotating along X.
-      rootParts: [
-        transformDefinition([rootPartDefinition], {
-          rotation: Quaternion.fromAxisAngle(Vector3.right(), 90),
-        }),
-      ],
+    return changeYUpModelDefinitionToZUp({
+      rootParts: [rootPartDefinition],
       animations: [],
       dependencies,
-    };
+    });
   }
 
   private static parseObjFile(objFile: VirtualFile, callbacks: Partial<ImportCallbacks>): Promise<ModelObj> {
@@ -244,10 +237,7 @@ export class ObjLoader {
           componentSize: 4,
           normalized: false,
         },
-        extents: {
-          min: minPosition,
-          max: maxPosition,
-        },
+        extents: new AxisAlignedBoundingBox(minPosition, maxPosition),
         material: await this.getCachedMaterial(materialId),
       };
 

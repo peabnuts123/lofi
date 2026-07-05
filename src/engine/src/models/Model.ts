@@ -274,10 +274,7 @@ export class ModelGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const part of parts) {
           self.push(...part.geometry.allVertexPositions.value);
         }
@@ -291,10 +288,7 @@ export class ModelGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const part of parts) {
           self.push(...part.geometry.allVertexNormals.value);
         }
@@ -336,8 +330,7 @@ export class ModelGeometry {
     });
     this.allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
-        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
-        // A triangle's vertices only need to recompute when the indices change.
+        this.allVertexPositions,
         this.allTriangleIndices,
       ],
       recompute: (_self) => {
@@ -373,10 +366,7 @@ export class ModelGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const part of parts) {
           self.push(...part.geometry.allTriangleNormals.value);
         }
@@ -426,8 +416,7 @@ export class ModelGeometry {
     });
     this.allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
-        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
-        // An edge's vertices only need to recompute when the indices change.
+        this.allVertexPositions,
         this.allEdgeIndices,
       ],
       recompute: (_self) => {
@@ -465,10 +454,7 @@ export class ModelGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const part of parts) {
           self.push(...part.geometry.allVertexColors.value);
         }
@@ -483,10 +469,7 @@ export class ModelGeometry {
       recompute: (_self) => {
         const self = _self as Mutable<typeof _self>; // @NOTE type laundering for mutability
 
-        // @NOTE No-op on subsequent recomputation
-        // We're just collecting instances which can't change so no need to ever recompute
-        if (self.length > 0) return;
-
+        self.length = 0;
         for (const part of parts) {
           self.push(...part.geometry.allVertexTextureCoordinates.value);
         }
@@ -496,10 +479,11 @@ export class ModelGeometry {
     /* AABB */
     this.aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
-        // @NOTE Depend on the underlying `ModelPart` geometries as `Model` geometry has no dependencies / does not recompute
-        ...parts.map((part) => part.geometry.allVertexPositions),
+        this.allVertexPositions,
       ],
-      recompute: (self) => {
+      recompute: (_self) => {
+        const self = _self as Optional<AxisAlignedBoundingBox>; // @NOTE type laundering for mutability
+
         const allVertexPositions = this.allVertexPositions.value;
         if (allVertexPositions.length === 0) {
           // Entire model has no geometry 🤯
@@ -513,28 +497,24 @@ export class ModelGeometry {
         }
       },
     });
+    /* AABB - approximate */
     this.approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
-        /* @TODO */
-        /* @TODO */
-        /* @TODO */
-        /* @TODO */
-        /* @TODO */
         modelConfig,
-        ...parts.map((part) => part.geometry.approximateAabb),
       ],
-      recompute: (self) => {
-        // @TODO _self as mutable
-        if (modelConfig.aabbApproximationPolicy.type === 'fixed') {
-          // @TODO What's the expectation if you set type 'fixed' for non-skinned models? That it is the value you set, or that it matches?
-          // @TODO Probably it is more predictable if we say "aabbApproximationPolicy only applies to skinned models"
-          /* Fixed size AABB approximation */
+      recompute: (_self) => {
+        const self = _self as Optional<AxisAlignedBoundingBox>;
+
+        const anyPartsHaveSkin = parts.some((part) => part.skin !== undefined);
+
+        if (modelConfig.aabbApproximationPolicy.type === 'fixed' && anyPartsHaveSkin) {
+          /* Fixed size AABB approximation (skinned models ONLY) */
           // Ensure value is initialised
           const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
           aabb.setValue(modelConfig.aabbApproximationPolicy.dimensions);
         } else {
           const partAABBs = parts
-            .map((part) => part.geometry.approximateAabb.value.value)
+            .map((part) => part.geometry.approximateAabb)
             .filter((maybeAabb) => maybeAabb !== undefined);
 
           if (partAABBs.length === 0) {
@@ -542,7 +522,7 @@ export class ModelGeometry {
             self.value = undefined;
           } else {
             // Ensure value is initialised
-            const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
+            const aabb = self.value ??= AxisAlignedBoundingBox.zero();
 
             // Combine child AABBs
             for (let i = 0; i < partAABBs.length; i++) {
@@ -554,7 +534,6 @@ export class ModelGeometry {
               }
             }
 
-            const anyPartsHaveSkin = parts.some((part) => part.skin !== undefined);
 
             // Apply AABB approximation policy only if any model parts have skin
             // Unskinned models' approximate AABBs should be identical to their actual AABB
@@ -566,12 +545,19 @@ export class ModelGeometry {
                   const yCenter = (aabb.yMin + aabb.yMax) / 2;
                   const zCenter = (aabb.zMin + aabb.zMax) / 2;
 
-                  aabb.xMin = xCenter + (aabb.xMin - xCenter) * scaleFactor;
-                  aabb.yMin = yCenter + (aabb.yMin - yCenter) * scaleFactor;
-                  aabb.zMin = zCenter + (aabb.zMin - zCenter) * scaleFactor;
-                  aabb.xMax = xCenter + (aabb.xMax - xCenter) * scaleFactor;
-                  aabb.yMax = yCenter + (aabb.yMax - yCenter) * scaleFactor;
-                  aabb.zMax = zCenter + (aabb.zMax - zCenter) * scaleFactor;
+                  const xDim = xCenter - aabb.xMin;
+                  const yDim = yCenter - aabb.yMin;
+                  const zDim = zCenter - aabb.zMin;
+
+                  // @NOTE Set approximate AABB to a cube with the dimensions of the original AABB's longest side
+                  const biggestDim = Math.max(xDim, yDim, zDim);
+
+                  aabb.xMin = xCenter - biggestDim * scaleFactor;
+                  aabb.yMin = yCenter - biggestDim * scaleFactor;
+                  aabb.zMin = zCenter - biggestDim * scaleFactor;
+                  aabb.xMax = xCenter + biggestDim * scaleFactor;
+                  aabb.yMax = yCenter + biggestDim * scaleFactor;
+                  aabb.zMax = zCenter + biggestDim * scaleFactor;
                   break;
                 }
                 default:

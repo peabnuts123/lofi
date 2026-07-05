@@ -45,7 +45,7 @@ export interface IReadonlyVector2 {
 
 class Vector2InternalBuffer {
   public static readonly BufferSize: number = 2;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Vector2InternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(Vector2InternalBuffer.BufferSize);
   public get x(): number { return this.buffer[0]; }
   public set x(value: number) { this.buffer[0] = value; }
   public get y(): number { return this.buffer[1]; }
@@ -314,7 +314,7 @@ export interface IReadonlyVector3 {
 
 class Vector3InternalBuffer {
   public static readonly BufferSize: number = 3;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Vector3InternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(Vector3InternalBuffer.BufferSize);
   public get x(): number { return this.buffer[0]; }
   public set x(value: number) { this.buffer[0] = value; }
   public get y(): number { return this.buffer[1]; }
@@ -655,7 +655,7 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
 
 class EulerVector3InternalBuffer {
   public static readonly BufferSize: number = 3;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(EulerVector3InternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(EulerVector3InternalBuffer.BufferSize);
   public get x(): number { return this.buffer[0]; }
   public set x(value: number) { this.buffer[0] = value % 360; }
   public get y(): number { return this.buffer[1]; }

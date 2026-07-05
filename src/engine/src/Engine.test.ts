@@ -10,13 +10,13 @@ describe("Engine", () => {
     // @NOTE Generate list of draw tasks in the order we'd expect them to be rendered
     for (const renderLayer of [0, 1]) {
       for (const isTransparent of [false, true]) {
-        let transparencyDepth = 0;
+        let transparencyDepth = 100;
         for (const shaderVariant of [0, 1]) {
           for (const material of [0, 1]) {
             for (const draw of [0, 1]) {
               sortedDrawTasks.push(createMockTask({
                 renderLayer,
-                transparencyDepth: isTransparent ? transparencyDepth++ : null,
+                transparencyDepth: isTransparent ? transparencyDepth-- : null,
                 shaderVariant,
                 material,
                 uniforms: 0, // @NOTE Uniforms are currently not sorted

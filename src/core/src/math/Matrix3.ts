@@ -11,7 +11,7 @@ export type Matrix3InitialValues = [
 
 class Matrix3InternalBuffer {
   public static readonly BufferSize: number = 9;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(Matrix3InternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(Matrix3InternalBuffer.BufferSize);
   public get m00(): number { return this.buffer[0]; }
   public set m00(value: number) { this.buffer[0] = value; }
   public get m10(): number { return this.buffer[1]; }

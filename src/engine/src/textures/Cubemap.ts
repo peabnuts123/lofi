@@ -48,7 +48,7 @@ export class Cubemap {
   public static async loadSeparate(engine: IEngine, paths: CubemapParts<string>): Promise<Cubemap> {
     const bitmaps = await mapCubemapParts(paths, async (path): Promise<ImageBitmap> => {
       const textureFile = await engine.fileSystem.readFile(path);
-      const blob = new Blob([textureFile.bytes as Uint8Array<ArrayBuffer>]);
+      const blob = new Blob([textureFile.bytes]);
       const bitmap = await window.createImageBitmap(blob);
       return bitmap;
     });
@@ -74,7 +74,7 @@ export class Cubemap {
    */
   public static async loadBoxNet(engine: IEngine, path: string): Promise<Cubemap> {
     const textureFile = await engine.fileSystem.readFile(path);
-    const blob = new Blob([textureFile.bytes as Uint8Array<ArrayBuffer>]);
+    const blob = new Blob([textureFile.bytes]);
     const bitmap = await window.createImageBitmap(blob);
 
     // Read texture into canvas

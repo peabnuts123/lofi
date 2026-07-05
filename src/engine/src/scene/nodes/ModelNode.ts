@@ -192,8 +192,7 @@ export class ModelNodeGeometry {
     this._allTriangleIndices = model.geometry.allTriangleIndices;
     this._allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
-        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
-        // A triangle's vertices only need to recompute when the indices change.
+        this._allVertexPositions,
         this._allTriangleIndices,
       ],
       recompute: (_self) => {
@@ -254,8 +253,7 @@ export class ModelNodeGeometry {
     this._allEdgeIndices = model.geometry.allEdgeIndices;
     this._allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
-        // @NOTE We don't need to observe `allVertexPositions` since the references cannot change.
-        // An edge's vertices only need to recompute when the indices change.
+        this._allVertexPositions,
         this._allEdgeIndices,
       ],
       recompute: (_self) => {
@@ -315,6 +313,7 @@ export class ModelNodeGeometry {
         }
       },
     });
+    /* AABB - approximate */
     this._approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         worldMatrixComputed,

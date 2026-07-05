@@ -71,6 +71,12 @@ export class Computed<T> extends Observable {
     this.isDirty = true;
     this.debug_name = debug_name ?? `${Math.trunc(Math.random() * 9_000 + 1000)}`;
     this._value = initialValue;
+
+    // @NOTE For a ~6% performance hit, we could invoke `.value` on all dependencies
+    // that are Computed instances to ensure Computed hierarchies are always clean / dirty in unison
+    // which would make the performance hack of only notifying when not already dirty
+    // completely correct (where it currently can create obscure bugs if the Computed's
+    // dependencies are not the same as the values it reads in `recompute()`.
     this.recompute = recompute;
 
     this.dependencies = [];
@@ -168,7 +174,13 @@ export class Computed<T> extends Observable {
   }
 
   private onDependencyChange(): void {
-    // No need to notify if computed is already dirty
+    // @NOTE Do not notify dependents if already dirty.
+    // This assumes that dependents MUST be dirty if this instance
+    // is dirty. While this is largely true, discrepancies can occur
+    // if a Computed's dependencies don't match the values referenced
+    // inside `recompute()` (e.g. early return does not call `.value` on
+    // a dependency marks the instance as not dirty but leaves the
+    // dependency as dirty and then never recomputes).
     if (this.ignoreDependencies || this.isDirty) return;
     this.isDirty = true;
     this.notifyOnChange();

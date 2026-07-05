@@ -19,7 +19,7 @@ export interface IReadOnlyQuaternion {
 
 class QuaternionInternalBuffer {
   public static readonly BufferSize: number = 4;
-  public readonly buffer: Float64Array<ArrayBuffer> = new Float64Array(QuaternionInternalBuffer.BufferSize);
+  public readonly buffer: Float64Array = new Float64Array(QuaternionInternalBuffer.BufferSize);
   public get x(): number { return this.buffer[0]; }
   public set x(value: number) { this.buffer[0] = value; }
   public get y(): number { return this.buffer[1]; }

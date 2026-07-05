@@ -1,9 +1,9 @@
 import { IFileSystem, VirtualFile } from "@lofi/engine/filesystem";
 
 export class MockFileSystem extends IFileSystem {
-  private files: Map<string, Uint8Array> = new Map();
+  private files: Map<string, Uint8Array<ArrayBuffer>> = new Map();
 
-  constructor(initialFiles?: Record<string, string | Uint8Array>) {
+  constructor(initialFiles?: Record<string, string | Uint8Array<ArrayBuffer>>) {
     super("mock");
     if (initialFiles) {
       for (const [path, content] of Object.entries(initialFiles)) {
@@ -17,7 +17,7 @@ export class MockFileSystem extends IFileSystem {
    * @param path The path of the file
    * @param content The content of the file
    */
-  public addFile(path: string, content: string | Uint8Array): void {
+  public addFile(path: string, content: string | Uint8Array<ArrayBuffer>): void {
     const bytes = typeof content === 'string'
       ? new TextEncoder().encode(content)
       : content;

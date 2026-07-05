@@ -8,9 +8,11 @@ import { Color4 } from '@lofi/core/math/Color4';
 import { canonicalisePath } from '@lofi/core/util/path';
 import type { IFileSystem } from '@lofi/engine/filesystem';
 import { mapBufferChunks } from '@lofi/engine/util/array';
+import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 
 import type {
   AnimationChannelDefinition,
+  AnimationChannelDefinitionOfType,
   AnimationChannelValues,
   AnimationDefinition,
   AnyAttributeDefinition,
@@ -29,7 +31,7 @@ import type {
   VertexPositionAttributeDefinition,
   VertexTextureCoordinateAttributeDefinition,
 } from './definitions';
-import { transformDefinition } from './util';
+import { changeYUpModelDefinitionToZUp } from './util';
 
 const GlbMagic = [0x67, 0x6C, 0x54, 0x46];
 const DEBUG_DRAW_BONES = false;
@@ -87,7 +89,7 @@ export abstract class GltfLoader {
       document = await io.readBinary(fileBytes.bytes);
     } else {
       const gltfJson = JSON.parse(fileBytes.textContent) as GLTF.IGLTF;
-      const resources: Record<string, Uint8Array> = {};
+      const resources: Record<string, Uint8Array<ArrayBuffer>> = {};
 
       type GltfDependencyKind = 'bin' | 'image';
 
@@ -133,7 +135,7 @@ export abstract class GltfLoader {
 
       document = await io.readJSON({
         json: gltfJson,
-        resources: resources as Record<string, Uint8Array<ArrayBuffer>>,
+        resources: resources,
       });
     }
 
@@ -230,10 +232,14 @@ export abstract class GltfLoader {
           const primitiveDefinition: MeshPrimitiveDefinition = {
             mode: primitive.getMode(),
             positionData: readVertexAttributes<VertexPositionAttributeDefinition>(positionAccessor),
-            extents: {
-              min: new Vector3(positionMinComponents[0], positionMinComponents[1], positionMinComponents[2]),
-              max: new Vector3(positionMaxComponents[0], positionMaxComponents[1], positionMaxComponents[2]),
-            },
+            extents: new AxisAlignedBoundingBox({
+              xMin: positionMinComponents[0],
+              yMin: positionMinComponents[1],
+              zMin: positionMinComponents[2],
+              xMax: positionMaxComponents[0],
+              yMax: positionMaxComponents[1],
+              zMax: positionMaxComponents[2],
+            }),
           };
 
           const normalAccessor = primitive.getAttribute('NORMAL');
@@ -334,10 +340,10 @@ export abstract class GltfLoader {
                 componentSize: 4,
                 componentType: WebGL2RenderingContext.FLOAT,
               },
-              extents: {
-                min: new Vector3(-size, -size, -size),
-                max: new Vector3(size, size, size),
-              },
+              extents: new AxisAlignedBoundingBox(
+                new Vector3(-size, -size, -size),
+                new Vector3(size, size, size),
+              ),
               normalData: {
                 buffer: new Float32Array([
                   // Front face (pointing towards +Z)
@@ -423,7 +429,7 @@ export abstract class GltfLoader {
         const inverseBindMatricesAccessor = skin.getInverseBindMatrices();
         if (inverseBindMatricesAccessor) {
           skinDefinition.inverseBindMatrices = mapBufferChunks(
-            inverseBindMatricesAccessor.getArray() as Float32Array<ArrayBuffer>,
+            inverseBindMatricesAccessor.getArray() as Float32Array,
             16,
             (values) => new Matrix4(values),
           );
@@ -489,25 +495,25 @@ export abstract class GltfLoader {
           case 'SCALAR':
             outputValues = {
               type: 'scalar',
-              values: mapBufferChunks(outputAccessor.getArray() as Float32Array<ArrayBuffer>, 1, ([c]) => c),
+              values: mapBufferChunks(outputAccessor.getArray() as Float32Array, 1, ([c]) => c),
             };
             break;
           case 'VEC2':
             outputValues = {
               type: 'vec2',
-              values: mapBufferChunks(outputAccessor.getArray() as Float32Array<ArrayBuffer>, 2, ([x, y]) => new Vector2(x, y)),
+              values: mapBufferChunks(outputAccessor.getArray() as Float32Array, 2, ([x, y]) => new Vector2(x, y)),
             };
             break;
           case 'VEC3':
             outputValues = {
               type: 'vec3',
-              values: mapBufferChunks(outputAccessor.getArray() as Float32Array<ArrayBuffer>, 3, ([x, y, z]) => new Vector3(x, y, z)),
+              values: mapBufferChunks(outputAccessor.getArray() as Float32Array, 3, ([x, y, z]) => new Vector3(x, y, z)),
             };
             break;
           case 'VEC4':
             outputValues = {
               type: 'quat',
-              values: mapBufferChunks(outputAccessor.getArray() as Float32Array<ArrayBuffer>, 4, ([x, y, z, w]) => new Quaternion(x, y, z, w)),
+              values: mapBufferChunks(outputAccessor.getArray() as Float32Array, 4, ([x, y, z, w]) => new Quaternion(x, y, z, w)),
             };
             break;
           default:
@@ -520,15 +526,30 @@ export abstract class GltfLoader {
           animationDefinition.length = channelLength;
         }
 
-        const channelDefinition: AnimationChannelDefinition = {
-          targetPartName: targetPart.getName(),
-          targetPartProperty: channel.getTargetPath()!,
-          timestamps: inputAccessor.getArray() as Float32Array,
-          values: outputValues,
-          interpolation: sampler.getInterpolation(),
-        };
+        const targetPartProperty = channel.getTargetPath();
+        switch (targetPartProperty) {
+          case 'translation':
+          case 'rotation':
+          case 'scale': {
+            /* Supported target path */
+            const channelDefinition: AnimationChannelDefinition = {
+              targetPartName: targetPart.getName(),
+              targetPartProperty: targetPartProperty,
+              timestamps: inputAccessor.getArray() as Float32Array,
+              values: outputValues as AnimationChannelDefinitionOfType<typeof targetPartProperty>['values'],
+              interpolation: sampler.getInterpolation(),
+            } as AnimationChannelDefinition; // @NOTE type laundering because technically `values` and `targetPartProperty` can't be proven to match
 
-        animationDefinition.channels.push(channelDefinition);
+            animationDefinition.channels.push(channelDefinition);
+            break;
+          }
+          default:
+            /* Unsupported target path */
+            console.warn(`Unsupported value for 'animation.channel.target.path': '${targetPartProperty}' - This animation channel will be skipped`);
+            break;
+        }
+
+
       }
 
       allAnimationDefinitions.push(animationDefinition);
@@ -537,18 +558,14 @@ export abstract class GltfLoader {
     // Execute all tidy-up tasks
     tidyUpTasks.forEach((task) => task());
 
-    return {
-      // @NOTE GLTF coordinate system is +Y-up. Convert to +Z-up by rotating along X.
-      // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
-      rootParts: [
-        transformDefinition(rootPartDefinitions, {
-          rotation: Quaternion.fromAxisAngle(Vector3.right(), 90),
-        }),
-      ],
+    // @NOTE GLTF coordinate system is +Y-up. Convert to +Z-up by rotating around X.
+    // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
+    return changeYUpModelDefinitionToZUp({
+      rootParts: rootPartDefinitions,
       animations: allAnimationDefinitions,
       dependencies: {
         textures: textureDependencies,
       },
-    };
+    });
   }
 }

@@ -1,4 +1,4 @@
-import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
+import { type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color3 } from "@lofi/core/math/Color3";
 import type { IEngine, OpaqueDrawTask } from "@lofi/engine/Engine";
@@ -55,7 +55,7 @@ export class DrawDebug {
   private static vertexBuffer: WebGLBuffer;
   private static vao: WebGLVertexArrayObject;
 
-  public static drawPolyLine(engine: IEngine, linePoints: Vector3[], options: Partial<DrawOptions> = {}): OpaqueDrawTask {
+  public static drawPolyLine(engine: IEngine, linePoints: readonly IReadonlyVector3[], options: Partial<DrawOptions> = {}): OpaqueDrawTask {
     // Map linePoints into (0,1)(1,2),(2,3), etc.
     const vertexPointData = linePoints
       .slice(0, linePoints.length - 1)

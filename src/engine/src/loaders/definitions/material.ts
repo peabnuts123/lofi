@@ -5,7 +5,7 @@ export interface MaterialDefinition {
   alpha: { mode: 'OPAQUE' } | { mode: 'BLEND' } | { mode: 'MASK', cutoff: number };
   diffuseColor?: Color4;
   diffuseTexture?: {
-    buffer: Uint8Array;
+    buffer: Uint8Array<ArrayBuffer>;
     texCoord: number;
   },
 }

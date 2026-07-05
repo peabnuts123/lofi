@@ -2,6 +2,7 @@
 import { Vector3, Quaternion, Color4 } from '@lofi/core/math';
 import type { MaterialDefinition, MeshPrimitiveDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
 import type { IFileSystem } from '@lofi/engine/filesystem';
+import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 
 export class DebugGeometry {
   private readonly fileSystem: IFileSystem;
@@ -52,7 +53,7 @@ export class DebugGeometry {
     diffuseColor?: Color4,
     diffuseTexturePath?: string,
   }): Promise<MaterialDefinition> {
-    let textureBytes: Uint8Array | undefined = undefined;
+    let textureBytes: Uint8Array<ArrayBuffer> | undefined = undefined;
 
     if (textureFilePath) {
       const textureFile = await this.fileSystem.readFile(textureFilePath);
@@ -116,10 +117,10 @@ export class DebugGeometry {
           -0.5, -0.5, 0.5,
         ]),
       },
-      extents: {
-        min: new Vector3(-0.5, -0.5, -0.5),
-        max: new Vector3(0.5, 0.5, 0.5),
-      },
+      extents: new AxisAlignedBoundingBox(
+        new Vector3(-0.5, -0.5, -0.5),
+        new Vector3(0.5, 0.5, 0.5),
+      ),
       normalData: {
         componentCount: 3,
         componentType: WebGL2RenderingContext.FLOAT,
