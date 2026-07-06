@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Color3, Quaternion } from '@lofi/core/math';
+import { Vector2, Vector3, Color3 } from '@lofi/core/math';
 import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model } from '@lofi/engine/models';
 import { Engine } from '@lofi/engine/Engine';

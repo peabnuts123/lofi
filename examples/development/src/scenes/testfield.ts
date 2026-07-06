@@ -1,9 +1,10 @@
-import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt, Quaternion } from '@lofi/core/math';
+import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
 import { RateCounter } from '@lofi/core/util/RateCounter';
 import type { Enum } from '@lofi/core/util/types';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
-import { Model, type Triangle } from '@lofi/engine/models';
+import { Model } from '@lofi/engine/models';
+import type { Triangle } from '@lofi/engine/models/geometry';
 import { Engine, type DrawTask, type IEngine } from '@lofi/engine/Engine';
 import { DrawableSceneNode, Scene, SceneNode, type IScene } from '@lofi/engine/scene';
 import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
@@ -14,7 +15,7 @@ import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import type { ModelDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
-import { DrawDebug, type IWireframeDrawable } from '@lofi/engine/util/DrawDebug';
+import { DrawDebug } from '@lofi/engine/util/DrawDebug';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 
