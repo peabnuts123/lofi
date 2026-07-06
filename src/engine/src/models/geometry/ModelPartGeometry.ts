@@ -29,17 +29,17 @@ export interface ModelPartGeometryArgs {
  * mesh primitives in a ModelPart.
  */
 export class ModelPartGeometry {
-  public readonly allVertexPositions: Computed<readonly IReadonlyVector3[]>;
-  public readonly allVertexNormals: Computed<readonly IReadonlyVector3[]>;
-  public readonly allTriangleIndices: Computed<readonly IReadonlyTriangleIndices[]>;
-  public readonly allTriangles: Computed<readonly Triangle[]>;
-  public readonly allTriangleNormals: Computed<readonly IReadonlyVector3[]>;
-  public readonly allEdgeIndices: Computed<readonly EdgeIndices[]>;
-  public readonly allEdges: Computed<readonly Edge[]>;
-  public readonly allVertexColors: Computed<readonly (IReadonlyColor4 | undefined)[]>;
-  public readonly allVertexTextureCoordinates: Computed<readonly (IReadonlyVector2 | undefined)[]>;
-  public readonly aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
-  public readonly approximateAabb: IReadonlyAxisAlignedBoundingBox | undefined;
+  private readonly _allVertexPositions: Computed<readonly IReadonlyVector3[]>;
+  private readonly _allVertexNormals: Computed<readonly IReadonlyVector3[]>;
+  private readonly _allTriangleIndices: Computed<readonly IReadonlyTriangleIndices[]>;
+  private readonly _allTriangles: Computed<readonly Triangle[]>;
+  private readonly _allTriangleNormals: Computed<readonly IReadonlyVector3[]>;
+  private readonly _allEdgeIndices: Computed<readonly EdgeIndices[]>;
+  private readonly _allEdges: Computed<readonly Edge[]>;
+  private readonly _allVertexColors: Computed<readonly (IReadonlyColor4 | undefined)[]>;
+  private readonly _allVertexTextureCoordinates: Computed<readonly (IReadonlyVector2 | undefined)[]>;
+  private readonly _aabb: Computed<Optional<IReadonlyAxisAlignedBoundingBox>>;
+  private readonly _approximateAabb: IReadonlyAxisAlignedBoundingBox | undefined;
 
   public constructor({ primitiveCaches, localMatrixComputed, skinJointMatricesComputed }: ModelPartGeometryArgs) {
     /* Skin matrices - shared by multiple properties */
@@ -117,7 +117,7 @@ export class ModelPartGeometry {
     });
 
     /* Vertex positions */
-    this.allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
+    this._allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.vertexPositionsChanged),
         skinMatricesComputed,
@@ -151,7 +151,7 @@ export class ModelPartGeometry {
 
     /* Vertex normals */
     const tmp_allVertexNormals = new Matrix3();
-    this.allVertexNormals = new Computed<readonly IReadonlyVector3[]>([], {
+    this._allVertexNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.vertexNormalsChanged),
         skinMatricesComputed,
@@ -188,7 +188,7 @@ export class ModelPartGeometry {
     });
 
     /* Triangles */
-    this.allTriangleIndices = new Computed<readonly IReadonlyTriangleIndices[]>([], {
+    this._allTriangleIndices = new Computed<readonly IReadonlyTriangleIndices[]>([], {
       dependencies: [
         // @NOTE Do not depend on `primitiveCache.geometry.vertexPositions` since we only need length (which cannot change)
         ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.triangleIndicesChanged),
@@ -220,17 +220,17 @@ export class ModelPartGeometry {
         }
       },
     });
-    this.allTriangles = new Computed<readonly Triangle[]>([], {
+    this._allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
-        this.allVertexPositions,
-        this.allTriangleIndices,
+        this._allVertexPositions,
+        this._allTriangleIndices,
       ],
       recompute: (_self) => {
         const self = _self as Mutable<Triangle>[]; // @NOTE type laundering for mutability
 
         let triangleCount = 0;
-        const allVertexPositions = this.allVertexPositions.value;
-        for (const triangleIndices of this.allTriangleIndices.value) {
+        const allVertexPositions = this._allVertexPositions.value;
+        for (const triangleIndices of this._allTriangleIndices.value) {
           const aTriangle = allVertexPositions[triangleIndices.aIndex];
           const bTriangle = allVertexPositions[triangleIndices.bIndex];
           const cTriangle = allVertexPositions[triangleIndices.cIndex];
@@ -253,15 +253,15 @@ export class ModelPartGeometry {
     });
     const tmp_allTriangleNormals_edge1 = Vector3.zero();
     const tmp_allTriangleNormals_edge2 = Vector3.zero();
-    this.allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
+    this._allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
-        this.allVertexPositions,
-        this.allTriangles,
+        this._allVertexPositions,
+        this._allTriangles,
       ],
       recompute: (_self) => {
         const self = _self as Vector3[]; // @NOTE type laundering for mutability
 
-        this.allTriangles.value.forEach((triangle, i) => {
+        this._allTriangles.value.forEach((triangle, i) => {
           // Get or create reference to Vector3
           let triangleNormal: Vector3 = self[i];
           if (triangleNormal === undefined) {
@@ -279,10 +279,10 @@ export class ModelPartGeometry {
     });
 
     /* Edges */
-    this.allEdgeIndices = new Computed<readonly EdgeIndices[]>([], {
+    this._allEdgeIndices = new Computed<readonly EdgeIndices[]>([], {
       dependencies: [
         // @NOTE Do not depend on `primitiveCache.geometry.vertexPositions` since we only need length (which cannot change)
-        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.edgeIndices),
+        ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.edgeIndicesComputed),
       ],
       recompute: (_self) => {
         const self = _self as Mutable<EdgeIndices>[]; // @NOTE type laundering for mutability
@@ -294,7 +294,7 @@ export class ModelPartGeometry {
         let vertexIndexOffset = 0;
         let edgeCount = 0;
         for (const primitiveCache of primitiveCaches) {
-          for (const edgeIndices of primitiveCache.geometry.edgeIndices.value) {
+          for (const edgeIndices of primitiveCache.geometry.edgeIndicesComputed.value) {
             const aIndex = edgeIndices[0] + vertexIndexOffset;
             const bIndex = edgeIndices[1] + vertexIndexOffset;
             if (self[edgeCount] !== undefined) {
@@ -319,17 +319,17 @@ export class ModelPartGeometry {
         self.length = edgeCount;
       },
     });
-    this.allEdges = new Computed<readonly Edge[]>([], {
+    this._allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
-        this.allVertexPositions,
-        this.allEdgeIndices,
+        this._allVertexPositions,
+        this._allEdgeIndices,
       ],
       recompute: (_self) => {
         const self = _self as Mutable<Edge>[]; // @NOTE type laundering for mutability
 
         let edgeCount = 0;
-        const allVertexPositions = this.allVertexPositions.value;
-        for (const edgeIndices of this.allEdgeIndices.value) {
+        const allVertexPositions = this._allVertexPositions.value;
+        for (const edgeIndices of this._allEdgeIndices.value) {
           const aVertex = allVertexPositions[edgeIndices[0]];
           const bVertex = allVertexPositions[edgeIndices[1]];
           if (self[edgeCount] !== undefined) {
@@ -352,7 +352,7 @@ export class ModelPartGeometry {
     });
 
     /* Colors */
-    this.allVertexColors = new Computed<readonly (IReadonlyColor4 | undefined)[]>([], {
+    this._allVertexColors = new Computed<readonly (IReadonlyColor4 | undefined)[]>([], {
       dependencies: [
         ...primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexColorsChanged),
       ],
@@ -376,7 +376,7 @@ export class ModelPartGeometry {
     });
 
     /* Texture coordinates */
-    this.allVertexTextureCoordinates = new Computed<readonly (IReadonlyVector2 | undefined)[]>([], {
+    this._allVertexTextureCoordinates = new Computed<readonly (IReadonlyVector2 | undefined)[]>([], {
       dependencies: [
         ...primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexTextureCoordinatesChanged),
       ],
@@ -400,14 +400,14 @@ export class ModelPartGeometry {
     });
 
     /* AABB */
-    this.aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
+    this._aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
-        this.allVertexPositions,
+        this._allVertexPositions,
       ],
       recompute: (_self) => {
         const self = _self as Optional<AxisAlignedBoundingBox>; // @NOTE type laundering for mutability
 
-        const allVertexPositions = this.allVertexPositions.value;
+        const allVertexPositions = this._allVertexPositions.value;
         if (allVertexPositions.length === 0) {
           // No geometry
           self.value = undefined;
@@ -441,6 +441,31 @@ export class ModelPartGeometry {
         approximateAabb.unionSelf(primitiveCache.geometry.extents);
       }
     }
-    this.approximateAabb = approximateAabb?.transformSelf(localMatrixComputed.value);
+    this._approximateAabb = approximateAabb?.transformSelf(localMatrixComputed.value);
   }
+
+  // Read-only data
+  public get allVertexPositions(): readonly IReadonlyVector3[] { return this._allVertexPositions.value; }
+  public get allVertexNormals(): readonly IReadonlyVector3[] { return this._allVertexNormals.value; }
+  public get allTriangleIndices(): readonly IReadonlyTriangleIndices[] { return this._allTriangleIndices.value; }
+  public get allTriangles(): readonly Triangle[] { return this._allTriangles.value; }
+  public get allTriangleNormals(): readonly IReadonlyVector3[] { return this._allTriangleNormals.value; }
+  public get allEdgeIndices(): readonly EdgeIndices[] { return this._allEdgeIndices.value; }
+  public get allEdges(): readonly Edge[] { return this._allEdges.value; }
+  public get allVertexColors(): readonly (IReadonlyColor4 | undefined)[] { return this._allVertexColors.value; }
+  public get allVertexTextureCoordinates(): readonly (IReadonlyVector2 | undefined)[] { return this._allVertexTextureCoordinates.value; }
+  public get aabb(): Optional<IReadonlyAxisAlignedBoundingBox> { return this._aabb.value; }
+  public get approximateAabb(): IReadonlyAxisAlignedBoundingBox | undefined { return this._approximateAabb; }
+
+  // Computeds
+  public get allVertexPositionsComputed(): Computed<readonly IReadonlyVector3[]> { return this._allVertexPositions; }
+  public get allVertexNormalsComputed(): Computed<readonly IReadonlyVector3[]> { return this._allVertexNormals; }
+  public get allTriangleIndicesComputed(): Computed<readonly IReadonlyTriangleIndices[]> { return this._allTriangleIndices; }
+  public get allTrianglesComputed(): Computed<readonly Triangle[]> { return this._allTriangles; }
+  public get allTriangleNormalsComputed(): Computed<readonly IReadonlyVector3[]> { return this._allTriangleNormals; }
+  public get allEdgeIndicesComputed(): Computed<readonly EdgeIndices[]> { return this._allEdgeIndices; }
+  public get allEdgesComputed(): Computed<readonly Edge[]> { return this._allEdges; }
+  public get allVertexColorsComputed(): Computed<readonly (IReadonlyColor4 | undefined)[]> { return this._allVertexColors; }
+  public get allVertexTextureCoordinatesComputed(): Computed<readonly (IReadonlyVector2 | undefined)[]> { return this._allVertexTextureCoordinates; }
+  public get aabbComputed(): Computed<Optional<IReadonlyAxisAlignedBoundingBox>> { return this._aabb; }
 }

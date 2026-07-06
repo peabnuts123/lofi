@@ -39,13 +39,13 @@ export class ModelNodeGeometry {
     this._allVertexPositions = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         worldMatrixComputed,
-        model.geometry.allVertexPositions,
+        model.geometry.allVertexPositionsComputed,
       ],
       recompute: (_self) => {
         const self = _self as Vector3[]; // @NOTE type laundering for mutability
 
         let vertexCount = 0;
-        for (const vertexPosition of model.geometry.allVertexPositions.value) {
+        for (const vertexPosition of model.geometry.allVertexPositionsComputed.value) {
           let current: Vector3;
           if (self[vertexCount] !== undefined) {
             // Re-use existing instances
@@ -74,14 +74,14 @@ export class ModelNodeGeometry {
     this._allVertexNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         worldMatrixTransposedInverseComputed,
-        model.geometry.allVertexNormals,
+        model.geometry.allVertexNormalsComputed,
       ],
       recompute: (_self) => {
         const self = _self as Vector3[]; // @NOTE type laundering for mutability
 
         let vertexCount = 0;
         const worldMatrixTransposedInverse = worldMatrixTransposedInverseComputed.value;
-        for (const vertexNormal of model.geometry.allVertexNormals.value) {
+        for (const vertexNormal of model.geometry.allVertexNormalsComputed.value) {
           let current: Vector3;
           if (self[vertexCount] !== undefined) {
             // Re-use existing instances
@@ -100,7 +100,7 @@ export class ModelNodeGeometry {
 
     /* Triangles */
     // @NOTE Just an alias, since no further computation required
-    this._allTriangleIndices = model.geometry.allTriangleIndices;
+    this._allTriangleIndices = model.geometry.allTriangleIndicesComputed;
     this._allTriangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
         this._allVertexPositions,
@@ -135,14 +135,14 @@ export class ModelNodeGeometry {
     this._allTriangleNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         worldMatrixTransposedInverseComputed,
-        model.geometry.allTriangleNormals,
+        model.geometry.allTriangleNormalsComputed,
       ],
       recompute: (_self) => {
         const self = _self as Vector3[]; // @NOTE type laundering for mutability
 
         let vertexCount = 0;
         const worldMatrixTransposedInverse = worldMatrixTransposedInverseComputed.value;
-        for (const triangleNormal of model.geometry.allTriangleNormals.value) {
+        for (const triangleNormal of model.geometry.allTriangleNormalsComputed.value) {
           let current: Vector3;
           if (self[vertexCount] !== undefined) {
             // Re-use existing instances
@@ -161,7 +161,7 @@ export class ModelNodeGeometry {
 
     /* Edges */
     // @NOTE Just an alias, since no further computation required
-    this._allEdgeIndices = model.geometry.allEdgeIndices;
+    this._allEdgeIndices = model.geometry.allEdgeIndicesComputed;
     this._allEdges = new Computed<readonly Edge[]>([], {
       dependencies: [
         this._allVertexPositions,
@@ -196,21 +196,21 @@ export class ModelNodeGeometry {
 
     /* Colors */
     // @NOTE Just an alias, since no further computation required
-    this._allVertexColors = model.geometry.allVertexColors;
+    this._allVertexColors = model.geometry.allVertexColorsComputed;
 
     /* Texture coordinates */
     // @NOTE Just an alias, since no further computation required
-    this._allVertexTextureCoordinates = model.geometry.allVertexTextureCoordinates;
+    this._allVertexTextureCoordinates = model.geometry.allVertexTextureCoordinatesComputed;
 
     /* AABB */
     this._aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         worldMatrixComputed,
-        model.geometry.aabb,
+        model.geometry.aabbComputed,
       ],
       recompute: (_self) => {
         const self = _self as Optional<AxisAlignedBoundingBox>; // @NOTE type laundering for mutability
-        const modelAabb = model.geometry.aabb.value;
+        const modelAabb = model.geometry.aabbComputed.value;
         if (modelAabb.value === undefined) {
           // Entire model has no geometry 🤯
           self.value = undefined;
@@ -228,11 +228,11 @@ export class ModelNodeGeometry {
     this._approximateAabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
         worldMatrixComputed,
-        model.geometry.approximateAabb,
+        model.geometry.approximateAabbComputed,
       ],
       recompute: (_self) => {
         const self = _self as Optional<AxisAlignedBoundingBox>; // @NOTE type laundering for mutability
-        const modelApproximateAabb = model.geometry.approximateAabb.value;
+        const modelApproximateAabb = model.geometry.approximateAabbComputed.value;
         if (modelApproximateAabb.value === undefined) {
           // Entire model has no geometry 🤯
           self.value = undefined;
@@ -248,6 +248,7 @@ export class ModelNodeGeometry {
     });
   }
 
+  // Read-only data
   public get allVertexPositions(): readonly IReadonlyVector3[] { return this._allVertexPositions.value; }
   public get allVertexNormals(): readonly IReadonlyVector3[] { return this._allVertexNormals.value; }
   public get allTriangleIndices(): readonly IReadonlyTriangleIndices[] { return this._allTriangleIndices.value; }
@@ -259,4 +260,17 @@ export class ModelNodeGeometry {
   public get allVertexTextureCoordinates(): readonly (IReadonlyVector2 | undefined)[] { return this._allVertexTextureCoordinates.value; }
   public get aabb(): IReadonlyAxisAlignedBoundingBox | undefined { return this._aabb.value.value; }
   public get approximateAabb(): IReadonlyAxisAlignedBoundingBox | undefined { return this._approximateAabb.value.value; }
+
+  // Computeds
+  public get allVertexPositionsComputed(): Computed<readonly IReadonlyVector3[]> { return this._allVertexPositions; }
+  public get allVertexNormalsComputed(): Computed<readonly IReadonlyVector3[]> { return this._allVertexNormals; }
+  public get allTriangleIndicesComputed(): Computed<readonly IReadonlyTriangleIndices[]> { return this._allTriangleIndices; }
+  public get allTrianglesComputed(): Computed<readonly Triangle[]> { return this._allTriangles; }
+  public get allTriangleNormalsComputed(): Computed<readonly IReadonlyVector3[]> { return this._allTriangleNormals; }
+  public get allEdgeIndicesComputed(): Computed<readonly EdgeIndices[]> { return this._allEdgeIndices; }
+  public get allEdgesComputed(): Computed<readonly Edge[]> { return this._allEdges; }
+  public get allVertexColorsComputed(): Computed<readonly (IReadonlyColor4 | undefined)[]> { return this._allVertexColors; }
+  public get allVertexTextureCoordinatesComputed(): Computed<readonly (IReadonlyVector2 | undefined)[]> { return this._allVertexTextureCoordinates; }
+  public get aabbComputed(): Computed<Optional<IReadonlyAxisAlignedBoundingBox>> { return this._aabb; }
+  public get approximateAabbComputed(): Computed<Optional<IReadonlyAxisAlignedBoundingBox>> { return this._approximateAabb; }
 }

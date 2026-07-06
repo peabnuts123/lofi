@@ -82,14 +82,14 @@ export class MeshPrimitiveGeometry {
   private readonly _vertexPositions: readonly Vector3[];
   private readonly _vertexNormals: readonly Vector3[];
   private readonly _triangleIndices: readonly TriangleIndices[];
-  private readonly _edgeIndices: Computed<readonly EdgeIndices[]>;
   private readonly _jointIndices: readonly JointIndices[] | undefined;
   private readonly _jointWeights: readonly JointWeights[] | undefined;
   private readonly _vertexColors: readonly Color4[] | undefined;
   private readonly _vertexTextureCoordinates: readonly Vector2[] | undefined;
   /* Parsed data - readonly */
-  public readonly triangles: Computed<readonly Triangle[]>;
-  public readonly edges: Computed<readonly Edge[]>;
+  private readonly _triangles: Computed<readonly Triangle[]>;
+  private readonly _edgeIndices: Computed<readonly EdgeIndices[]>;
+  private readonly _edges: Computed<readonly Edge[]>;
 
   /* Observable events - fired when any underlying data is changed via `mutate()` */
   public readonly vertexPositionsChanged: ObservableEvent;
@@ -225,7 +225,7 @@ export class MeshPrimitiveGeometry {
     this.triangleIndicesMutationObserver.componentCount = 3;
 
     /* Triangles */
-    this.triangles = new Computed<readonly Triangle[]>([], {
+    this._triangles = new Computed<readonly Triangle[]>([], {
       dependencies: [
         this.vertexPositionsChanged,
         this.triangleIndicesChanged,
@@ -333,17 +333,17 @@ export class MeshPrimitiveGeometry {
         }
       },
     });
-    this.edges = new Computed<readonly Edge[]>([], {
+    this._edges = new Computed<readonly Edge[]>([], {
       dependencies: [
         this.vertexPositionsChanged,
-        this.edgeIndices,
+        this.edgeIndicesComputed,
       ],
       recompute: (_self) => {
         const self = _self as Mutable<Edge>[]; // @NOTE type laundering for mutability
 
         let edgeCount = 0;
         const allVertexPositions = this.vertexPositions;
-        for (const edgeIndices of this.edgeIndices.value) {
+        for (const edgeIndices of this.edgeIndicesComputed.value) {
           const aVertex = allVertexPositions[edgeIndices[0]];
           const bVertex = allVertexPositions[edgeIndices[1]];
           if (self[edgeCount] !== undefined) {
@@ -800,14 +800,22 @@ export class MeshPrimitiveGeometry {
     }
   }
 
+  // Read-only data
   public get vertexPositions(): readonly IReadonlyVector3[] { return this._vertexPositions; }
   public get vertexNormals(): readonly IReadonlyVector3[] { return this._vertexNormals; }
   public get triangleIndices(): readonly IReadonlyTriangleIndices[] { return this._triangleIndices; }
-  public get edgeIndices(): Computed<readonly EdgeIndices[]> { return this._edgeIndices; }
+  public get triangles(): readonly Triangle[] { return this._triangles.value; }
+  public get edgeIndices(): readonly EdgeIndices[] { return this._edgeIndices.value; }
+  public get edges(): readonly Edge[] { return this._edges.value; }
   public get jointIndices(): readonly IReadonlyJointIndices[] | undefined { return this._jointIndices; }
   public get jointWeights(): readonly IReadonlyJointWeights[] | undefined { return this._jointWeights; }
   public get vertexColors(): readonly IReadonlyColor4[] | undefined { return this._vertexColors; }
   public get vertexTextureCoordinates(): readonly IReadonlyVector2[] | undefined { return this._vertexTextureCoordinates; }
+
+  // Computeds
+  public get trianglesComputed(): Computed<readonly Triangle[]> { return this._triangles; }
+  public get edgeIndicesComputed(): Computed<readonly EdgeIndices[]> { return this._edgeIndices; }
+  public get edgesComputed(): Computed<readonly Edge[]> { return this._edges; }
 }
 
 /** Mutable set of geometry for a mesh primitive. */
