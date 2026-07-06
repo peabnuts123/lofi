@@ -2,10 +2,10 @@ import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { SceneNode, type IScene } from "@lofi/engine/scene";
 import type { Model } from "@lofi/engine/models";
 import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DrawDebug";
+import { ModelNodeGeometry } from "@lofi/engine/models/geometry";
 
 import { SATColliderNode } from "./SatColliderNode";
 import type { CollisionGroup } from "./ColliderNode";
-import { ModelNodeGeometry } from "./ModelNode";
 
 export class ConvexMeshColliderNode extends SATColliderNode implements IWireframeDrawable {
   private _model: Model;

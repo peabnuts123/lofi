@@ -3,7 +3,7 @@ import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 import { describe, test, expect } from 'vitest';
 
 import { rayAABBIntersection, rayTriangleIntersection } from './index';
-import type { Triangle } from '@lofi/engine/models';
+import type { Triangle } from "@lofi/engine/models/geometry";
 
 describe("Ray casting", () => {
   describe("Ray-AABB intersection", () => {

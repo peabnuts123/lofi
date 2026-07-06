@@ -1,6 +1,6 @@
 import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
-import type { Triangle } from "@lofi/engine/models";
 import type { IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision/AxisAlignedBoundingBox";
+import type { Triangle } from "@lofi/engine/models/geometry";
 
 export function rayAABBIntersection(rayOrigin: IReadonlyVector3, rayDir: IReadonlyVector3, aabb: IReadonlyAxisAlignedBoundingBox): number | undefined {
   /* Min */
