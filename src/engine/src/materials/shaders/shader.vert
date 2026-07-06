@@ -81,7 +81,7 @@ void main() {
   // @NOTE `worldMatrix` is premultiplied by `localMatrix` if no skin
   vec4 worldPositionVec4 = worldMatrix * vec4(vertexPosition, 1.0f);
 #endif
-  worldPosition = vec3(worldPositionVec4);
+  worldPosition = worldPositionVec4.xyz / worldPositionVec4.w;
   gl_Position = viewProjectionMatrix * worldPositionVec4;
 
   // Color
