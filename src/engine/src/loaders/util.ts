@@ -18,7 +18,7 @@ type ProcessedBufferSet = Set<TypedArray>;
 export function changeYUpModelDefinitionToZUp(modelDefinition: ModelDefinition): ModelDefinition {
   const processedBuffers: ProcessedBufferSet = new Set();
   modelDefinition.rootParts.forEach((modelPartDefinition) => changeYUpModelPartDefinitionToZUp(modelPartDefinition, processedBuffers));
-  modelDefinition.animations.forEach(ChangeYUpAnimationDefinitionToZUp);
+  modelDefinition.animations.forEach(changeYUpAnimationDefinitionToZUp);
   return modelDefinition;
 }
 
@@ -83,7 +83,7 @@ export function changeYUpModelPartDefinitionToZUp(modelPartDefinition: ModelPart
   modelPartDefinition.children.forEach((childModelPartDefinition) => changeYUpModelPartDefinitionToZUp(childModelPartDefinition, processedBuffers));
 }
 
-export function ChangeYUpAnimationDefinitionToZUp(animationDefinition: AnimationDefinition): void {
+export function changeYUpAnimationDefinitionToZUp(animationDefinition: AnimationDefinition): void {
   for (const channel of animationDefinition.channels) {
     switch (channel.targetPartProperty) {
       case 'translation':

@@ -33,6 +33,14 @@ export abstract class Observable implements IObservable {
   }
 }
 
+/** A simple observable event that can be triggered externally. */
+export class ObservableEvent extends Observable {
+  /** Notify that the observable changed. */
+  public changed(): void {
+    this.notifyOnChange();
+  }
+}
+
 export interface ComputedArgs<T> {
   debug_name?: string; // @TODO @DEBUG REMOVE
   dependencies: readonly IObservable[],

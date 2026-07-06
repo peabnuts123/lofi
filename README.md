@@ -39,6 +39,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Redo ObjLoader~~
   - [x] ~~Configurable number of max lights (not DYNAMIC but CONFIGURABLE)~~
   - [x] ~~Remove old shaders~~
+  - [ ] Low-level API
   - [ ] Fix DebugModule
   - [ ] Build pipeline and CD
   - [ ] Split up combined files
@@ -112,6 +113,10 @@ These items are roughly in priority order.
   - I think we need to use finalizers to clean up held GL resources (e.g. vao in MeshPrimitive, buffers in MeshPrim geometry, etc.)
   - MeshPrimitive geometry: We should be more careful about skin joints/weights being handled separately. For example, if one is set but not the other, the code will not handle it correctly. We should maybe collapse these types into a single type that's either set or not.
   - Make sure all tmp values are called `tmp_<thing>_<purpose>` and are static where possible
+  - BUG: Joint Weights (and other normalized values?) whose attributes are backed by normalized integers will overflow if the weight is set to a value >1.0, but CPU skinning will just literal value (e.g. setting Joint Weight to 1.5 will denormalize to 0x80 as Uint8 (i.e. 0.5) but CPU geometry will compute as if weight as 2.0).
+    - We either need to know what the backing attribute is stored as in the geometry and enforce those limits, OR overwrite the attribute with component type FLOAT and always support >1 joint weights
+  - Docs: Update code references to use `{@link foo}` in favour of backticks. Use regex: /^\s*(/\*\*|\*).*`\w/
+  - I suppose we should eventually either make MeshPrimitiveGeometry specific to triangles, or more generic (e.g. gl.LINES - it won't have triangles...)
 
 
 ## Ideas
