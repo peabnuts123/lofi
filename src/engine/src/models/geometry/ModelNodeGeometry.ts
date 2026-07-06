@@ -205,22 +205,21 @@ export class ModelNodeGeometry {
     /* AABB */
     this._aabb = new Computed<Optional<IReadonlyAxisAlignedBoundingBox>>(Optional(), {
       dependencies: [
-        worldMatrixComputed,
-        model.geometry.aabbComputed,
+        this._allVertexPositions,
       ],
       recompute: (_self) => {
         const self = _self as Optional<AxisAlignedBoundingBox>; // @NOTE type laundering for mutability
-        const modelAabb = model.geometry.aabbComputed.value;
-        if (modelAabb.value === undefined) {
+
+        const allVertexPositions = this._allVertexPositions.value;
+        if (allVertexPositions.length === 0) {
           // Entire model has no geometry 🤯
           self.value = undefined;
         } else {
           // Ensure value is initialised
-          const aabb = self.value ??= AxisAlignedBoundingBox.zero();
+          const aabb = (self.value as AxisAlignedBoundingBox) ??= AxisAlignedBoundingBox.zero();
 
-          // Recompute AABB in world space
-          aabb.setValue(modelAabb.value)
-            .transformSelf(worldMatrixComputed.value);
+          // Recompute AABB based on vertex positions
+          aabb.fromVerticesSelf(allVertexPositions);
         }
       },
     });

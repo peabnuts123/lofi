@@ -16,9 +16,9 @@ type MaterialCacheKey = number;
   // - Skinned normals need to be normalized as if using homogenous coordinates I think
   // - Expose these types from a public place (i.e. iterating model => modelpart => meshprim)
   // - Split types up into separate files
-  - Should probably split ModelPart and Model geometries into X and XComputed
+  // - Should probably split ModelPart and Model geometries into X and XComputed
   - Have a go writing some unit tests but probably don't exhaust it
-  - AABB is not correct for cylindrical object (?) is it being aggregated instead of computed?
+  // - AABB is not correct for cylindrical object (?) is it being aggregated instead of computed?
  */
 
 /**
