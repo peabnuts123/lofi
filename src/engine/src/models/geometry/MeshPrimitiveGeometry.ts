@@ -1,23 +1,24 @@
 import { Color4, Vector2, Vector3, type IReadonlyColor4, type IReadonlyVector2, type IReadonlyVector3 } from "@lofi/core/math";
 import { Computed, Observable, ObservableEvent, type Mutable, type TypedArray } from "@lofi/core/util";
 import type { IEngine } from "@lofi/engine/Engine";
-import type {
-  AnyAttributeDefinition,
-  AttributeDefinition,
-  BaseAttributeDefinition,
-  MaterialDefinition,
-  MeshPrimitiveDefinition,
-  MeshPrimitiveMode,
-  VertexPositionAttributeDefinition,
-  VertexNormalAttributeDefinition,
-  VertexTextureCoordinateAttributeDefinition,
-  VertexColorAttributeDefinition,
-  VertexJointIndicesAttributeDefinition,
-  VertexJointWeightsAttributeDefinition,
-  TriangleIndicesAttributeDefinition,
+import {
+  type AnyAttributeDefinition,
+  type AttributeDefinition,
+  type BaseAttributeDefinition,
+  type MaterialDefinition,
+  type MeshPrimitiveDefinition,
+  type MeshPrimitiveMode,
+  type VertexPositionAttributeDefinition,
+  type VertexNormalAttributeDefinition,
+  type VertexTextureCoordinateAttributeDefinition,
+  type VertexColorAttributeDefinition,
+  type VertexJointIndicesAttributeDefinition,
+  type VertexJointWeightsAttributeDefinition,
+  type TriangleIndicesAttributeDefinition,
+  AccessorComponentType,
 } from "@lofi/engine/loaders/definitions";
-import { createBuffer, GlArrayBuffer, GlElementArrayBuffer, type GlBufferEnum } from "@lofi/engine/util/createBuffer";
-import type { AxisAlignedBoundingBox } from "@lofi/engine/collision";
+import { createBuffer, BufferType } from "@lofi/engine/util/createBuffer";
+import type { IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
 import {
   JointIndices,
   JointWeights,
@@ -65,7 +66,7 @@ export class MeshPrimitiveGeometry {
   /** GL mode with which this primitive will be drawn. e.g. `POINTS`, `LINES`, `TRIANGLES`, etc. */
   public readonly glMode: MeshPrimitiveMode;
   /** Axis-aligned extents that the geometry of this mesh primitive is contained within. */
-  public readonly extents: AxisAlignedBoundingBox;
+  public readonly extents: IReadonlyAxisAlignedBoundingBox;
   /** Default material as read from the asset's definition. */
   public readonly defaultMaterialDefinition: MaterialDefinition | undefined;
 
@@ -131,7 +132,7 @@ export class MeshPrimitiveGeometry {
     // Parse data
     this._vertexPositions = Object.freeze(this.parsePositionNormalAttribute(definition.positionData));
     // Create GL buffer
-    this.positionAttribute = this.createVertexAttribute(definition.positionData, gl.ARRAY_BUFFER);
+    this.positionAttribute = this.createVertexAttribute(definition.positionData, BufferType.ARRAY_BUFFER);
     // Create mutation observer
     this.vertexPositionsMutationObserver = new VertexAttributeMutationObserver(
       this._vertexPositions,
@@ -151,7 +152,7 @@ export class MeshPrimitiveGeometry {
       // Parse data
       this._triangleIndices = Object.freeze(this.parseIndicesAttribute(definition.indices));
       // Create GL buffer
-      this.indicesAttribute = this.createVertexAttribute(definition.indices, gl.ELEMENT_ARRAY_BUFFER);
+      this.indicesAttribute = this.createVertexAttribute(definition.indices, BufferType.ELEMENT_ARRAY_BUFFER);
     } else {
       // Triangles assumed to be sequential
       // Generate data
@@ -174,10 +175,10 @@ export class MeshPrimitiveGeometry {
 
       // Create GL buffer
       this.indicesAttribute = {
-        glBuffer: createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, glBufferData),
+        glBuffer: createBuffer(gl, BufferType.ELEMENT_ARRAY_BUFFER, glBufferData),
         componentCount: 1,
         componentSize: 4,
-        componentType: gl.UNSIGNED_INT,
+        componentType: AccessorComponentType.UNSIGNED_INT,
         normalized: false,
       };
     }
@@ -197,13 +198,13 @@ export class MeshPrimitiveGeometry {
     const TriangleIndicesCustomComponentCount = 3;
     let triangleIndicesScratchBuffer: TypedArray;
     switch (this.indicesAttribute.componentType) {
-      case WebGL2RenderingContext['UNSIGNED_BYTE']:
+      case AccessorComponentType['UNSIGNED_BYTE']:
         triangleIndicesScratchBuffer = new Uint8Array(TriangleIndicesCustomComponentCount * this._triangleIndices.length);
         break;
-      case WebGL2RenderingContext['UNSIGNED_SHORT']:
+      case AccessorComponentType['UNSIGNED_SHORT']:
         triangleIndicesScratchBuffer = new Uint16Array(TriangleIndicesCustomComponentCount * this._triangleIndices.length);
         break;
-      case WebGL2RenderingContext['UNSIGNED_INT']:
+      case AccessorComponentType['UNSIGNED_INT']:
         triangleIndicesScratchBuffer = new Uint32Array(TriangleIndicesCustomComponentCount * this._triangleIndices.length);
         break;
       default:
@@ -219,7 +220,7 @@ export class MeshPrimitiveGeometry {
         buffer[offset + 1] = triangleIndices.bIndex;
         buffer[offset + 2] = triangleIndices.cIndex;
       },
-      GlElementArrayBuffer,
+      BufferType.ELEMENT_ARRAY_BUFFER,
     );
     // @NOTE Override component count
     this.triangleIndicesMutationObserver.componentCount = 3;
@@ -262,7 +263,7 @@ export class MeshPrimitiveGeometry {
       // Parse data
       this._vertexNormals = Object.freeze(this.parsePositionNormalAttribute(definition.normalData));
       // Create GL buffer
-      this.normalAttribute = this.createVertexAttribute(definition.normalData, gl.ARRAY_BUFFER);
+      this.normalAttribute = this.createVertexAttribute(definition.normalData, BufferType.ARRAY_BUFFER);
     } else {
       // Normals MISSING from asset
       // Generate data
@@ -280,10 +281,10 @@ export class MeshPrimitiveGeometry {
 
       // Create GL buffer
       this.normalAttribute = {
-        glBuffer: createBuffer(gl, gl.ARRAY_BUFFER, glBufferData),
+        glBuffer: createBuffer(gl, BufferType.ARRAY_BUFFER, glBufferData),
         componentCount: 3,
         componentSize: 4,
-        componentType: gl.FLOAT,
+        componentType: AccessorComponentType.FLOAT,
         normalized: false,
       };
     }
@@ -371,8 +372,8 @@ export class MeshPrimitiveGeometry {
       this._jointIndices = Object.freeze(this.parseJointIndicesAttribute(definition.joints0Data));
       this._jointWeights = Object.freeze(this.parseJointWeightsAttribute(definition.weights0Data));
       // Create GL buffers
-      this.joints0Attribute = this.createVertexAttribute(definition.joints0Data, gl.ARRAY_BUFFER);
-      this.weights0Attribute = this.createVertexAttribute(definition.weights0Data, gl.ARRAY_BUFFER);
+      this.joints0Attribute = this.createVertexAttribute(definition.joints0Data, BufferType.ARRAY_BUFFER);
+      this.weights0Attribute = this.createVertexAttribute(definition.weights0Data, BufferType.ARRAY_BUFFER);
       // Create mutation observers
       this.jointIndicesMutationObserver = new VertexAttributeMutationObserver(
         this._jointIndices,
@@ -405,7 +406,7 @@ export class MeshPrimitiveGeometry {
       // Parse data
       this._vertexColors = Object.freeze(this.parseVertexColorAttribute(definition.color0Data));
       // Create GL buffer
-      this.color0Attribute = this.createVertexAttribute(definition.color0Data, gl.ARRAY_BUFFER);
+      this.color0Attribute = this.createVertexAttribute(definition.color0Data, BufferType.ARRAY_BUFFER);
       // Create mutation observer
       this.vertexColorsMutationObserver = new VertexAttributeMutationObserver(
         this._vertexColors,
@@ -428,7 +429,7 @@ export class MeshPrimitiveGeometry {
       // Parse data
       this._vertexTextureCoordinates = Object.freeze(this.parseVertexTextureCoordinatesAttribute(definition.texCoord0Data));
       // Create GL buffer
-      this.texCoord0Attribute = this.createVertexAttribute(definition.texCoord0Data, gl.ARRAY_BUFFER);
+      this.texCoord0Attribute = this.createVertexAttribute(definition.texCoord0Data, BufferType.ARRAY_BUFFER);
       // Create mutation observer
       this.vertexTextureCoordinatesMutationObserver = new VertexAttributeMutationObserver(
         this._vertexTextureCoordinates,
@@ -550,7 +551,7 @@ export class MeshPrimitiveGeometry {
     };
   }
 
-  private createVertexAttribute<TAttributeDefinition extends AnyAttributeDefinition>(attributeDefinition: TAttributeDefinition, bufferType: GlBufferEnum = GlArrayBuffer): VertexAttribute<TAttributeDefinition> {
+  private createVertexAttribute<TAttributeDefinition extends AnyAttributeDefinition>(attributeDefinition: TAttributeDefinition, bufferType: BufferType = BufferType.ARRAY_BUFFER): VertexAttribute<TAttributeDefinition> {
     const { gl } = this.engine;
     // @NOTE Type laundering because types like `attributeDefinition.componentCount` are getting widened to e.g. `number`
     return {
@@ -564,18 +565,18 @@ export class MeshPrimitiveGeometry {
 
   private createTmpBufferForVertexAttribute(attribute: AnyVertexAttribute, length: number): TypedArray {
     switch (attribute.componentType) {
-      case WebGL2RenderingContext['BYTE']:
+      case AccessorComponentType['BYTE']:
         return new Int8Array(attribute.componentCount * length);
-      case WebGL2RenderingContext['UNSIGNED_BYTE']:
+      case AccessorComponentType['UNSIGNED_BYTE']:
         return new Uint8Array(attribute.componentCount * length);
-      case WebGL2RenderingContext['SHORT']:
+      case AccessorComponentType['SHORT']:
         return new Int16Array(attribute.componentCount * length);
-      case WebGL2RenderingContext['UNSIGNED_SHORT']:
+      case AccessorComponentType['UNSIGNED_SHORT']:
         return new Uint16Array(attribute.componentCount * length);
       // @NOTE Accessors under the GLTF specification cannot be signed INT
-      case WebGL2RenderingContext['UNSIGNED_INT']:
+      case AccessorComponentType['UNSIGNED_INT']:
         return new Uint32Array(attribute.componentCount * length);
-      case WebGL2RenderingContext['FLOAT']:
+      case AccessorComponentType['FLOAT']:
         return new Float32Array(attribute.componentCount * length);
       default:
         throw new Error(`Unimplemented attribute type: ${(attribute as { componentType: number }).componentType}`);
@@ -744,21 +745,21 @@ export class MeshPrimitiveGeometry {
       // Maximally negative values (like -128 for BYTE) are clamped to -1.
       // See: https://github.com/KhronosGroup/glTF/issues/1317
       switch (attributeDefinition.componentType) {
-        case WebGL2RenderingContext['BYTE']:
+        case AccessorComponentType['BYTE']:
           return Math.max(value / 0x7F, -1);
-        case WebGL2RenderingContext['UNSIGNED_BYTE']:
+        case AccessorComponentType['UNSIGNED_BYTE']:
           return value / 0xFF;
-        case WebGL2RenderingContext['SHORT']:
+        case AccessorComponentType['SHORT']:
           return Math.max(value / 0x7FFF, -1);
-        case WebGL2RenderingContext['UNSIGNED_SHORT']:
+        case AccessorComponentType['UNSIGNED_SHORT']:
           return value / 0xFFFF;
 
         // Unsigned int / float not valid to be normalized
         // See: https://github.com/KhronosGroup/glTF/blob/4ecfc3bd8c439a1c3feab04218212e6b9b222253/specification/2.0/schema/accessor.schema.json#L66
-        case WebGL2RenderingContext['UNSIGNED_INT']:
-          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${WebGL2RenderingContext['UNSIGNED_INT']})`);
-        case WebGL2RenderingContext['FLOAT']:
-          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${WebGL2RenderingContext['FLOAT']})`);
+        case AccessorComponentType['UNSIGNED_INT']:
+          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${AccessorComponentType['UNSIGNED_INT']})`);
+        case AccessorComponentType['FLOAT']:
+          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${AccessorComponentType['FLOAT']})`);
 
         // Unimplemented / future values
         default:
@@ -777,21 +778,21 @@ export class MeshPrimitiveGeometry {
       // Maximally negative values (like -128 for BYTE) are clamped to -1.
       // See: https://github.com/KhronosGroup/glTF/issues/1317
       switch (attributeDefinition.componentType) {
-        case WebGL2RenderingContext['BYTE']:
+        case AccessorComponentType['BYTE']:
           return value * 0x7F;
-        case WebGL2RenderingContext['UNSIGNED_BYTE']:
+        case AccessorComponentType['UNSIGNED_BYTE']:
           return value * 0xFF;
-        case WebGL2RenderingContext['SHORT']:
+        case AccessorComponentType['SHORT']:
           return value * 0x7FFF;
-        case WebGL2RenderingContext['UNSIGNED_SHORT']:
+        case AccessorComponentType['UNSIGNED_SHORT']:
           return value * 0xFFFF;
 
         // Unsigned int / float not valid to be normalized
         // See: https://github.com/KhronosGroup/glTF/blob/4ecfc3bd8c439a1c3feab04218212e6b9b222253/specification/2.0/schema/accessor.schema.json#L66
-        case WebGL2RenderingContext['UNSIGNED_INT']:
-          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${WebGL2RenderingContext['UNSIGNED_INT']})`);
-        case WebGL2RenderingContext['FLOAT']:
-          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${WebGL2RenderingContext['FLOAT']})`);
+        case AccessorComponentType['UNSIGNED_INT']:
+          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'UNSIGNED_INT' (${AccessorComponentType['UNSIGNED_INT']})`);
+        case AccessorComponentType['FLOAT']:
+          throw new Error(`Invalid accessor definition. Data specifies 'normalized' but is of type 'FLOAT' (${AccessorComponentType['FLOAT']})`);
 
         // Unimplemented / future values
         default:
@@ -846,7 +847,7 @@ export class VertexAttributeMutationObserver<TData extends Observable> {
   public readonly observableEvent: ObservableEvent;
   public readonly scratchBuffer: TypedArray;
   public readonly writeDatumToBuffer: WriteDatumToBufferFunc<TData>;
-  public readonly bufferType: GlBufferEnum;
+  public readonly bufferType: BufferType;
 
   // State
   private readonly dirtyRange: Uint32Array;
@@ -865,7 +866,7 @@ export class VertexAttributeMutationObserver<TData extends Observable> {
     observableEvent: ObservableEvent,
     scratchBuffer: TypedArray,
     writeDatumToBuffer: WriteDatumToBufferFunc<TData>,
-    bufferType: GlBufferEnum = GlArrayBuffer,
+    bufferType: BufferType = BufferType.ARRAY_BUFFER,
   ) {
     // Store references
     this.data = data;

@@ -1,27 +1,27 @@
-/* WebGL2RenderingContext['ARRAY_BUFFER'] */
-export type GlArrayBuffer = 0x8892;
-export const GlArrayBuffer = 0x8892;
-/* WebGL2RenderingContext['ELEMENT_ARRAY_BUFFER'] */
-export type GlElementArrayBuffer = 0x8893;
-export const GlElementArrayBuffer = 0x8893;
-/* WebGL2RenderingContext['UNIFORM_BUFFER'] */
-export type GlUniformBuffer = 0x8A11;
-export const GlUniformBuffer = 0x8A11;
+import type { Enum } from "@lofi/core/util/types";
 
-export type GlBufferEnum = GlArrayBuffer | GlElementArrayBuffer | GlUniformBuffer;
+export const BufferUsage = {
+  STATIC_DRAW: 0x88E4,
+  DYNAMIC_DRAW: 0x88E8,
+} as const;
+export type BufferUsage = Enum<typeof BufferUsage>;
 
-const AllowedBufferTypes: Record<GlBufferEnum, true> = {
-  // @NOTE Hard-coded constants since `WebGL2RenderingContext` does not exist in tests :/
-  [GlArrayBuffer]: true,
-  [GlElementArrayBuffer]: true,
-  [GlUniformBuffer]: true,
-};
+export const BufferType = {
+  ARRAY_BUFFER: 0x8892,
+  ELEMENT_ARRAY_BUFFER: 0x8893,
+  UNIFORM_BUFFER: 0x8A11,
+} as const;
+export type BufferType = Enum<typeof BufferType>;
 
-export function createBuffer(gl: WebGL2RenderingContext, bufferType: GlBufferEnum, data: AllowSharedBufferSource, usage?: GLenum): WebGLBuffer;
-export function createBuffer(gl: WebGL2RenderingContext, bufferType: GlBufferEnum, size: GLsizeiptr, usage?: GLenum): WebGLBuffer;
-export function createBuffer(gl: WebGL2RenderingContext, bufferType: GlBufferEnum, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage?: GLenum): WebGLBuffer;
-export function createBuffer(gl: WebGL2RenderingContext, bufferType: GlBufferEnum, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage: GLenum = WebGL2RenderingContext.STATIC_DRAW): WebGLBuffer {
-  if (!AllowedBufferTypes[bufferType]) {
+export function createBuffer(gl: WebGL2RenderingContext, bufferType: BufferType, data: AllowSharedBufferSource, usage?: GLenum): WebGLBuffer;
+export function createBuffer(gl: WebGL2RenderingContext, bufferType: BufferType, size: GLsizeiptr, usage?: GLenum): WebGLBuffer;
+export function createBuffer(gl: WebGL2RenderingContext, bufferType: BufferType, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage?: GLenum): WebGLBuffer;
+export function createBuffer(gl: WebGL2RenderingContext, bufferType: BufferType, dataOrSize: AllowSharedBufferSource | GLsizeiptr, usage: GLenum = BufferUsage.STATIC_DRAW): WebGLBuffer {
+  if (
+    bufferType !== BufferType.ARRAY_BUFFER &&
+    bufferType !== BufferType.ELEMENT_ARRAY_BUFFER &&
+    bufferType !== BufferType.UNIFORM_BUFFER
+  ) {
     throw new Error(`Invalid buffer type: ${bufferType}`);
   }
 

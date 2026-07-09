@@ -17,7 +17,7 @@ import {
 } from "./index";
 
 
-/** Constructor params for {@link ModelPartGeometry}. */
+/** Constructor params for {@linkcode ModelPartGeometry}. */
 export interface ModelPartGeometryArgs {
   primitiveCaches: MeshPrimitiveCache[];
   localMatrixComputed: Computed<Matrix4>;

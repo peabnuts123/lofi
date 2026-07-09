@@ -115,8 +115,9 @@ These items are roughly in priority order.
   - Make sure all tmp values are called `tmp_<thing>_<purpose>` and are static where possible
   - BUG: Joint Weights (and other normalized values?) whose attributes are backed by normalized integers will overflow if the weight is set to a value >1.0, but CPU skinning will just literal value (e.g. setting Joint Weight to 1.5 will denormalize to 0x80 as Uint8 (i.e. 0.5) but CPU geometry will compute as if weight as 2.0).
     - We either need to know what the backing attribute is stored as in the geometry and enforce those limits, OR overwrite the attribute with component type FLOAT and always support >1 joint weights
-  - Docs: Update code references to use `{@link foo}` in favour of backticks. Use regex: /^\s*(/\*\*|\*).*`\w/
+  - Docs: Update code references to use `{@linkcode foo}` in favour of backticks. Use regex: /^\s*(/\*\*|\*).*`\w/
   - I suppose we should eventually either make MeshPrimitiveGeometry specific to triangles, or more generic (e.g. gl.LINES - it won't have triangles...)
+  - `extents` on MeshPrimitiveGeometry should probably be observable and `approximateAabb` should be computed based on it
 
 
 ## Ideas

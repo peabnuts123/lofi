@@ -14,7 +14,7 @@ import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
 import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
-import type { ModelDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
+import { AccessorComponentType, type ModelDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
 import { DrawDebug } from '@lofi/engine/util/DrawDebug';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
@@ -802,7 +802,7 @@ function addVertexColors(modelDefinition: ModelDefinition): ModelDefinition {
           primitiveDefinition.color0Data = {
             componentCount: 4,
             componentSize: 4,
-            componentType: WebGL2RenderingContext['FLOAT'],
+            componentType: AccessorComponentType['FLOAT'],
             normalized: false,
             buffer: new Float32Array(numVertices * 4)
           };

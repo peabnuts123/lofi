@@ -18,12 +18,14 @@ import type { IFileSystem, VirtualFile } from '@lofi/engine/filesystem';
 import { Texture } from '@lofi/engine/textures';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 
-import type {
-  MaterialDefinition,
-  MeshPrimitiveDefinition,
-  ModelDefinition,
-  ModelDefinitionDependency,
-  ModelPartDefinition,
+import {
+  AccessorComponentType,
+  MeshPrimitiveMode,
+  type MaterialDefinition,
+  type MeshPrimitiveDefinition,
+  type ModelDefinition,
+  type ModelDefinitionDependency,
+  type ModelPartDefinition,
 } from './definitions';
 import { changeYUpModelDefinitionToZUp } from './util';
 
@@ -229,11 +231,11 @@ export class ObjLoader {
 
       /* Create primitive definition */
       const primitiveDefinition: MeshPrimitiveDefinition = {
-        mode: WebGL2RenderingContext.TRIANGLES,
+        mode: MeshPrimitiveMode.TRIANGLES,
         positionData: {
           buffer: new Float32Array(primitiveData.positions.flatMap((vertex) => [vertex.x, vertex.y, vertex.z])),
           componentCount: 3,
-          componentType: WebGL2RenderingContext.FLOAT,
+          componentType: AccessorComponentType.FLOAT,
           componentSize: 4,
           normalized: false,
         },
@@ -245,7 +247,7 @@ export class ObjLoader {
         primitiveDefinition.normalData = {
           buffer: new Float32Array(primitiveData.normals.flatMap((vertex) => [vertex.x, vertex.y, vertex.z])),
           componentCount: 3,
-          componentType: WebGL2RenderingContext.FLOAT,
+          componentType: AccessorComponentType.FLOAT,
           componentSize: 4,
           normalized: false,
         };
@@ -254,7 +256,7 @@ export class ObjLoader {
         primitiveDefinition.texCoord0Data = {
           buffer: new Float32Array(primitiveData.texCoords.flatMap((vertex) => [vertex.x, vertex.y])),
           componentCount: 2,
-          componentType: WebGL2RenderingContext.FLOAT,
+          componentType: AccessorComponentType.FLOAT,
           componentSize: 4,
           normalized: false,
         };
@@ -264,7 +266,7 @@ export class ObjLoader {
           // @TODO will they be normalized or what?
           buffer: new Float32Array(primitiveData.colors.flatMap((vertex) => [vertex.r, vertex.g, vertex.b])),
           componentCount: 3,
-          componentType: WebGL2RenderingContext.FLOAT,
+          componentType: AccessorComponentType.FLOAT,
           componentSize: 4,
           normalized: false,
         };

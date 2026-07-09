@@ -3,6 +3,8 @@ import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color3 } from "@lofi/core/math/Color3";
 import type { IEngine, OpaqueDrawTask } from "@lofi/engine/Engine";
 import { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
+import { MeshPrimitiveMode } from "@lofi/engine/loaders/definitions";
+import { BufferType } from "./createBuffer";
 
 const DebugVertexShaderSource = `#version 300 es
   // @TODO use an #include for this
@@ -112,8 +114,8 @@ export class DrawDebug {
           gl.bindVertexArray(DrawDebug.vao);
 
           // Upload vertex data
-          gl.bindBuffer(gl.ARRAY_BUFFER, DrawDebug.vertexBuffer);
-          gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+          gl.bindBuffer(BufferType.ARRAY_BUFFER, DrawDebug.vertexBuffer);
+          gl.bufferData(BufferType.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
 
           // Bind uniforms
           gl.uniform4fv(DrawDebug.colorUniform, new Float32Array([
@@ -124,7 +126,7 @@ export class DrawDebug {
           ]));
 
           // Draw lines
-          gl.drawArrays(gl.LINES, 0, linePoints.length);
+          gl.drawArrays(MeshPrimitiveMode.LINES, 0, linePoints.length);
 
           // Cleanup
           gl.bindVertexArray(null);

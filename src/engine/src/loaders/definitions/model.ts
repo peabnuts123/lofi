@@ -1,67 +1,71 @@
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { Quaternion } from "@lofi/core/math/Quaternion";
 import type { Vector3 } from "@lofi/core/math/vector";
+import type { Enum } from "@lofi/core/util";
+import type { VirtualFile } from "@lofi/engine/filesystem";
+import type { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 import type { AnimationDefinition } from "./animation";
 import type { MaterialDefinition } from "./material";
-import type { VirtualFile } from "@lofi/engine/filesystem";
-import type { AxisAlignedBoundingBox } from "@lofi/engine/collision";
 
 /**
  * Any valid GL data type e.g. `gl.FLOAT`, `gl.UNSIGNED_SHORT`, etc.
  */
-export type AccessorComponentType = (
-  WebGL2RenderingContext['BYTE'] |
-  WebGL2RenderingContext['UNSIGNED_BYTE'] |
-  WebGL2RenderingContext['SHORT'] |
-  WebGL2RenderingContext['UNSIGNED_SHORT'] |
+export type AccessorComponentType = Enum<typeof AccessorComponentType>;
+export const AccessorComponentType = {
+  BYTE: 0x1400,
+  UNSIGNED_BYTE: 0x1401,
+  SHORT: 0x1402,
+  UNSIGNED_SHORT: 0x1403,
   // @NOTE Accessors under the GLTF specification cannot be signed INT
   // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#accessor-data-types
-  WebGL2RenderingContext['UNSIGNED_INT'] |
-  WebGL2RenderingContext['FLOAT']
-);
+  UNSIGNED_INT: 0x1405,
+  FLOAT: 0x1406,
+} as const;
+
 /**
  * Lookup type utility for a GL data type's size in bytes.
  *
  * e.g.
  * ```
- * AccessorComponentTypeSize[WebGL2RenderingContext['FLOAT']] // 4
+ * AccessorComponentTypeSize[typeof AccessorComponentType['FLOAT']] // 4
  * ```
  */
 export type AccessorComponentTypeSize = {
-  [WebGL2RenderingContext.BYTE]: 1,
-  [WebGL2RenderingContext.UNSIGNED_BYTE]: 1,
-  [WebGL2RenderingContext.SHORT]: 2,
-  [WebGL2RenderingContext.UNSIGNED_SHORT]: 2,
-  [WebGL2RenderingContext.UNSIGNED_INT]: 4,
-  [WebGL2RenderingContext.FLOAT]: 4,
+  [AccessorComponentType.BYTE]: 1,
+  [AccessorComponentType.UNSIGNED_BYTE]: 1,
+  [AccessorComponentType.SHORT]: 2,
+  [AccessorComponentType.UNSIGNED_SHORT]: 2,
+  [AccessorComponentType.UNSIGNED_INT]: 4,
+  [AccessorComponentType.FLOAT]: 4,
 }
 /**
  * Lookup type utility for a GL data type's native buffer type.
  *
  * e.g.
  * ```
- * AccessorComponentBuffer[WebGL2RenderingContext['FLOAT']] // Float32Array
+ * AccessorComponentBuffer[typeof AccessorComponentType['FLOAT']] // Float32Array
  * ```
  */
 export type AccessorComponentBuffer = {
-  [WebGL2RenderingContext.BYTE]: Int8Array,
-  [WebGL2RenderingContext.UNSIGNED_BYTE]: Uint8Array,
-  [WebGL2RenderingContext.SHORT]: Int16Array,
-  [WebGL2RenderingContext.UNSIGNED_SHORT]: Uint16Array,
-  [WebGL2RenderingContext.UNSIGNED_INT]: Uint32Array,
-  [WebGL2RenderingContext.FLOAT]: Float32Array,
+  [AccessorComponentType.BYTE]: Int8Array,
+  [AccessorComponentType.UNSIGNED_BYTE]: Uint8Array,
+  [AccessorComponentType.SHORT]: Int16Array,
+  [AccessorComponentType.UNSIGNED_SHORT]: Uint16Array,
+  [AccessorComponentType.UNSIGNED_INT]: Uint32Array,
+  [AccessorComponentType.FLOAT]: Float32Array,
 }
 
-export type MeshPrimitiveMode = (
-  WebGL2RenderingContext['POINTS'] |
-  WebGL2RenderingContext['LINES'] |
-  WebGL2RenderingContext['LINE_LOOP'] |
-  WebGL2RenderingContext['LINE_STRIP'] |
-  WebGL2RenderingContext['TRIANGLES'] |
-  WebGL2RenderingContext['TRIANGLE_STRIP'] |
-  WebGL2RenderingContext['TRIANGLE_FAN']
-);
+export type MeshPrimitiveMode = Enum<typeof MeshPrimitiveMode>;
+export const MeshPrimitiveMode = {
+  POINTS: 0x0000,
+  LINES: 0x0001,
+  LINE_LOOP: 0x0002,
+  LINE_STRIP: 0x0003,
+  TRIANGLES: 0x0004,
+  TRIANGLE_STRIP: 0x0005,
+  TRIANGLE_FAN: 0x0006,
+} as const;
 
 export interface ModelDefinitionDependency {
   path: string;
@@ -113,34 +117,34 @@ export interface MeshPrimitiveDefinition {
 // See: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview
 export type VertexPositionAttributeDefinition = AttributeDefinition<
   { componentCount: 3 /* Vector3 */ },
-  { type: WebGL2RenderingContext['FLOAT'], normalized: false }
+  { type: typeof AccessorComponentType['FLOAT'], normalized: false }
 >;
 export type VertexNormalAttributeDefinition = AttributeDefinition<
   { componentCount: 3 /* Vector3 */ },
-  { type: WebGL2RenderingContext['FLOAT'], normalized: false }
+  { type: typeof AccessorComponentType['FLOAT'], normalized: false }
 >;
 export type VertexTextureCoordinateAttributeDefinition = AttributeDefinition<
   { componentCount: 2 /* Vector2 */ },
-  { type: WebGL2RenderingContext['FLOAT'], normalized: false } |
-  { type: WebGL2RenderingContext['UNSIGNED_BYTE'], normalized: true } |
-  { type: WebGL2RenderingContext['UNSIGNED_SHORT'], normalized: true }
+  { type: typeof AccessorComponentType['FLOAT'], normalized: false } |
+  { type: typeof AccessorComponentType['UNSIGNED_BYTE'], normalized: true } |
+  { type: typeof AccessorComponentType['UNSIGNED_SHORT'], normalized: true }
 >;
 export type VertexColorAttributeDefinition = AttributeDefinition<
   { componentCount: 3 /* Color3 */ } | { componentCount: 4 /* Color4 */ },
-  { type: WebGL2RenderingContext['FLOAT'], normalized: false } |
-  { type: WebGL2RenderingContext['UNSIGNED_BYTE'], normalized: true } |
-  { type: WebGL2RenderingContext['UNSIGNED_SHORT'], normalized: true }
+  { type: typeof AccessorComponentType['FLOAT'], normalized: false } |
+  { type: typeof AccessorComponentType['UNSIGNED_BYTE'], normalized: true } |
+  { type: typeof AccessorComponentType['UNSIGNED_SHORT'], normalized: true }
 >;
 export type VertexJointIndicesAttributeDefinition = AttributeDefinition<
   { componentCount: 4 /* JointIndices */ },
-  { type: WebGL2RenderingContext['UNSIGNED_BYTE'], normalized: false } |
-  { type: WebGL2RenderingContext['UNSIGNED_SHORT'], normalized: false }
+  { type: typeof AccessorComponentType['UNSIGNED_BYTE'], normalized: false } |
+  { type: typeof AccessorComponentType['UNSIGNED_SHORT'], normalized: false }
 >
 export type VertexJointWeightsAttributeDefinition = AttributeDefinition<
   { componentCount: 4 /* JointWeights */ },
-  { type: WebGL2RenderingContext['FLOAT'], normalized: false } |
-  { type: WebGL2RenderingContext['UNSIGNED_BYTE'], normalized: true } |
-  { type: WebGL2RenderingContext['UNSIGNED_SHORT'], normalized: true }
+  { type: typeof AccessorComponentType['FLOAT'], normalized: false } |
+  { type: typeof AccessorComponentType['UNSIGNED_BYTE'], normalized: true } |
+  { type: typeof AccessorComponentType['UNSIGNED_SHORT'], normalized: true }
 >;
 // @NOTE Indices attribute lacks an explicit definition in GLTF format specification.
 // Closest thing is: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_accessor_sparse_indices_componenttype
@@ -148,11 +152,11 @@ export type VertexJointWeightsAttributeDefinition = AttributeDefinition<
 // (i.e., 255 for unsigned bytes, 65535 for unsigned shorts, 4294967295 for unsigned ints)."
 export type TriangleIndicesAttributeDefinition = AttributeDefinition<
   // @NOTE Indices are stored in an odd way. They specify componentCount: 1 even though
-  // each triangle is made up from three indices.
+  // they might be drawn as triangles, lines, etc.
   { componentCount: 1 },
-  { type: WebGL2RenderingContext['UNSIGNED_BYTE'], normalized: false } |
-  { type: WebGL2RenderingContext['UNSIGNED_SHORT'], normalized: false } |
-  { type: WebGL2RenderingContext['UNSIGNED_INT'], normalized: false }
+  { type: typeof AccessorComponentType['UNSIGNED_BYTE'], normalized: false } |
+  { type: typeof AccessorComponentType['UNSIGNED_SHORT'], normalized: false } |
+  { type: typeof AccessorComponentType['UNSIGNED_INT'], normalized: false }
 >
 
 export type AttributeDefinitionComponentCount = { componentCount: number };

@@ -3,6 +3,7 @@ import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { IdPool } from "@lofi/core/util/IdPool";
 import { type DrawTask, type IEngine, type OpaqueDrawTask, type TransparentDrawTask } from "@lofi/engine/Engine";
 import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
+import { BufferType } from "@lofi/engine/util/createBuffer";
 import type { MeshPrimitiveGeometry, VertexTextureCoordinateAttribute } from "./geometry";
 
 export interface MeshPrimitiveExtents {
@@ -108,7 +109,7 @@ export class MeshPrimitive {
         throw new Error(`Could not find vertex attribute 'vertexPosition' in shader. Cannot render mesh primitive with no vertex position data.`);
       }
       gl.enableVertexAttribArray(vertexPositionAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.positionAttribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.positionAttribute.glBuffer);
       gl.vertexAttribPointer(
         vertexPositionAttribute,
         primitive.positionAttribute.componentCount,
@@ -124,7 +125,7 @@ export class MeshPrimitive {
     if (vertexNormalAttribute !== undefined) {
       if (primitive.normalAttribute) {
         gl.enableVertexAttribArray(vertexNormalAttribute);
-        gl.bindBuffer(gl.ARRAY_BUFFER, primitive.normalAttribute.glBuffer);
+        gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.normalAttribute.glBuffer);
         gl.vertexAttribPointer(
           vertexNormalAttribute,
           primitive.normalAttribute.componentCount,
@@ -141,7 +142,7 @@ export class MeshPrimitive {
     const vertexColorAttribute = shader.getAttribute('vertexColor');
     if (vertexColorAttribute !== undefined && primitive.color0Attribute) {
       gl.enableVertexAttribArray(vertexColorAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.color0Attribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.color0Attribute.glBuffer);
       gl.vertexAttribPointer(
         vertexColorAttribute,
         primitive.color0Attribute.componentCount,
@@ -157,7 +158,7 @@ export class MeshPrimitive {
       const textureCoordAttributeData = primitive[`texCoord${texCoordIndex}Attribute` as keyof MeshPrimitiveGeometry] as (VertexTextureCoordinateAttribute | undefined);
       if (textureCoordAttributeData) {
         gl.enableVertexAttribArray(textureCoordAttribute);
-        gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordAttributeData.glBuffer);
+        gl.bindBuffer(BufferType.ARRAY_BUFFER, textureCoordAttributeData.glBuffer);
         gl.vertexAttribPointer(
           textureCoordAttribute,
           textureCoordAttributeData.componentCount,
@@ -173,7 +174,7 @@ export class MeshPrimitive {
     const vertexJointsAttribute = shader.getAttribute('vertexJoints');
     if (vertexJointsAttribute !== undefined && primitive.joints0Attribute) {
       gl.enableVertexAttribArray(vertexJointsAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.joints0Attribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.joints0Attribute.glBuffer);
       gl.vertexAttribPointer(
         vertexJointsAttribute,
         primitive.joints0Attribute.componentCount,
@@ -187,7 +188,7 @@ export class MeshPrimitive {
     const vertexWeightsAttribute = shader.getAttribute('vertexWeights');
     if (vertexWeightsAttribute !== undefined && primitive.weights0Attribute) {
       gl.enableVertexAttribArray(vertexWeightsAttribute);
-      gl.bindBuffer(gl.ARRAY_BUFFER, primitive.weights0Attribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.weights0Attribute.glBuffer);
       gl.vertexAttribPointer(
         vertexWeightsAttribute,
         primitive.weights0Attribute.componentCount,
@@ -198,11 +199,11 @@ export class MeshPrimitive {
       );
     }
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(BufferType.ARRAY_BUFFER, null);
 
     /* Indexed geometry */
     if (primitive.indicesAttribute) {
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, primitive.indicesAttribute.glBuffer);
+      gl.bindBuffer(BufferType.ELEMENT_ARRAY_BUFFER, primitive.indicesAttribute.glBuffer);
     }
 
     gl.bindVertexArray(null);

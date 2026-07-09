@@ -40,7 +40,7 @@ export class MeshPrimitiveCache {
   }
 
   /**
-   * Get a {@link MeshPrimitive} instance from the cache for the material with
+   * Get a {@linkcode MeshPrimitive} instance from the cache for the material with
    * which it will be drawn.
    * @param materialInstance The material with which the primitive will be drawn.
    */

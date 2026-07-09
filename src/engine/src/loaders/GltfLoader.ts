@@ -10,26 +10,28 @@ import type { IFileSystem } from '@lofi/engine/filesystem';
 import { mapBufferChunks } from '@lofi/engine/util/array';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 
-import type {
-  AnimationChannelDefinition,
-  AnimationChannelDefinitionOfType,
-  AnimationChannelValues,
-  AnimationDefinition,
-  AnyAttributeDefinition,
-  MaterialDefinition,
-  MeshDefinition,
-  MeshPrimitiveDefinition,
-  ModelDefinition,
-  ModelDefinitionDependency,
-  ModelPartDefinition,
-  SkinDefinition,
-  TriangleIndicesAttributeDefinition,
-  VertexColorAttributeDefinition,
-  VertexJointIndicesAttributeDefinition,
-  VertexJointWeightsAttributeDefinition,
-  VertexNormalAttributeDefinition,
-  VertexPositionAttributeDefinition,
-  VertexTextureCoordinateAttributeDefinition,
+import {
+  AccessorComponentType,
+  MeshPrimitiveMode,
+  type AnimationChannelDefinition,
+  type AnimationChannelDefinitionOfType,
+  type AnimationChannelValues,
+  type AnimationDefinition,
+  type AnyAttributeDefinition,
+  type MaterialDefinition,
+  type MeshDefinition,
+  type MeshPrimitiveDefinition,
+  type ModelDefinition,
+  type ModelDefinitionDependency,
+  type ModelPartDefinition,
+  type SkinDefinition,
+  type TriangleIndicesAttributeDefinition,
+  type VertexColorAttributeDefinition,
+  type VertexJointIndicesAttributeDefinition,
+  type VertexJointWeightsAttributeDefinition,
+  type VertexNormalAttributeDefinition,
+  type VertexPositionAttributeDefinition,
+  type VertexTextureCoordinateAttributeDefinition,
 } from './definitions';
 import { changeYUpModelDefinitionToZUp } from './util';
 
@@ -291,7 +293,7 @@ export abstract class GltfLoader {
         partDefinition.mesh = {
           primitives: [
             {
-              mode: WebGL2RenderingContext.TRIANGLES,
+              mode: MeshPrimitiveMode.TRIANGLES,
               material: {
                 name: 'debug',
                 alpha: { mode: 'OPAQUE' },
@@ -338,7 +340,7 @@ export abstract class GltfLoader {
                 normalized: false,
                 componentCount: 3,
                 componentSize: 4,
-                componentType: WebGL2RenderingContext.FLOAT,
+                componentType: AccessorComponentType.FLOAT,
               },
               extents: new AxisAlignedBoundingBox(
                 new Vector3(-size, -size, -size),
@@ -385,7 +387,7 @@ export abstract class GltfLoader {
                 normalized: false,
                 componentCount: 3,
                 componentSize: 4,
-                componentType: WebGL2RenderingContext.FLOAT,
+                componentType: AccessorComponentType.FLOAT,
               },
               indices: {
                 buffer: new Uint8Array([
@@ -396,7 +398,7 @@ export abstract class GltfLoader {
                   16, 17, 18, 18, 19, 16, // Top face
                   20, 21, 22, 22, 23, 20, // Bottom face
                 ]),
-                componentType: WebGL2RenderingContext.UNSIGNED_BYTE,
+                componentType: AccessorComponentType.UNSIGNED_BYTE,
                 componentCount: 1,
                 componentSize: 1,
                 normalized: false,
@@ -473,12 +475,12 @@ export abstract class GltfLoader {
         }
 
         const inputAccessor = sampler.getInput()!;
-        if (inputAccessor.getComponentType() !== WebGL2RenderingContext.FLOAT) {
+        if (inputAccessor.getComponentType() !== AccessorComponentType.FLOAT) {
           throw new Error(`Invalid animation sampler input: Accessor type must be GL_FLOAT`);
         }
 
         const outputAccessor = sampler.getOutput()!;
-        if (inputAccessor.getComponentType() !== WebGL2RenderingContext.FLOAT) {
+        if (inputAccessor.getComponentType() !== AccessorComponentType.FLOAT) {
           throw new Error(`Invalid animation sampler output: Accessor type must be GL_FLOAT`);
         }
 

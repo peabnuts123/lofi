@@ -1,4 +1,4 @@
-import { createBuffer } from "@lofi/engine/util/createBuffer";
+import { createBuffer, BufferType } from "@lofi/engine/util/createBuffer";
 import type { IEngine } from "@lofi/engine/Engine";
 
 import VertexShaderSource from '@lofi/engine/materials/shaders/shader.vert';
@@ -37,9 +37,9 @@ export class Ubo<TPropertyName extends string> {
     ) as GLuint;
 
     // Create uniform buffer
-    this.buffer = createBuffer(gl, gl.UNIFORM_BUFFER, blockSize, gl.DYNAMIC_DRAW);
+    this.buffer = createBuffer(gl, BufferType.UNIFORM_BUFFER, blockSize, gl.DYNAMIC_DRAW);
     // Set uniform buffer index
-    gl.bindBufferBase(gl.UNIFORM_BUFFER, uboIndex, this.buffer);
+    gl.bindBufferBase(BufferType.UNIFORM_BUFFER, uboIndex, this.buffer);
 
     // Look up property indices
     const uboVariableIndices = gl.getUniformIndices(
@@ -70,12 +70,12 @@ export class Ubo<TPropertyName extends string> {
   }
 
   public setProperty<TValue extends AllowSharedBufferSource>(gl: WebGL2RenderingContext, propertyName: TPropertyName, value: TValue): void {
-    gl.bindBuffer(gl.UNIFORM_BUFFER, this.buffer);
+    gl.bindBuffer(BufferType.UNIFORM_BUFFER, this.buffer);
     gl.bufferSubData(
-      gl.UNIFORM_BUFFER,
+      BufferType.UNIFORM_BUFFER,
       this.propertyInfo[propertyName].offset,
       value,
     );
-    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+    gl.bindBuffer(BufferType.UNIFORM_BUFFER, null);
   }
 }

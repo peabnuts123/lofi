@@ -1,6 +1,6 @@
 
 import { Vector3, Quaternion, Color4 } from '@lofi/core/math';
-import type { MaterialDefinition, MeshPrimitiveDefinition, ModelPartDefinition } from '@lofi/engine/loaders/definitions';
+import { AccessorComponentType, MeshPrimitiveMode, type MaterialDefinition, type MeshPrimitiveDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
 import type { IFileSystem } from '@lofi/engine/filesystem';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 
@@ -73,10 +73,10 @@ export class DebugGeometry {
 
   public cubePrimitive(overrides: Partial<MeshPrimitiveDefinition> = {}): MeshPrimitiveDefinition {
     return {
-      mode: WebGL2RenderingContext.TRIANGLES,
+      mode: MeshPrimitiveMode.TRIANGLES,
       positionData: {
         componentCount: 3,
-        componentType: WebGL2RenderingContext.FLOAT,
+        componentType: AccessorComponentType.FLOAT,
         componentSize: 4,
         normalized: false,
         buffer: new Float32Array([
@@ -123,7 +123,7 @@ export class DebugGeometry {
       ),
       normalData: {
         componentCount: 3,
-        componentType: WebGL2RenderingContext.FLOAT,
+        componentType: AccessorComponentType.FLOAT,
         componentSize: 4,
         normalized: false,
         buffer: new Float32Array([
@@ -166,7 +166,7 @@ export class DebugGeometry {
       },
       texCoord0Data: {
         componentCount: 2,
-        componentType: WebGL2RenderingContext.FLOAT,
+        componentType: AccessorComponentType.FLOAT,
         componentSize: 4,
         normalized: false,
         buffer: new Float32Array([
@@ -209,7 +209,7 @@ export class DebugGeometry {
       },
       color0Data: {
         componentCount: 4,
-        componentType: WebGL2RenderingContext.UNSIGNED_BYTE,
+        componentType: AccessorComponentType.UNSIGNED_BYTE,
         componentSize: 1,
         normalized: true,
         buffer: new Uint8Array([
@@ -253,7 +253,7 @@ export class DebugGeometry {
       },
       indices: {
         componentCount: 1,
-        componentType: WebGL2RenderingContext.UNSIGNED_BYTE,
+        componentType: AccessorComponentType.UNSIGNED_BYTE,
         componentSize: 1,
         normalized: false,
         buffer: new Uint8Array([
