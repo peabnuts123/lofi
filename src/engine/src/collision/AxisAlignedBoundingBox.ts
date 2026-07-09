@@ -18,6 +18,9 @@ export interface IReadonlyAxisAlignedBoundingBox {
   get yMax(): number;
   get zMin(): number;
   get zMax(): number;
+  clone(): AxisAlignedBoundingBox;
+  getMin(): Vector3;
+  getMax(): Vector3;
   intersects(other: AxisAlignedBoundingBox): boolean;
 }
 

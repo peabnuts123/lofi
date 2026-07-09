@@ -11,6 +11,7 @@ export * from './ModelPartGeometry';
 export type Triangle = readonly [aPos: IReadonlyVector3, bPos: IReadonlyVector3, cPos: IReadonlyVector3];
 /** A set of three vertex indices (read only). */
 export interface IReadonlyTriangleIndices {
+  clone(): TriangleIndices;
   get aIndex(): number;
   get bIndex(): number;
   get cIndex(): number;
@@ -33,6 +34,10 @@ export class TriangleIndices extends Observable implements IReadonlyTriangleIndi
     this.indices[1] = b;
     this.indices[2] = c;
     this.notifyOnChange();
+  }
+
+  public clone(): TriangleIndices {
+    return new TriangleIndices(this.aIndex, this.bIndex, this.cIndex);
   }
 
   public get aIndex(): number {
@@ -67,6 +72,7 @@ export type EdgeIndices = readonly [aIndex: number, bIndex: number];
 /* Joints */
 /** A set of four joint indices, referencing a skeleton (read only). */
 export interface IReadonlyJointIndices {
+  clone(): JointIndices;
   get [0](): number;
   get [1](): number;
   get [2](): number;
@@ -84,6 +90,10 @@ export class JointIndices extends Observable implements IReadonlyJointIndices {
     this.indices[1] = _1;
     this.indices[2] = _2;
     this.indices[3] = _3;
+  }
+
+  public clone(): JointIndices {
+    return new JointIndices(this[0], this[1], this[2], this[3]);
   }
 
   public get [0](): number {
@@ -116,15 +126,16 @@ export class JointIndices extends Observable implements IReadonlyJointIndices {
   }
 }
 
-/** A set of four joint weights, paired with a corresponding {@link JointIndices} (read only). */
+/** A set of four joint weights, paired with a corresponding {@linkcode JointIndices} (read only). */
 export interface IReadonlyJointWeights {
+  clone(): JointWeights;
   get [0](): number;
   get [1](): number;
   get [2](): number;
   get [3](): number;
 }
 export type JointWeightsKey = 0 | 1 | 2 | 3;
-/** A set of four joint weights, paired with a corresponding {@link JointIndices}. */
+/** A set of four joint weights, paired with a corresponding {@linkcode JointIndices}. */
 export class JointWeights extends Observable implements IReadonlyJointWeights {
   private _0: number;
   private _1: number;
@@ -137,6 +148,10 @@ export class JointWeights extends Observable implements IReadonlyJointWeights {
     this._1 = _1;
     this._2 = _2;
     this._3 = _3;
+  }
+
+  public clone(): JointWeights {
+    return new JointWeights(this[0], this[1], this[2], this[3]);
   }
 
   public get [0](): number {

@@ -7,12 +7,14 @@ import { type IInputSystem } from "@lofi/engine/input";
 import { MockFileSystem } from "./MockFileSystem";
 import { MockAudioSystem } from './MockAudioSystem';
 import { MockInputSystem } from "./MockInputSystem";
+import { createMockWebGLContext } from "./MockWebGLContext";
 
 export interface MockEngineConstructorArgs {
   fileSystem?: IFileSystem;
 }
 
 export class MockEngine implements IEngine {
+  readonly gl: WebGL2RenderingContext;
   fileSystem: IFileSystem;
   collisionSystem: CollisionSystem;
   audioSystem: IAudioSystem;
@@ -21,6 +23,7 @@ export class MockEngine implements IEngine {
   config: EngineConfig;
 
   public constructor({ fileSystem }: MockEngineConstructorArgs = {}) {
+    this.gl = createMockWebGLContext();
     this.fileSystem = fileSystem ?? new MockFileSystem();
     this.collisionSystem = new CollisionSystem();
     this.config = {
@@ -45,9 +48,5 @@ export class MockEngine implements IEngine {
 
   public run(_onUpdate: OnUpdateFn): void {
     throw new Error(`run() is not mocked in MockEngine`);
-  }
-
-  public get gl(): WebGL2RenderingContext {
-    throw new Error(`GL context not implemented in MockEngine`);
   }
 }
