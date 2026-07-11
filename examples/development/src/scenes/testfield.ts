@@ -628,7 +628,7 @@ function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, s
     .subtractSelf(camera.absolutePosition)
     .normalizeSelf();
 
-  return rayCastScene(camera.absolutePosition, rayDirection, scene);
+  return rayCastScene(camera.absolutePosition, rayDirection, scene, RayCastMode.Infinite);
 }
 
 const RayCastMode = {
