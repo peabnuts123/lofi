@@ -45,9 +45,9 @@ export class BoxColliderNode extends SATColliderNode implements IWireframeDrawab
 
   protected override getSATNormals(): Vector3[] {
     BoxColliderNode.NormalsLocalSpace.forEach((normal, i) =>
-      this._normalsWorldSpaceCache[i]
-        .setValue(normal)
-        .multiplySelf(this.absoluteRotation.q),
+      this.absoluteRotation.q.rotateVectorInPlace(
+        this._normalsWorldSpaceCache[i].setValue(normal),
+      ),
     );
     return this._normalsWorldSpaceCache;
   }
@@ -82,10 +82,11 @@ export class BoxColliderNode extends SATColliderNode implements IWireframeDrawab
     this._getVerticesWorldSpace__HalfDimensionsTmp.setValue(this.x / 2, this.y / 2, this.z / 2);
 
     BoxColliderNode.NormalisedVerticesLocalSpace.forEach((normalizedLocalVertex, i) => {
-      this._verticesWorldSpaceCache[i]
-        .setValue(normalizedLocalVertex)
-        .multiplySelf(this._getVerticesWorldSpace__HalfDimensionsTmp)
-        .multiplySelf(this.worldMatrix);
+      this.worldMatrix.transformPointInPlace(
+        this._verticesWorldSpaceCache[i]
+          .setValue(normalizedLocalVertex)
+          .scaleSelf(this._getVerticesWorldSpace__HalfDimensionsTmp),
+      );
 
       if (offset) {
         this._verticesWorldSpaceCache[i]

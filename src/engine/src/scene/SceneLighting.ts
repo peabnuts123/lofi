@@ -93,9 +93,10 @@ export class SceneLighting {
       if (light !== undefined) {
         /* Light is present */
         // Calculate direction vector from Quaternion
-        this.tmp_directionalLightVectors[i]
-          .setValue(0, 1,0)
-          .multiplySelf(light.absoluteRotation.q);
+        light.absoluteRotation.q.rotateVectorInPlace(
+          this.tmp_directionalLightVectors[i]
+            .setValue(0, 1, 0),
+        );
         /* - Orientation */
         this.tmp_directionalLightOrientationData[i * SizeOfVec4 + 0] = this.tmp_directionalLightVectors[i].x;
         this.tmp_directionalLightOrientationData[i * SizeOfVec4 + 1] = this.tmp_directionalLightVectors[i].y;

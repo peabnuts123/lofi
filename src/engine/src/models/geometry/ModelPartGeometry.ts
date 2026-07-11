@@ -92,12 +92,12 @@ export class ModelPartGeometry {
                 if (jointWeights[0] === 1) {
                   currentMatrix.setValue(jointMatrices[jointIndices[0]]);
                 } else {
-                  currentMatrix.setValue(jointMatrices[jointIndices[0]]).multiplySelf(jointWeights[0]);
+                  currentMatrix.setValue(jointMatrices[jointIndices[0]]).scaleSelf(jointWeights[0]);
                 }
                 for (let i = 1; i <= 3; i++) {
                   const jointWeight = jointWeights[i as JointWeightsKey];
                   if (jointWeight > 0) {
-                    tmp_skinMatrices.setValue(jointMatrices[jointIndices[i as JointWeightsKey]]).multiplySelf(jointWeight);
+                    tmp_skinMatrices.setValue(jointMatrices[jointIndices[i as JointWeightsKey]]).scaleSelf(jointWeight);
                     currentMatrix.addSelf(tmp_skinMatrices);
                   }
                 }
@@ -141,7 +141,7 @@ export class ModelPartGeometry {
               currentVertex = self[vertexCount] = vertexPositions[i].clone();
             }
 
-            currentVertex.multiplySelf(skinMatrices[vertexCount]);
+            skinMatrices[vertexCount].transformPointInPlace(currentVertex);
 
             vertexCount++;
           }
@@ -176,9 +176,9 @@ export class ModelPartGeometry {
             }
 
             // Transform normal by transposed inverse of the skinMatrix
-            tmp_allVertexNormals.normalSelf(skinMatrices[vertexCount]);
-            currentVertex
-              .multiplySelf(tmp_allVertexNormals)
+            tmp_allVertexNormals
+              .normalSelf(skinMatrices[vertexCount])
+              .multiplyVectorInPlace(currentVertex)
               .normalizeSelf();
 
             vertexCount++;

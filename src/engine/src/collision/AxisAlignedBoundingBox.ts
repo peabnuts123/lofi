@@ -94,7 +94,7 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
 
     // Transform vertices
     for (const vertex of vertices) {
-      vertex.multiplySelf(matrix);
+      matrix.transformPointInPlace(vertex);
     }
 
     return this.fromVerticesSelf(vertices);

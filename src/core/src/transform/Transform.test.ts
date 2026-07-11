@@ -121,7 +121,7 @@ describe("Transform", () => {
       const initialChildWorldMatrixValue = childTransform['_worldMatrix']['_value'].clone();
 
       // Test
-      transform.rotation.set(new Vector3(10, 20, 30));
+      transform.rotation.setValue(new Vector3(10, 20, 30));
 
       const updatedAbsoluteRotationIsDirty = transform['_absoluteRotation']['isDirty'];
       const updatedAbsoluteRotationQValue = transform['_absoluteRotation']['_value'].q.clone();
@@ -233,7 +233,7 @@ describe("Transform", () => {
 
       /* Mutate parent - just to capture that it DOES NOT affect transform yet */
       parentTransform.position = positionOperand;
-      parentTransform.rotation.set(rotationOperand);
+      parentTransform.rotation.setValue(rotationOperand);
       parentTransform.scale = scaleOperand;
 
       const beforeParentingAbsolutePosition = transform.absolutePosition.clone();
@@ -242,7 +242,7 @@ describe("Transform", () => {
 
       /* Set parent back to initial position/rotation/scale so we can more easily think about it */
       parentTransform.position = Vector3.zero();
-      parentTransform.rotation.set(Quaternion.identity());
+      parentTransform.rotation.setValue(Quaternion.identity());
       parentTransform.scale = Vector3.one();
 
       // Test
@@ -253,7 +253,7 @@ describe("Transform", () => {
       const afterParentingAbsoluteScale = transform.absoluteScale.clone();
 
       parentTransform.position = positionOperand;
-      parentTransform.rotation.set(rotationOperand);
+      parentTransform.rotation.setValue(rotationOperand);
       parentTransform.scale = scaleOperand;
 
       const updatedAbsolutePosition = transform.absolutePosition.clone();
@@ -291,7 +291,7 @@ describe("Transform", () => {
 
       /* Mutate parent - just to capture that it DOES NOT affect transform yet */
       parentTransform.position = positionOperand;
-      parentTransform.rotation.set(rotationOperand);
+      parentTransform.rotation.setValue(rotationOperand);
       parentTransform.scale = scaleOperand;
 
       const beforeUnparentingAbsolutePosition = transform.absolutePosition.clone();
@@ -300,7 +300,7 @@ describe("Transform", () => {
 
       /* Set parent back to initial position/rotation/scale so we can more easily think about it */
       parentTransform.position = Vector3.zero();
-      parentTransform.rotation.set(Quaternion.identity());
+      parentTransform.rotation.setValue(Quaternion.identity());
       parentTransform.scale = Vector3.one();
 
       // Test
@@ -311,7 +311,7 @@ describe("Transform", () => {
       const afterUnparentingAbsoluteScale = transform.absoluteScale.clone();
 
       parentTransform.position = positionOperand;
-      parentTransform.rotation.set(rotationOperand);
+      parentTransform.rotation.setValue(rotationOperand);
       parentTransform.scale = scaleOperand;
 
       const updatedAbsolutePosition = transform.absolutePosition.clone();
@@ -720,7 +720,7 @@ describe("Transform", () => {
         const initialAbsoluteRotation = transform.absoluteRotation.q.clone();
 
         // Test
-        parentTransform.rotation.multiply(operand);
+        parentTransform.rotation.multiplySelf(operand);
 
         const updatedPosition = transform.position.clone();
         const updatedAbsolutePosition = transform.absolutePosition.clone();
@@ -862,7 +862,11 @@ describe("Transform", () => {
         transform.absoluteScale = expectedAbsoluteScale;
         const parentTransform = createTransform();
         parentTransform.absoluteScale = new Vector3(0.5, 1, 1.5);
-        const expectedUpdatedLocalScale = expectedAbsoluteScale.divide(parentTransform.absoluteScale);
+        const expectedUpdatedLocalScale = new Vector3(
+          expectedAbsoluteScale.x / parentTransform.absoluteScale.x,
+          expectedAbsoluteScale.y / parentTransform.absoluteScale.y,
+          expectedAbsoluteScale.z / parentTransform.absoluteScale.z,
+        );
 
         const initialScale = transform.scale.clone();
         const initialAbsoluteScale = transform.absoluteScale.clone();
@@ -887,7 +891,7 @@ describe("Transform", () => {
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
         const transform = createTransform({ parent: parentTransform });
         const updatedScale = new Vector3(1.1, 1.2, 1.3);
-        const expectedAbsoluteScale = parentTransform.scale.multiply(updatedScale);
+        const expectedAbsoluteScale = parentTransform.scale.scale(updatedScale);
         const expectedWorldMatrix = worldMatrix({ scale: expectedAbsoluteScale });
 
         // Test
@@ -906,8 +910,12 @@ describe("Transform", () => {
         const transform = createTransform();
         transform.parent = parentTransform;
         const updatedScaleX = 30;
-        const expectedScale = Vector3.one().divide(parentTransform.scale).setX(updatedScaleX);
-        const expectedAbsoluteScale = parentTransform.scale.multiply(expectedScale);
+        const expectedScale = new Vector3(
+          updatedScaleX,
+          1 / parentTransform.scale.y,
+          1 / parentTransform.scale.z,
+        );
+        const expectedAbsoluteScale = parentTransform.scale.scale(expectedScale);
         const expectedWorldMatrix = worldMatrix({ scale: expectedAbsoluteScale });
 
         // Test
@@ -924,7 +932,11 @@ describe("Transform", () => {
         parentTransform.scale = new Vector3(0.5, 1.0, 1.5);
         const transform = createTransform({ parent: parentTransform });
         const updatedScale = new Vector3(1.1, 1.2, 1.3);
-        const expectedScale = updatedScale.divide(parentTransform.absoluteScale);
+        const expectedScale = new Vector3(
+          updatedScale.x / parentTransform.absoluteScale.x,
+          updatedScale.y / parentTransform.absoluteScale.y,
+          updatedScale.z / parentTransform.absoluteScale.z,
+        );
         const expectedWorldMatrix = worldMatrix({ scale: updatedScale });
 
         // Test
@@ -944,7 +956,11 @@ describe("Transform", () => {
         transform.parent = parentTransform;
         const updatedScaleX = 30;
         const expectedAbsoluteScale = Vector3.one().setX(updatedScaleX);
-        const expectedScale = expectedAbsoluteScale.divide(parentTransform.absoluteScale);
+        const expectedScale = new Vector3(
+          expectedAbsoluteScale.x / parentTransform.absoluteScale.x,
+          expectedAbsoluteScale.y / parentTransform.absoluteScale.y,
+          expectedAbsoluteScale.z / parentTransform.absoluteScale.z,
+        );
         const expectedWorldMatrix = worldMatrix({ scale: expectedAbsoluteScale });
 
         // Test
@@ -979,7 +995,7 @@ describe("Transform", () => {
         const initialAbsoluteScale = transform.absoluteScale.clone();
 
         // Test
-        parentTransform.scale.multiplySelf(operand);
+        parentTransform.scale.scaleSelf(operand);
 
         const updatedPosition = transform.position.clone();
         const updatedAbsolutePosition = transform.absolutePosition.clone();
@@ -1005,7 +1021,11 @@ describe("Transform", () => {
         const transform = createTransform({ parent: parentTransform });
         transform.absoluteScale = expectedAbsoluteScale;
 
-        const expectedInitialScale = transform.absoluteScale.divide(parentTransform.absoluteScale);
+        const expectedInitialScale = new Vector3(
+          transform.absoluteScale.x / parentTransform.absoluteScale.x,
+          transform.absoluteScale.y / parentTransform.absoluteScale.y,
+          transform.absoluteScale.z / parentTransform.absoluteScale.z,
+        );
 
         const initialScale = transform.scale.clone();
         const initialAbsoluteScale = transform.absoluteScale.clone();
@@ -1056,7 +1076,7 @@ describe("Transform", () => {
       const operand = new Vector3(1.1, 1.2, 1.3);
 
       // Test
-      transform.absoluteScale.multiplySelf(operand);
+      transform.absoluteScale.scaleSelf(operand);
 
       // Assert
       expectVectorsToBeEqual(scale, operand);
@@ -1074,7 +1094,7 @@ describe("Transform", () => {
       const initialAbsoluteScaleValue = absoluteScale.clone();
 
       // Test
-      transform.scale.multiplySelf(operand);
+      transform.scale.scaleSelf(operand);
 
       // Assert
       expectVectorsToBeEqual(absoluteScale, initialAbsoluteScaleValue);
@@ -1257,9 +1277,9 @@ describe("Transform", () => {
     });
     test("Reparenting a Transform that is the parent of another Transform maintains correct values", () => {
       // Setup
-      const absolutePositionA = Vector3.one().multiplySelf(1);
-      const absolutePositionB = Vector3.one().multiplySelf(2);
-      const absolutePositionC = Vector3.one().multiplySelf(3);
+      const absolutePositionA = Vector3.one().scaleSelf(1);
+      const absolutePositionB = Vector3.one().scaleSelf(2);
+      const absolutePositionC = Vector3.one().scaleSelf(3);
 
       // @NOTE "expected" positions after being reparented
       const expectedPositionA = absolutePositionA.clone();

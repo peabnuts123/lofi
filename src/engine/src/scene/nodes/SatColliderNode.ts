@@ -88,10 +88,10 @@ export abstract class SATColliderNode extends ColliderNode {
       // Sorry, the variable names here were hard to name
       if (positiveOverlap < negativeOverlap) {
         overlap = positiveOverlap;
-        mtv = axis.multiply(overlap);
+        mtv = axis.scale(overlap);
       } else {
         overlap = negativeOverlap;
-        mtv = axis.multiply(-overlap);
+        mtv = axis.scale(-overlap);
       }
 
       if (overlap <= 0) {

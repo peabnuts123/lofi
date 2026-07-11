@@ -17,9 +17,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Core maths: Vector, Quaternion~~
     - [x] ~~Replace as much gl-matrix logic with this as possible, ideally all of it~~
   - [x] ~~Picking / ray casting~~
-    - [ ] Move ray casting into Scene or something
   - [x] ~~3D Animation including bones~~
-
     - [x] ~~Rename a bunch of model stuff (such as? oh, like `MeshNode` and `SubMesh`)~~
   - [x] ~~Turning on Test objects now produces a performance problem! (at least with wireframe enabled / ray casting)~~
   - [x] ~~DrawDebug - what's the future here?~~
@@ -27,26 +25,27 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Sound and audio (PoC)~~
   - [x] ~~Basic Input system~~
   - [x] ~~Materials can be reused~~
-  - [ ] POC for gizmos
+  - [x] ~~POC for gizmos~~
     - [x] ~~Some way to render on a different "layer" (not to mention, UI?)~~
-    - [ ] Calculate bounding box of node/hierarchy
+    - [x] ~~Calculate bounding box of node/hierarchy~~
   - [x] ~~Remaining material properties needed by PolyZone~~
     - [x] ~~Reflection~~
   - [x] ~~Directional light~~
-  - [ ] Lights have range or intensity or colour or something.
-  - [ ] Config for Clear color on scene, or camera?
-  - [ ] Move AABB + others into `util/maths` or something
   - [x] ~~Redo ObjLoader~~
   - [x] ~~Configurable number of max lights (not DYNAMIC but CONFIGURABLE)~~
   - [x] ~~Remove old shaders~~
-  - [ ] Low-level API
+  - [x] ~~Low-level API~~
+  - [x] ~~MATH API REFACTOR: Flip the order of math operators (e.g. `Matrix4.transform(Vector3)` instead of `Vector3.multiplySelf(Matrix4)`)~~
+  - [ ] Lights have range or intensity or colour or something.
   - [ ] Fix DebugModule
+  - [ ] Move ray casting into Scene or something
+  - [ ] Config for Clear color on scene, or camera?
+  - [ ] Move AABB + others into `util/maths` or something
   - [ ] Build pipeline and CD
   - [ ] Split up combined files
     - [ ] vector.ts
     - [ ] observable.ts
-    - [ ] ____Geometry
-  - [ ] MATH API REFACTOR: Flip the order of math operators (e.g. `Matrix4.transform(Vector3)` instead of `Vector3.multiplySelf(Matrix4)`)
+    - [x] ~~____Geometry~~
 
 ## Milestone: 0.2
   - [ ] Collision handling for concave geometry e.g. levels

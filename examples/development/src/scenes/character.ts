@@ -108,7 +108,7 @@ export abstract class Game {
     const rigDefinition = await GltfLoader.loadModel('/models/Rig_Medium_MovementBasic.glb', fileSystem);
     const playerModelDefinition = await GltfLoader.loadModel('/models/rig_mage.glb', fileSystem);
     console.log(playerModelDefinition.rootParts);
-    playerModelDefinition.rootParts.forEach((modelPart) => modelPart.transform.scale.multiplySelf(0.75));
+    playerModelDefinition.rootParts.forEach((modelPart) => modelPart.transform.scale.scaleSelf(0.75));
 
     /* Models */
     const playerModel = await Model.fromDefinition(engine, playerModelDefinition);
@@ -206,9 +206,10 @@ export abstract class Game {
       }
       const isSprinting = input.isButtonDown('player:sprint');
       const movementSpeedFactor = isSprinting ? PlayerSprintFactor : 1;
-      playerSpeedH.normalizeSelf().multiplySelf(PlayerMaxSpeed * dt * movementSpeedFactor);
+      playerSpeedH.normalizeSelf().scaleSelf(PlayerMaxSpeed * dt * movementSpeedFactor);
 
-      playerSpeed.setValue(playerSpeedH.x, playerSpeedH.y, 0).multiplySelf(camera.absoluteRotation.q).setZ(playerSpeedV);
+      playerSpeed.setValue(playerSpeedH.x, playerSpeedH.y, 0);
+      camera.absoluteRotation.q.rotateVectorInPlace(playerSpeed).setZ(playerSpeedV);
 
       /* Movement */
       player.absolutePosition.addSelf(playerSpeed);
@@ -220,7 +221,7 @@ export abstract class Game {
       /* Facing */
       if (playerSpeedH.lengthSquared() > 0) {
         player.playAnimation('Running_A', movementSpeedFactor);
-        player.rotation.q.fromLookDirectionSelf(playerSpeed.withZ(0).multiplySelf(-1));
+        player.rotation.q.fromLookDirectionSelf(playerSpeed.withZ(0).scaleSelf(-1));
       } else {
         player.playAnimation('T-Pose');
       }

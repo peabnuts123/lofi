@@ -25,7 +25,7 @@ export function changeYUpModelDefinitionToZUp(modelDefinition: ModelDefinition):
 export function changeYUpModelPartDefinitionToZUp(modelPartDefinition: ModelPartDefinition, processedBuffers: ProcessedBufferSet): void {
   // Transform
   /* Position */
-  modelPartDefinition.transform.position.multiplySelf(ZUpConversionMatrix);
+  ZUpConversionMatrix.transformPointInPlace(modelPartDefinition.transform.position);
   /* Rotation */
   modelPartDefinition.transform.rotation = ZUpConversionQuaternion
     .multiply(modelPartDefinition.transform.rotation)
@@ -87,7 +87,7 @@ export function changeYUpAnimationDefinitionToZUp(animationDefinition: Animation
   for (const channel of animationDefinition.channels) {
     switch (channel.targetPartProperty) {
       case 'translation':
-        channel.values.values.forEach((value) => value.multiplySelf(ZUpConversionMatrix));
+        channel.values.values.forEach((value) => ZUpConversionMatrix.transformPointInPlace(value));
         break;
       case 'rotation':
         channel.values.values.forEach((value) =>

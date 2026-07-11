@@ -1,12 +1,9 @@
 import { Observable } from "@lofi/core/util/observable";
 
-import { Matrix3 } from "./Matrix3";
-import { Matrix4 } from "./Matrix4";
-import { Quaternion, type IReadOnlyQuaternion } from "./Quaternion";
+import { Quaternion } from "./Quaternion";
 import { RadiansToDegrees } from "./util";
 
 // @TODO Split into separate files Vector2, Vector3, etc.
-
 export type AnyVector = Vector3 | Vector2;
 export type AnyReadonlyVector = IReadonlyVector3 | IReadonlyVector2;
 export type AnyVectorLike = Vector2Like | Vector3Definition;
@@ -25,10 +22,7 @@ export interface Vector2Like {
 export interface IReadonlyVector2 {
   add(value: Vector2Like): Vector2;
   subtract(value: Vector2Like): Vector2;
-  multiply(factor: number): Vector2;
-  multiply(other: Vector2Like): Vector2;
-  divide(factor: number): Vector2;
-  divide(other: Vector2Like): Vector2;
+  scale(scalar: number): Vector2;
   length(): number;
   lengthSquared(): number;
   normalize(): Vector2;
@@ -115,68 +109,34 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
     return this.clone().subtractSelf(value);
   }
 
-  public multiplySelf(factor: number): this;
-  public multiplySelf(other: Vector2Like): this;
-  public multiplySelf(operand: number | Vector2Like): this {
+  public scaleSelf(scalar: number): this;
+  public scaleSelf(other: Vector2Like): this;
+  public scaleSelf(operand: number | Vector2Like): this {
     if (typeof operand === 'number') {
-      return this.multiplySelfNumber(operand);
+      return this.scaleSelfNumber(operand);
     } else {
-      return this.multiplySelfVector(operand);
+      return this.scaleSelfVector(operand);
     }
   }
-  private multiplySelfVector(other: Vector2Like): this {
+  private scaleSelfNumber(scalar: number): this {
+    this.internal.x *= scalar;
+    this.internal.y *= scalar;
+    this.notifyOnChange();
+    return this;
+  }
+  private scaleSelfVector(other: Vector2Like): this {
     this.internal.x *= other.x;
     this.internal.y *= other.y;
     this.notifyOnChange();
     return this;
   }
-  private multiplySelfNumber(factor: number): this {
-    this.internal.x *= factor;
-    this.internal.y *= factor;
-    this.notifyOnChange();
-    return this;
-  }
 
-  public multiply(factor: number): Vector2;
-  public multiply(other: Vector2Like): Vector2;
-  public multiply(operand: number | Vector2Like): Vector2 {
+  public scale(scalar: number): Vector2;
+  public scale(other: Vector2): Vector2;
+  public scale(operand: number | Vector2): Vector2 {
     // @NOTE TypeScript is too dumb to figure this one out
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    return this.clone().multiplySelf(operand as any);
-  }
-
-  public divideSelf(factor: number): this;
-  public divideSelf(other: Vector2Like): this;
-  public divideSelf(operand: number | Vector2Like): this {
-    if (typeof operand === 'number') {
-      this.divideSelfNumber(operand);
-    } else {
-      this.divideSelfVector(operand);
-    }
-    this.notifyOnChange();
-    return this;
-  }
-  private divideSelfNumber(factor: number): void {
-    if (factor === 0) {
-      throw new Error(`Cannot divide Vector2 by 0`);
-    }
-    this.internal.x /= factor;
-    this.internal.y /= factor;
-  }
-  private divideSelfVector(other: Vector2Like): void {
-    if (other.x === 0 || other.y === 0) {
-      throw new Error(`Cannot divide Vector2 by 0: ${JSON.stringify({ x: other.x, y: other.y })}`);
-    }
-    this.internal.x /= other.x;
-    this.internal.y /= other.y;
-  }
-
-  public divide(factor: number): Vector2;
-  public divide(other: Vector2Like): Vector2;
-  public divide(operand: number | Vector2Like): Vector2 {
-    // @NOTE TypeScript is too dumb to figure this one out
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    return this.clone().divideSelf(operand as any);
+    return this.clone().scaleSelf(operand as any);
   }
 
   public length(): number {
@@ -215,7 +175,7 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
     if (length === 0) {
       return Vector2.zero();
     }
-    return this.divide(length);
+    return this.scale(1 / length);
   }
 
   public perpendicularSelf(): this {
@@ -289,13 +249,7 @@ export class Vector2 extends Observable implements IReadonlyVector2 {
 export interface IReadonlyVector3 {
   add(value: AnyVectorLike): Vector3;
   subtract(value: AnyVectorLike): Vector3;
-  multiply(factor: number): Vector3;
-  multiply(other: Vector3Definition): Vector3;
-  multiply(quaternion: IReadOnlyQuaternion): Vector3;
-  multiply(matrix: Matrix3): Vector3;
-  multiply(matrix: Matrix4): Vector3;
-  divide(factor: number): Vector3;
-  divide(other: Vector3Definition): Vector3;
+  scale(scalar: number): Vector3;
   length(): number;
   lengthSquared(): number;
   normalize(): Vector3;
@@ -412,112 +366,36 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
     return this.clone().subtractSelf(value);
   }
 
-  public multiplySelf(factor: number): this;
-  public multiplySelf(other: Vector3Definition): this;
-  public multiplySelf(quaternion: IReadOnlyQuaternion): this;
-  public multiplySelf(matrix: Matrix3): this;
-  public multiplySelf(matrix: Matrix4): this;
-  public multiplySelf(operand: number | Vector3Definition | IReadOnlyQuaternion | Matrix3 | Matrix4): this {
+  public scaleSelf(scalar: number): this;
+  public scaleSelf(other: Vector3Definition): this;
+  public scaleSelf(operand: number | Vector3Definition): this {
     if (typeof operand === 'number') {
-      this.multiplySelfNumber(operand);
-    } else if (operand instanceof Matrix4) {
-      this.multiplySelfMatrix4(operand);
-    } else if ('w' in operand) {
-      this.multiplySelfQuaternion(operand);
-    } else if (operand instanceof Matrix3) {
-      this.multiplySelfMatrix3(operand);
+      return this.scaleSelfNumber(operand);
     } else {
-      this.multiplySelfVector3(operand);
+      return this.scaleSelfVector(operand);
     }
+  }
+  private scaleSelfNumber(scalar: number): this {
+    this.internal.x *= scalar;
+    this.internal.y *= scalar;
+    this.internal.z *= scalar;
     this.notifyOnChange();
     return this;
   }
-  private multiplySelfNumber(factor: number): void {
-    this.internal.x *= factor;
-    this.internal.y *= factor;
-    this.internal.z *= factor;
-  }
-  private multiplySelfMatrix4(matrix: Matrix4): void {
-    const { x, y, z } = this;
-    const w = matrix.m30 * this.x + matrix.m31 * this.y + matrix.m32 * this.z + matrix.m33 || 1.0;
-    this.internal.x = (matrix.m00 * x + matrix.m01 * y + matrix.m02 * z + matrix.m03) / w;
-    this.internal.y = (matrix.m10 * x + matrix.m11 * y + matrix.m12 * z + matrix.m13) / w;
-    this.internal.z = (matrix.m20 * x + matrix.m21 * y + matrix.m22 * z + matrix.m23) / w;
-  }
-  private multiplySelfMatrix3(matrix: Matrix3): void {
-    const { x, y, z } = this;
-    this.internal.x = matrix.m00 * x + matrix.m01 * y + matrix.m02 * z;
-    this.internal.y = matrix.m10 * x + matrix.m11 * y + matrix.m12 * z;
-    this.internal.z = matrix.m20 * x + matrix.m21 * y + matrix.m22 * z;
-  }
-  private multiplySelfQuaternion(quat: IReadOnlyQuaternion): void {
-    // Fast Vector Rotation using Quaternions by Robert Eisele
-    // https://raw.org/proof/vector-rotation-using-quaternions/
-    const { x, y, z } = this;
-
-    // v = quat.{x,y,z}
-    // u = this.{x,y,z}
-
-    // t = 2v x u (expressed as `2 * (v x u)`)
-    const tx = 2 * (quat.y * z - quat.z * y);
-    const ty = 2 * (quat.z * x - quat.x * z);
-    const tz = 2 * (quat.x * y - quat.y * x);
-
-    // u + w t + v x t
-    this.internal.x = x + quat.w * tx + quat.y * tz - quat.z * ty;
-    this.internal.y = y + quat.w * ty + quat.z * tx - quat.x * tz;
-    this.internal.z = z + quat.w * tz + quat.x * ty - quat.y * tx;
-  }
-  private multiplySelfVector3(other: Vector3Definition): void {
+  private scaleSelfVector(other: Vector3Definition): this {
     this.internal.x *= other.x;
     this.internal.y *= other.y;
     this.internal.z *= other.z;
-  }
-
-  public multiply(factor: number): Vector3;
-  public multiply(other: Vector3Definition): Vector3;
-  public multiply(quaternion: IReadOnlyQuaternion): Vector3;
-  public multiply(matrix: Matrix3): Vector3;
-  public multiply(matrix: Matrix4): Vector3;
-  public multiply(operand: number | Vector3Definition | IReadOnlyQuaternion | Matrix3 | Matrix4): Vector3 {
-    // @NOTE TypeScript is too dumb to figure this one out
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    return this.clone().multiplySelf(operand as any);
-  }
-
-  public divideSelf(factor: number): this;
-  public divideSelf(other: Vector3Definition): this;
-  public divideSelf(operand: number | Vector3Definition): this {
-    if (typeof operand === 'number') {
-      this.divideSelfNumber(operand);
-    } else {
-      this.divideSelfVector(operand);
-    }
     this.notifyOnChange();
     return this;
   }
-  private divideSelfNumber(factor: number): void {
-    if (factor === 0) {
-      throw new Error(`Cannot divide Vector3 by 0`);
-    }
-    this.internal.x /= factor;
-    this.internal.y /= factor;
-    this.internal.z /= factor;
-  }
-  private divideSelfVector(other: Vector3Definition): void {
-    if (other.x === 0 || other.y === 0 || other.z === 0) {
-      throw new Error(`Cannot divide Vector3 by 0: ${JSON.stringify({ x: other.x, y: other.y, z: other.z })}`);
-    }
-    this.internal.x /= other.x;
-    this.internal.y /= other.y;
-    this.internal.z /= other.z;
-  }
-  public divide(factor: number): Vector3;
-  public divide(other: Vector3Definition): Vector3;
-  public divide(operand: number | Vector3Definition): Vector3 {
+
+  public scale(scalar: number): Vector3;
+  public scale(other: Vector3): Vector3;
+  public scale(operand: number | Vector3): Vector3 {
     // @NOTE TypeScript is too dumb to figure this one out
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    return this.clone().divideSelf(operand as any);
+    return this.clone().scaleSelf(operand as any);
   }
 
   public length(): number {

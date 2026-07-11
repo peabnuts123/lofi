@@ -24,7 +24,7 @@ describe("Ray casting", () => {
 
       // Test
       const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
-      const intersectionPoint = result === undefined ? undefined : rayDirection.multiply(result).addSelf(rayOrigin);
+      const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
       expect(result).toBe(1);
@@ -48,7 +48,7 @@ describe("Ray casting", () => {
 
       // Test
       const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
-      const intersectionPoint = result === undefined ? undefined : rayDirection.multiply(result).addSelf(rayOrigin);
+      const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
       expect(result).toBe(1);
@@ -177,7 +177,7 @@ describe("Ray casting", () => {
 
       // Test
       const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
-      const intersectionPoint = result === undefined ? undefined : rayDirection.multiply(result).addSelf(rayOrigin);
+      const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
       expect(result).toBe(2);
@@ -199,7 +199,7 @@ describe("Ray casting", () => {
 
       // Test
       const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
-      const intersectionPoint = result === undefined ? undefined : rayDirection.multiply(result).addSelf(rayOrigin);
+      const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
       expect(result).toBe(2);
@@ -212,14 +212,14 @@ describe("Ray casting", () => {
         new Vector3(0.5, 0, -1), // Left
         new Vector3(1, 0, -0.5), // Right
       ];
-      const midPoint = triangle[0].add(triangle[1]).addSelf(triangle[2]).divideSelf(3);
+      const midPoint = triangle[0].add(triangle[1]).addSelf(triangle[2]).scaleSelf(1 / 3);
       // Ray will intersect with midPoint
       const rayOrigin = new Vector3(0, 0, 0);
       const rayDirection = new Vector3(2, 1, -2);
 
       // Test
       const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
-      const intersectionPoint = result === undefined ? undefined : rayDirection.multiply(result).addSelf(rayOrigin);
+      const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
       expect(result).toBe(1 / 3);

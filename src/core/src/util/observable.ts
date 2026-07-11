@@ -234,8 +234,9 @@ export class WritableComputed<T extends IObservable> extends Computed<T> {
     // which would prevent it from being garbage collected
     const weakThis = new WeakRef(this);
     const stopObservingFn = initialValue.onChange(() => {
+      if (ignoreInternalChanges) return;
       const self = weakThis.deref();
-      if (self === undefined || ignoreInternalChanges) return;
+      if (self === undefined) return;
 
       self.ignoreDependencies = true;
       try {

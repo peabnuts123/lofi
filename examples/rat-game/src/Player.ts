@@ -97,11 +97,11 @@ export class Player extends SceneNode {
       this.audio.jump.playClip(this.resources.audioClips.jump, { speedRange: 0.1 });
       this.speed.v = JumpSpeed;
     }
-    this.speed.h.normalizeSelf().multiplySelf(PlayerMaxSpeed * dt);
+    this.speed.h.normalizeSelf().scaleSelf(PlayerMaxSpeed * dt);
 
-    this.speed.current
-      .setValue(this.speed.h.x, this.speed.h.y, 0)
-      .multiplySelf(this.camera.cameraAbsoluteQuaternion)
+
+    this.speed.current.setValue(this.speed.h.x, this.speed.h.y, 0);
+    this.camera.cameraAbsoluteQuaternion.rotateVectorInPlace(this.speed.current)
       .setZ(this.speed.v * dt);
 
     /* Movement */
@@ -128,7 +128,7 @@ export class Player extends SceneNode {
 
     /* Facing */
     if (this.speed.h.lengthSquared() > 0) {
-      this.rotation.q = Quaternion.fromLookDirection(this.speed.current.withZ(0).multiplySelf(-1));
+      this.rotation.q = Quaternion.fromLookDirection(this.speed.current.withZ(0).scaleSelf(-1));
       this.model.rotation.euler.z = Math.sin(time * 20) * 15; // Wiggle
     } else {
       this.model.rotation.euler.z = 0; // Don't wiggle!!!
@@ -145,7 +145,7 @@ export class Player extends SceneNode {
       this.tmp_coinMovementDelta.setValue(coin.currentTarget).subtractSelf(coin.node.absolutePosition);
 
       // Move towards target
-      coin.node.absolutePosition.addSelf(this.tmp_coinMovementDelta.multiplySelf(CoinMovementElasticity * dt));
+      coin.node.absolutePosition.addSelf(this.tmp_coinMovementDelta.scaleSelf(CoinMovementElasticity * dt));
 
       // Spin coin
       coin.node.rotation.z = coin.animationConfig.frequency.x * 50 + time * 90;
@@ -155,7 +155,7 @@ export class Player extends SceneNode {
   public addCoinToPurse(spawnPosition: Vector3): void {
     const coin = new ModelNode(this.scene, `purse:coin`, this.resources.coinModel);
     coin.absolutePosition = spawnPosition;
-    coin.scale.multiplySelf(0.3);
+    coin.scale.scaleSelf(0.3);
 
     this.collectedCoins.push({
       node: coin,

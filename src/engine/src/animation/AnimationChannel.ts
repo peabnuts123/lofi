@@ -143,7 +143,7 @@ export class AnimationChannel {
         this.currentModelTarget.position.setValue(value as Vector3);
         break;
       case 'rotation':
-        this.currentModelTarget.rotation.set(value as Quaternion);
+        this.currentModelTarget.rotation.setValue(value as Quaternion);
         break;
       case 'scale':
         this.currentModelTarget.scale.setValue(value as Vector3);

@@ -53,17 +53,12 @@ export class Transform<T extends TransformNodeTarget> {
         if (this.parent) {
           // Node is child of another node
           // Recompute absolute position considering parent's position, rotation, scale
-          value
-            // 1. Multiply position by parent absolute scale
-            .setValue(
-              absolutePositionTmp
-                .setValue(this.position)
-                .multiplySelf(this.parent.absoluteScale)
-                // 2. Rotate by parent's absolute rotation
-                .multiplySelf(this.parent.absoluteRotation.q)
-                // 3. Add parent's absolute position
-                .addSelf(this.parent.absolutePosition),
-            );
+          // 1. Multiply position by parent absolute scale
+          value.setValue(this.position).scaleSelf(this.parent.absoluteScale);
+          // 2. Rotate by parent's absolute rotation
+          this.parent.absoluteRotation.q.rotateVectorInPlace(value);
+          // 3. Add parent's absolute position
+          value.addSelf(this.parent.absolutePosition);
         } else {
           // No parent - absolute is the same as local
           value.setValue(this.position);
@@ -75,12 +70,11 @@ export class Transform<T extends TransformNodeTarget> {
           // Recompute local position considering parent's position, rotation, scale
 
           // @NOTE Basically just reverse order of `recompute()`
+
           // 1. Subtract parent's absolute position
-          absolutePositionTmp
-            .setValue(value)
-            .subtractSelf(this.parent.absolutePosition)
-            // 2. "Unrotate" by inverse of parent's absolute rotation
-            .multiplySelf(this.parent.absoluteRotation.qInverse);
+          absolutePositionTmp.setValue(value).subtractSelf(this.parent.absolutePosition);
+          // 2. "Unrotate" by inverse of parent's absolute rotation
+          this.parent.absoluteRotation.qInverse.rotateVectorInPlace(absolutePositionTmp);
           // 3. Divide by parent's absolute scale
           if (Math.abs(this.parent.absoluteScale.x) <= Number.EPSILON) {
             console.warn(`Cannot set absolute position to '${value}' for node '${this.node.name}' as its parent(s) scaling.x is currently 0. Its local position.x will be calculated as if parent.absoluteScale.x = 1. This will produce unexpected results when this node's parent(s) scale returns to a non-zero value.`);
@@ -118,11 +112,9 @@ export class Transform<T extends TransformNodeTarget> {
         if (this.parent) {
           // Node is child of another node
           // Recompute absolute rotation considering parent's rotation
-          value.q.setValue(
-            absoluteRotationTmp
-              .setValue(this.parent.absoluteRotation.q)
-              .multiplySelf(this.rotation.q),
-          );
+          value.q
+            .setValue(this.parent.absoluteRotation.q)
+            .multiplySelf(this.rotation.q);
         } else {
           // No parent - absolute is the same as local
           value.q.setValue(this.rotation.q);
@@ -156,11 +148,8 @@ export class Transform<T extends TransformNodeTarget> {
         if (this.parent) {
           // Node is child of another node
           // Recompute absolute scale considering parent's scale
-          value.setValue(
-            absoluteScaleTmp
-              .setValue(this.parent.absoluteScale)
-              .multiplySelf(this.scale),
-          );
+          value.setValue(this.parent.absoluteScale)
+            .scaleSelf(this.scale);
         } else {
           // No parent - absolute is the same as local
           value.setValue(this.scale);

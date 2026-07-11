@@ -118,49 +118,26 @@ export class Matrix4 extends Observable {
     return this.clone().addSelf(other);
   }
 
-  public multiplySelf(factor: number): this;
-  public multiplySelf(other: Matrix4): this;
-  public multiplySelf(operand: number | Matrix4): this {
-    if (typeof operand === 'number') {
-      return this.multiplyNumberSelf(operand);
-    } else {
-      return this.__multiplyMatrixSelf(this, operand);
-    }
-  }
-  private multiplyNumberSelf(factor: number): this {
+  public scaleSelf(factor: number): this {
     for (let i = 0; i < Matrix4InternalBuffer.BufferSize; i++) {
       this.internal.buffer[i] *= factor;
     }
     this.notifyOnChange();
     return this;
   }
-
-  public multiply(factor: number): Matrix4;
-  public multiply(other: Matrix4): Matrix4;
-  public multiply(operand: number | Matrix4): Matrix4 {
-    if (typeof operand === 'number') {
-      return this.clone().multiplySelf(operand);
-    } else {
-      return this.clone().multiplySelf(operand);
-    }
+  public scale(factor: number): Matrix4 {
+    return this.clone().scaleSelf(factor);
   }
 
-  public reverseMultiplySelf(b: Matrix4): this {
-    return this.__multiplyMatrixSelf(b, this);
-  }
-  public reverseMultiply(b: Matrix4): Matrix4 {
-    return this.clone().reverseMultiplySelf(b);
-  }
-
-  private __multiplyMatrixSelf(a: Matrix4, b: Matrix4): this {
-    const a00 = a.m00, a10 = a.m10, a20 = a.m20, a30 = a.m30,
-      a01 = a.m01, a11 = a.m11, a21 = a.m21, a31 = a.m31,
-      a02 = a.m02, a12 = a.m12, a22 = a.m22, a32 = a.m32,
-      a03 = a.m03, a13 = a.m13, a23 = a.m23, a33 = a.m33;
-    const b00 = b.m00, b10 = b.m10, b20 = b.m20, b30 = b.m30,
-      b01 = b.m01, b11 = b.m11, b21 = b.m21, b31 = b.m31,
-      b02 = b.m02, b12 = b.m12, b22 = b.m22, b32 = b.m32,
-      b03 = b.m03, b13 = b.m13, b23 = b.m23, b33 = b.m33;
+  public multiplySelf(other: Matrix4): this {
+    const a00 = this.m00, a10 = this.m10, a20 = this.m20, a30 = this.m30,
+      a01 = this.m01, a11 = this.m11, a21 = this.m21, a31 = this.m31,
+      a02 = this.m02, a12 = this.m12, a22 = this.m22, a32 = this.m32,
+      a03 = this.m03, a13 = this.m13, a23 = this.m23, a33 = this.m33;
+    const b00 = other.m00, b10 = other.m10, b20 = other.m20, b30 = other.m30,
+      b01 = other.m01, b11 = other.m11, b21 = other.m21, b31 = other.m31,
+      b02 = other.m02, b12 = other.m12, b22 = other.m22, b32 = other.m32,
+      b03 = other.m03, b13 = other.m13, b23 = other.m23, b33 = other.m33;
 
     this.internal.m00 = b00 * a00 + b10 * a01 + b20 * a02 + b30 * a03;
     this.internal.m10 = b00 * a10 + b10 * a11 + b20 * a12 + b30 * a13;
@@ -181,6 +158,22 @@ export class Matrix4 extends Observable {
     this.notifyOnChange();
 
     return this;
+  }
+  public multiply(other: Matrix4): Matrix4 {
+    return this.clone().multiplySelf(other);
+  }
+
+  public transformPointInPlace(point: Vector3): Vector3 {
+    const { x, y, z } = point;
+    const w = this.m30 * x + this.m31 * y + this.m32 * z + this.m33 || 1.0;
+    return point.setValue(
+      (this.m00 * x + this.m01 * y + this.m02 * z + this.m03) / w,
+      (this.m10 * x + this.m11 * y + this.m12 * z + this.m13) / w,
+      (this.m20 * x + this.m21 * y + this.m22 * z + this.m23) / w,
+    );
+  }
+  public transformPoint(point: Vector3): Vector3 {
+    return this.transformPointInPlace(point.clone());
   }
 
   public invertSelf(): this {

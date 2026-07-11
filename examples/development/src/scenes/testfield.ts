@@ -129,7 +129,7 @@ export abstract class Game {
       audioBox.setMaterialOverride('ground', new Material({
         diffuseColor: Color4.red(),
       }));
-      audioBox.scale.multiplySelf(0.2);
+      audioBox.scale.scaleSelf(0.2);
       const audioSource = new AudioSourceNode(scene, 'test', audioBox);
 
       audioBox.absolutePosition = camera.absolutePosition;
@@ -254,11 +254,11 @@ export abstract class Game {
     if (Flags.BurgerEnabled) {
       const burger = new ModelNode(scene, 'burger', burgerModel);
       burger.renderLayer = 1;
-      burger.scale.multiplySelf(2);
+      burger.scale.scaleSelf(2);
       const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel, burger);
       miniBurger.renderLayer = 1;
       miniBurger.position = new Vector3(0, 0.35, 0);
-      miniBurger.scale.multiplySelf(0.5);
+      miniBurger.scale.scaleSelf(0.5);
 
       const originalBurgerRotation = burger.rotation.q.clone();
       const originalBurgerScale = burger.scale.clone();
@@ -267,16 +267,16 @@ export abstract class Game {
       runLoopHooks.push((_dt, time) => {
         cycleBehaviours(time, () => {
           burger.position = originalBurgerPosition;
-          burger.rotation.set(originalBurgerRotation);
+          burger.rotation.setValue(originalBurgerRotation);
           burger.scale = originalBurgerScale;
         }, [
           () => burger.rotation.z = time * 360 / 8,
           () => burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, Math.cos(time) * 2, burger.position.y)),
-          () => burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5),
+          () => burger.scale = originalBurgerScale.scale(Math.sin(time * 2 * Math.PI / 4) + 1.5),
           () => {
             burger.rotation.z = time * 360 / 8;
             burger.position = originalBurgerPosition.add(new Vector3(Math.sin(time) * 2, Math.cos(time) * 2, burger.position.y));
-            burger.scale = originalBurgerScale.multiply(Math.sin(time * 2 * Math.PI / 4) + 1.5);
+            burger.scale = originalBurgerScale.scale(Math.sin(time * 2 * Math.PI / 4) + 1.5);
           },
         ]);
       });
@@ -306,11 +306,11 @@ export abstract class Game {
           }
 
           burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, (j - GridH / 2) * GridSpacing + 0.5, -0.5);
-          burger.scale.multiplySelf(1.7);
+          burger.scale.scaleSelf(1.7);
 
           const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel, burger);
           miniBurger.position = new Vector3(0.2, 0.2, 0);
-          miniBurger.scale.multiplySelf(0.5);
+          miniBurger.scale.scaleSelf(0.5);
         }
       }
       runLoopHooks.push((_dt, time) => {
@@ -325,7 +325,7 @@ export abstract class Game {
               (j - testObjects[i].length / 2) * GridSpacing + 0.5 + Math.cos(uniqueParam) * 0.3,
               0,
             );
-            testObject.scale = Vector3.one().multiplySelf(Math.sin(uniqueParam) / 3 + 1);
+            testObject.scale = Vector3.one().scaleSelf(Math.sin(uniqueParam) / 3 + 1);
             n++;
           }
         }
@@ -417,13 +417,13 @@ export abstract class Game {
           model.scale = scale;
         }
 
-        const collider = new BoxColliderNode(scene, "collider", 0, Vector3.one().multiplySelf(size), model);
+        const collider = new BoxColliderNode(scene, "collider", 0, Vector3.one().scaleSelf(size), model);
         return [model, collider];
       }
       const speed = 0.35;
       const dumpsterModel = await Model.fromDefinition(engine, models[3]);
       const convexColliderNode = new ModelNode(scene, "convex", dumpsterModel);
-      convexColliderNode.scale.multiplySelf(2);
+      convexColliderNode.scale.scaleSelf(2);
       const convexCollider = new ConvexMeshColliderNode(scene, "collider", 0, dumpsterModel, convexColliderNode);
       const [movingBoxNode, movingBoxCollider] = box(new Vector3(-1.5, 0, 1.3,));
 
@@ -485,7 +485,7 @@ export abstract class Game {
                   );
                   hatVertex
                     .setValue(originalPosition)
-                    .multiplySelf(tmp_vector);
+                    .scaleSelf(tmp_vector);
                 }
               }
 
@@ -615,15 +615,16 @@ function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, s
     throw new Error(`Invalid args to ${rayCastFromCamera.name}: screen coordinates must be normalized values from 0-1`)
   }
 
-  const rayDirection = tmp_RayCastFromCameraDirection.setValue(
-    screenX * 2 - 1,
-    1 - screenY * 2, // @NOTE Invert Y because on screens top=0
-    1, // @NOTE Near plane in NDC
-  ).multiplySelf(
-    tmp_RayCastFromCameraInverseViewProjectionMatrix
-      .setValue(camera.viewProjectionMatrix)
-      .invertSelf(),
-  )
+  const rayDirection = tmp_RayCastFromCameraInverseViewProjectionMatrix
+    .setValue(camera.viewProjectionMatrix)
+    .invertSelf()
+    .transformPointInPlace(
+      tmp_RayCastFromCameraDirection.setValue(
+        screenX * 2 - 1,
+        1 - screenY * 2, // @NOTE Invert Y because on screens top=0
+        1, // @NOTE Near plane in NDC
+      ),
+    )
     .subtractSelf(camera.absolutePosition)
     .normalizeSelf();
 
@@ -709,7 +710,7 @@ function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene, 
   }
 
   if (shortestRayResult) {
-    return [shortestRayResult, rayDirectionNormalized.multiply(shortestRayLength).addSelf(rayOrigin)];
+    return [shortestRayResult, rayDirectionNormalized.scale(shortestRayLength).addSelf(rayOrigin)];
   } else {
     return undefined;
   }

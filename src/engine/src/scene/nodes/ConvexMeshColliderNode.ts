@@ -41,16 +41,17 @@ export class ConvexMeshColliderNode extends SATColliderNode implements IWirefram
       }
     } // else arrays are the same length
 
-    allEdges.forEach((edge, i) =>
+    allEdges.forEach((edge, i) => {
       this.tmp_getSATEdges[i]
         // Compute Edge = B - A
         .setValue(edge[1])
         .subtractSelf(edge[0])
         // Normalize edge
-        .normalizeSelf()
-        // Rotate by world rotation
-        .multiplySelf(this.absoluteRotation.q),
-    );
+        .normalizeSelf();
+
+      // Rotate by world rotation
+      this.absoluteRotation.q.rotateVectorInPlace(this.tmp_getSATEdges[i]);
+    });
 
     return this.tmp_getSATEdges;
   }

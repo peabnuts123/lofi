@@ -2,9 +2,6 @@ import { expectVectorsToBeEqual } from '@test/util/expect';
 
 import { describe, test, expect } from 'vitest';
 import { Vector2, Vector3 } from './vector';
-import { Quaternion } from './Quaternion';
-import { Matrix3 } from './Matrix3';
-import { Matrix4 } from './Matrix4';
 
 /* @TODO Test backlog
   - Vector2
@@ -130,7 +127,7 @@ describe("Vector3", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling multiplySelf() with factor fires onChange() once", () => {
+    test("Calling scaleSelf() with number fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -140,12 +137,12 @@ describe("Vector3", () => {
       });
 
       // Test
-      vector.multiplySelf(2);
+      vector.scaleSelf(2);
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling multiplySelf() with Vector3 fires onChange() once", () => {
+    test("Calling scaleSelf() with Vector3 fires onChange() once", () => {
       // Setup
       const vector = Vector3.zero();
 
@@ -155,82 +152,7 @@ describe("Vector3", () => {
       });
 
       // Test
-      vector.multiplySelf(new Vector3(2, 2, 2));
-
-      // Assert
-      expect(timesOnChangeCalled).toBe(1);
-    });
-    test("Calling multiplySelf() with Quaternion fires onChange() once", () => {
-      // Setup
-      const vector = Vector3.zero();
-
-      let timesOnChangeCalled = 0;
-      vector.onChange(() => {
-        timesOnChangeCalled++;
-      });
-
-      // Test
-      vector.multiplySelf(Quaternion.identity());
-
-      // Assert
-      expect(timesOnChangeCalled).toBe(1);
-    });
-    test("Calling multiplySelf() with Matrix3 fires onChange() once", () => {
-      // Setup
-      const vector = Vector3.zero();
-
-      let timesOnChangeCalled = 0;
-      vector.onChange(() => {
-        timesOnChangeCalled++;
-      });
-
-      // Test
-      vector.multiplySelf(new Matrix3());
-
-      // Assert
-      expect(timesOnChangeCalled).toBe(1);
-    });
-    test("Calling multiplySelf() with Matrix4 fires onChange() once", () => {
-      // Setup
-      const vector = Vector3.zero();
-
-      let timesOnChangeCalled = 0;
-      vector.onChange(() => {
-        timesOnChangeCalled++;
-      });
-
-      // Test
-      vector.multiplySelf(new Matrix4());
-
-      // Assert
-      expect(timesOnChangeCalled).toBe(1);
-    });
-    test("Calling divideSelf() with factor fires onChange() once", () => {
-      // Setup
-      const vector = Vector3.zero();
-
-      let timesOnChangeCalled = 0;
-      vector.onChange(() => {
-        timesOnChangeCalled++;
-      });
-
-      // Test
-      vector.divideSelf(2);
-
-      // Assert
-      expect(timesOnChangeCalled).toBe(1);
-    });
-    test("Calling divideSelf() with Vector3 fires onChange() once", () => {
-      // Setup
-      const vector = Vector3.zero();
-
-      let timesOnChangeCalled = 0;
-      vector.onChange(() => {
-        timesOnChangeCalled++;
-      });
-
-      // Test
-      vector.divideSelf(new Vector3(2, 2, 2));
+      vector.scaleSelf(new Vector3(2, 2, 2));
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
@@ -476,79 +398,31 @@ describe("Vector3", () => {
     expectVectorsToBeEqual(result, expectedValue);
     expectVectorsToBeEqual(vector, original);
   });
-  test("Calling multiplySelf() with a numeric factor mutates correctly", () => {
+  test("Calling scaleSelf() with a number mutates correctly", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const factor = 3;
     const expectedValue = new Vector3(3, 6, 9);
 
     // Test
-    vector.multiplySelf(factor);
+    vector.scaleSelf(factor);
 
     // Assert
     expectVectorsToBeEqual(vector, expectedValue);
   });
-  test("Calling multiplySelf() with a Vector3 mutates correctly", () => {
+  test("Calling scaleSelf() with a Vector3 mutates correctly", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const operand = new Vector3(2, 3, 4);
     const expectedValue = new Vector3(2, 6, 12);
 
     // Test
-    vector.multiplySelf(operand);
+    vector.scaleSelf(operand);
 
     // Assert
     expectVectorsToBeEqual(vector, expectedValue);
   });
-  test("Calling multiplySelf() with a Quaternion mutates correctly", () => {
-    // Setup
-    const vector = Vector3.forward();
-    const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
-    const expectedValue = Vector3.left();
-
-    // Test
-    vector.multiplySelf(rotation);
-
-    // Assert
-    expectVectorsToBeEqual(vector, expectedValue);
-  });
-  test("Calling multiplySelf() with a Matrix4 mutates correctly", () => {
-    // Setup
-    const vector = new Vector3(1, 0, 0);
-    const matrix = Matrix4.fromRotationTranslationScale(
-      Quaternion.fromAxisAngle(Vector3.up(), 90),
-      Vector3.one(),
-      new Vector3(2, 2, 2),
-    );
-    // @NOTE order of operations:
-    // 1. Scale
-    // 2. Rotation
-    // 3. Translation
-    const expectedValue = new Vector3(1, 3, 1);
-
-    // Test
-    vector.multiplySelf(matrix);
-
-    // Assert
-    expectVectorsToBeEqual(vector, expectedValue);
-  });
-  test("Calling multiplySelf() with a Matrix3 mutates correctly", () => {
-    // Setup
-    const vector = new Vector3(1, 2, 3);
-    const matrix = new Matrix3([
-      1, 2, 3,
-      4, 5, 6,
-      7, 8, 9,
-    ]);
-    const expectedValue = new Vector3(30, 36, 42);
-
-    // Test
-    vector.multiplySelf(matrix);
-
-    // Assert
-    expectVectorsToBeEqual(vector, expectedValue);
-  });
-  test("Calling multiply() with a numeric factor returns the correct result", () => {
+  test("Calling scale() with a number returns the correct result", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const original = vector.clone();
@@ -556,13 +430,13 @@ describe("Vector3", () => {
     const expectedValue = new Vector3(3, 6, 9);
 
     // Test
-    const result = vector.multiply(factor);
+    const result = vector.scale(factor);
 
     // Assert
     expectVectorsToBeEqual(result, expectedValue);
     expectVectorsToBeEqual(vector, original);
   });
-  test("Calling multiply() with a Vector3 returns the correct result", () => {
+  test("Calling scale() with a Vector3 returns the correct result", () => {
     // Setup
     const vector = new Vector3(1, 2, 3);
     const original = vector.clone();
@@ -570,114 +444,7 @@ describe("Vector3", () => {
     const expectedValue = new Vector3(2, 6, 12);
 
     // Test
-    const result = vector.multiply(operand);
-
-    // Assert
-    expectVectorsToBeEqual(result, expectedValue);
-    expectVectorsToBeEqual(vector, original);
-  });
-  test("Calling multiply() with a Quaternion returns the correct result", () => {
-    // Setup
-    const vector = Vector3.forward();
-    const original = vector.clone();
-    const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
-    const expectedValue = Vector3.left();
-
-    // Test
-    const result = vector.multiply(rotation);
-
-    // Assert
-    expectVectorsToBeEqual(result, expectedValue);
-    expectVectorsToBeEqual(vector, original);
-  });
-  test("Calling multiply() with a Matrix4 returns the correct result", () => {
-    // Setup
-    const vector = new Vector3(1, 0, 0);
-    const original = vector.clone();
-    const matrix = Matrix4.fromRotationTranslationScale(
-      Quaternion.fromAxisAngle(Vector3.up(), 90),
-      Vector3.one(),
-      new Vector3(2, 2, 2),
-    );
-    // @NOTE order of operations:
-    // 1. Scale
-    // 2. Rotation
-    // 3. Translation
-    const expectedValue = new Vector3(1, 3, 1);
-
-    // Test
-    const result = vector.multiply(matrix);
-
-    // Assert
-    expectVectorsToBeEqual(result, expectedValue);
-    expectVectorsToBeEqual(vector, original);
-  });
-  test("Calling multiply() with a Matrix3 returns the correct result", () => {
-    // Setup
-    const vector = new Vector3(1, 2, 3);
-    const original = vector.clone();
-    const matrix = new Matrix3([
-      1, 2, 3,
-      4, 5, 6,
-      7, 8, 9,
-    ]);
-    const expectedValue = new Vector3(30, 36, 42);
-
-    // Test
-    const result = vector.multiply(matrix);
-
-    // Assert
-    expectVectorsToBeEqual(result, expectedValue);
-    expectVectorsToBeEqual(vector, original);
-  });
-  test("Calling divideSelf() with a numeric factor mutates correctly", () => {
-    // Setup
-    const vector = new Vector3(6, 9, 12);
-    const factor = 3;
-    const expectedValue = new Vector3(2, 3, 4);
-
-    // Test
-    vector.divideSelf(factor);
-
-    // Assert
-    expectVectorsToBeEqual(vector, expectedValue);
-  });
-  test("Calling divideSelf() with a Vector3 mutates correctly", () => {
-    // Setup
-    const vector = new Vector3(2, 6, 12);
-    const operand = new Vector3(2, 3, 4);
-    const expectedValue = new Vector3(1, 2, 3);
-
-
-    // Test
-    vector.divideSelf(operand);
-
-    // Assert
-    expectVectorsToBeEqual(vector, expectedValue);
-  });
-  test("Calling divide() with a numeric factor returns the correct result", () => {
-    // Setup
-    const vector = new Vector3(6, 9, 12);
-    const original = vector.clone();
-    const factor = 3;
-    const expectedValue = new Vector3(2, 3, 4);
-
-    // Test
-    const result = vector.divide(factor);
-
-    // Assert
-    expectVectorsToBeEqual(result, expectedValue);
-    expectVectorsToBeEqual(vector, original);
-  });
-  test("Calling divide() with a Vector3 returns the correct result", () => {
-    // Setup
-    const vector = new Vector3(2, 6, 12);
-    const original = vector.clone();
-    const operand = new Vector3(2, 3, 4);
-    const expectedValue = new Vector3(1, 2, 3);
-
-    // Test
-    const result = vector.divide(operand);
+    const result = vector.scale(operand);
 
     // Assert
     expectVectorsToBeEqual(result, expectedValue);

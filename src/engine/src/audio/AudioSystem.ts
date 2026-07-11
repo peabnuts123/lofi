@@ -4,6 +4,9 @@ import { Vector3 } from "@lofi/core/math/vector";
 import type { AudioSourceNode } from "@lofi/engine/scene/nodes";
 import type { IEngine } from "@lofi/engine/Engine";
 
+const Up = Vector3.up();
+const Forward = Vector3.forward();
+
 export interface AudioSystemOptions {
   channels: number;
 }
@@ -176,8 +179,8 @@ export class AudioSystem implements IAudioSystem {
       this.context.listener.positionZ.value = listener.absolutePosition.z;
 
       /* Orientation */
-      const up = this._upTmp.setValue(Vector3.up()).multiplySelf(listener.absoluteRotation.q);
-      const forward = this._forwardTmp.setValue(Vector3.forward()).multiplySelf(listener.absoluteRotation.q);
+      const up = listener.absoluteRotation.q.rotateVectorInPlace(this._upTmp.setValue(Up));
+      const forward = listener.absoluteRotation.q.rotateVectorInPlace(this._forwardTmp.setValue(Forward));
       this.context.listener.upX.value = up.x;
       this.context.listener.upY.value = up.y;
       this.context.listener.upZ.value = up.z;

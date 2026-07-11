@@ -59,11 +59,9 @@ export class MeshPrimitive {
       materialBlendingMode === 'Subtractive';
 
     if (isMaterialTransparent) {
-      // Transform local-space extents to world camera space
-      // for depth sorting
-      this._cameraSpacePositionTmp
-        .setValue(this.extents.center)
-        .multiplySelf(modelViewMatrix);
+      // Transform local-space extents to world camera space for depth sorting
+      this._cameraSpacePositionTmp.setValue(this.extents.center);
+      modelViewMatrix.transformPointInPlace(this._cameraSpacePositionTmp);
 
       drawQueue.push({
         renderLayer,
@@ -214,7 +212,7 @@ export class MeshPrimitive {
     const meshExtents: MeshPrimitiveExtents = {
       min: extentsMin,
       max: extentsMax,
-      center: extentsMin.add(extentsMax).divideSelf(2),
+      center: extentsMin.add(extentsMax).scaleSelf(0.5),
     };
 
     // @NOTE Since `primitive.indicesAttribute` is not-nullable

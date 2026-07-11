@@ -118,6 +118,36 @@ describe("quaternion", () => {
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
+    test("Calling rotateVectorInPlace() does not fire onChange()", () => {
+      // Setup
+      const quaternion = Quaternion.identity();
+
+      let timesOnChangeCalled = 0;
+      quaternion.onChange(() => {
+        timesOnChangeCalled++;
+      });
+
+      // Test
+      quaternion.rotateVectorInPlace(Vector3.forward());
+
+      // Assert
+      expect(timesOnChangeCalled).toBe(0);
+    });
+    test("Calling rotateVector() does not fire onChange()", () => {
+      // Setup
+      const quaternion = Quaternion.identity();
+
+      let timesOnChangeCalled = 0;
+      quaternion.onChange(() => {
+        timesOnChangeCalled++;
+      });
+
+      // Test
+      quaternion.rotateVector(Vector3.forward());
+
+      // Assert
+      expect(timesOnChangeCalled).toBe(0);
+    });
   });
   test("Constructor initial values are set correctly", () => {
     // Setup
@@ -283,6 +313,32 @@ describe("quaternion", () => {
     // Assert
     expectQuaternionsToBeEqual(result, quaternion);
     expect(result).not.toBe(quaternion);
+  });
+  test("Calling rotateVectorInPlace() with a Vector3 mutates correctly", () => {
+    // Setup
+    const vector = Vector3.forward();
+    const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
+    const expectedValue = Vector3.left();
+
+    // Test
+    rotation.rotateVectorInPlace(vector);
+
+    // Assert
+    expectVectorsToBeEqual(vector, expectedValue);
+  });
+  test("Calling rotateVector() with a Vector3 returns the correct result", () => {
+    // Setup
+    const vector = Vector3.forward();
+    const original = vector.clone();
+    const rotation = Quaternion.fromAxisAngle(Vector3.up(), 90);
+    const expectedValue = Vector3.left();
+
+    // Test
+    const result = rotation.rotateVector(vector);
+
+    // Assert
+    expectVectorsToBeEqual(result, expectedValue);
+    expectVectorsToBeEqual(vector, original);
   });
   test("Calling Quaternion.identity() creates an identity Quaternion", () => {
     // Test

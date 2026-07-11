@@ -2,6 +2,7 @@
 import type { TypedArray } from "@lofi/core/util/types";
 
 import { Matrix4 } from "./Matrix4";
+import type { Vector3 } from "./vector";
 
 export type Matrix3InitialValues = [
   m00: number, m10: number, m20: number,
@@ -92,6 +93,54 @@ export class Matrix3 {
     return this;
   }
 
+  public scaleSelf(factor: number): this {
+    for (let i = 0; i < Matrix3InternalBuffer.BufferSize; i++) {
+      this.internal.buffer[i] *= factor;
+    }
+    // this.notifyOnChange(); // @TODO
+    return this;
+  }
+  public scale(factor: number): Matrix3 {
+    return this.clone().scaleSelf(factor);
+  }
+
+  public multiplySelf(other: Matrix3): this {
+    const a00 = this.m00, a10 = this.m10, a20 = this.m20,
+      a01 = this.m01, a11 = this.m11, a21 = this.m21,
+      a02 = this.m02, a12 = this.m12, a22 = this.m22;
+    const b00 = other.m00, b10 = other.m10, b20 = other.m20,
+      b01 = other.m01, b11 = other.m11, b21 = other.m21,
+      b02 = other.m02, b12 = other.m12, b22 = other.m22;
+
+    this.internal.m00 = b00 * a00 + b10 * a01 + b20 * a02;
+    this.internal.m10 = b00 * a10 + b10 * a11 + b20 * a12;
+    this.internal.m20 = b00 * a20 + b10 * a21 + b20 * a22;
+    this.internal.m01 = b01 * a00 + b11 * a01 + b21 * a02;
+    this.internal.m11 = b01 * a10 + b11 * a11 + b21 * a12;
+    this.internal.m21 = b01 * a20 + b11 * a21 + b21 * a22;
+    this.internal.m02 = b02 * a00 + b12 * a01 + b22 * a02;
+    this.internal.m12 = b02 * a10 + b12 * a11 + b22 * a12;
+    this.internal.m22 = b02 * a20 + b12 * a21 + b22 * a22;
+    // this.notifyOnChange(); // @TODO
+
+    return this;
+  }
+  public multiply(other: Matrix3): Matrix3 {
+    return this.clone().multiplySelf(other);
+  }
+
+  public multiplyVectorInPlace(vector: Vector3): Vector3 {
+    const { x, y, z } = vector;
+    return vector.setValue(
+      this.m00 * x + this.m01 * y + this.m02 * z,
+      this.m10 * x + this.m11 * y + this.m12 * z,
+      this.m20 * x + this.m21 * y + this.m22 * z,
+    );
+  }
+  public multiplyVector(vector: Vector3): Vector3 {
+    return this.multiplyVectorInPlace(vector.clone());
+  }
+
   public normalSelf(matrix: Matrix4): this {
     const a00 = matrix.m00, a10 = matrix.m10, a20 = matrix.m20, a03 = matrix.m03,
       a01 = matrix.m01, a11 = matrix.m11, a21 = matrix.m21, a13 = matrix.m13,
@@ -129,6 +178,23 @@ export class Matrix3 {
   }
   public static normal(matrix: Matrix4): Matrix3 {
     return new Matrix3().normalSelf(matrix);
+  }
+
+  public identitySelf(): this {
+    this.internal.m00 = 1;
+    this.internal.m10 = 0;
+    this.internal.m20 = 0;
+    this.internal.m01 = 0;
+    this.internal.m11 = 1;
+    this.internal.m21 = 0;
+    this.internal.m02 = 0;
+    this.internal.m12 = 0;
+    this.internal.m22 = 1;
+    // this.notifyOnChange();
+    return this;
+  }
+  public static identity(): Matrix3 {
+    return new Matrix3().identitySelf();
   }
 
   public writeTo(target: Float32Array, offset: number = 0): void {

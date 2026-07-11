@@ -145,7 +145,7 @@ describe(ModelPartGeometry.name, () => {
         ];
         const transform = Quaternion.fromAxisAngle(Vector3.forward(), 45);
         const expectedInitialValues = primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexNormals.map((vertexNormal) => vertexNormal.clone()));
-        const expectedUpdatedValues = expectedInitialValues.map((vertexNormal) => vertexNormal.multiply(transform));
+        const expectedUpdatedValues = expectedInitialValues.map((vertexNormal) => transform.rotateVector(vertexNormal));
         const localMatrixInternal = Matrix4.identity();
         const localMatrixComputed = new Computed(new Matrix4(), {
           dependencies: [localMatrixInternal],
@@ -164,7 +164,7 @@ describe(ModelPartGeometry.name, () => {
         const beforeMutationComputedIsDirty = geometry.allVertexNormalsComputed['isDirty'];
         primitiveCaches.forEach((primitiveCache) => {
           primitiveCache.geometry.mutate((geometry) => {
-            geometry.vertexNormals.forEach((vertexNormal) => vertexNormal.multiplySelf(transform));
+            geometry.vertexNormals.forEach((vertexNormal) => transform.rotateVectorInPlace(vertexNormal));
           });
         });
         const afterMutationComputedIsDirty = geometry.allVertexNormalsComputed['isDirty'];
@@ -184,7 +184,7 @@ describe(ModelPartGeometry.name, () => {
         ];
         const transform = Quaternion.fromAxisAngle(Vector3.forward(), 45);
         const expectedInitialValues = primitiveCaches.flatMap((primitiveCache) => primitiveCache.geometry.vertexNormals.map((vertexNormal) => vertexNormal.clone()));
-        const expectedUpdatedValues = expectedInitialValues.map((vertexNormal) => vertexNormal.multiply(transform));
+        const expectedUpdatedValues = expectedInitialValues.map((vertexNormal) => transform.rotateVector(vertexNormal));
         const localMatrixInternal = Matrix4.identity();
         const localMatrixComputed = new Computed(new Matrix4(), {
           dependencies: [localMatrixInternal],

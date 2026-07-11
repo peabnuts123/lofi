@@ -3,7 +3,6 @@ import { Quaternion, type IReadOnlyQuaternion } from "@lofi/core/math/Quaternion
 import { EulerVector3, type Vector3Definition } from "@lofi/core/math/vector";
 
 // I dub thee... "Eulernion"
-// @TODO put an interface around this for control over exposed types / params
 export class Rotation extends Observable {
   private readonly _q: Quaternion;
   private readonly _qInverse: Computed<IReadOnlyQuaternion>;
@@ -38,20 +37,20 @@ export class Rotation extends Observable {
     });
   }
 
-  public multiply(q: Quaternion): this {
+  public multiplySelf(q: Quaternion): this {
     this.q.multiplySelf(q);
     return this;
   }
 
-  public slerp(q: Quaternion, t: number): this {
+  public slerpSelf(q: Quaternion, t: number): this {
     this.q.slerpSelf(q, t);
     return this;
   }
 
-  public set(quaternion: Quaternion): void;
-  public set(x: number, y: number, z: number): void;
-  public set(eulerAngles: Partial<Vector3Definition>): void;
-  public set(
+  public setValue(quaternion: Quaternion): void;
+  public setValue(x: number, y: number, z: number): void;
+  public setValue(eulerAngles: Partial<Vector3Definition>): void;
+  public setValue(
     eulerAnglesOrQuaternionOrX: Partial<Vector3Definition> | Quaternion | number,
     maybeY?: number,
     maybeZ?: number,

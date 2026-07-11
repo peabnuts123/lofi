@@ -6,6 +6,8 @@ import { EulerVector3, Vector3, type Vector3Definition } from "./vector";
 export interface IReadOnlyQuaternion {
   toEuler(): EulerVector3;
   multiply(q: IReadOnlyQuaternion): IReadOnlyQuaternion;
+  rotateVectorInPlace(vector: Vector3): Vector3;
+  rotateVector(vector: Vector3): Vector3;
   slerp(right: IReadOnlyQuaternion, t: number): IReadOnlyQuaternion;
   invert(): IReadOnlyQuaternion;
   normalize(): IReadOnlyQuaternion;
@@ -168,6 +170,31 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
     this.internal.z = value.z;
     this.internal.w = value.w;
     return true;
+  }
+
+  public rotateVectorInPlace(vector: Vector3): Vector3 {
+    // Fast Vector Rotation using Quaternions by Robert Eisele
+    // https://raw.org/proof/vector-rotation-using-quaternions/
+    const { x, y, z } = vector;
+
+    // v = this.{x,y,z}
+    // u = vector.{x,y,z}
+
+    // t = 2v x u (expressed as `2 * (v x u)`)
+    const tx = 2 * (this.y * z - this.z * y);
+    const ty = 2 * (this.z * x - this.x * z);
+    const tz = 2 * (this.x * y - this.y * x);
+
+    // u + w t + v x t
+    return vector.setValue(
+      x + this.w * tx + this.y * tz - this.z * ty,
+      y + this.w * ty + this.z * tx - this.x * tz,
+      z + this.w * tz + this.x * ty - this.y * tx,
+    );
+  }
+
+  public rotateVector(vector: Vector3): Vector3 {
+    return this.rotateVectorInPlace(vector.clone());
   }
 
   public clone(): Quaternion {

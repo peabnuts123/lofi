@@ -146,62 +146,62 @@ describe("Rotation", () => {
       expect(timesOnChangeCalledAfterY).toBe(2);
       expect(timesOnChangeCalledAfterZ).toBe(3);
     });
-    test("Calling multiply() fires onChange() once", () => {
+    test("Calling multiplySelf() fires onChange() once", () => {
       // Setup
       const rotation = new Rotation();
       let timesOnChangeCalled = 0;
       rotation.onChange(() => timesOnChangeCalled++);
 
       // Test
-      rotation.multiply(Quaternion.fromAxisAngle(Vector3.up(), 180));
+      rotation.multiplySelf(Quaternion.fromAxisAngle(Vector3.up(), 180));
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling slerp() fires onChange() once", () => {
+    test("Calling slerpSelf() fires onChange() once", () => {
       // Setup
       const rotation = new Rotation();
       let timesOnChangeCalled = 0;
       rotation.onChange(() => timesOnChangeCalled++);
 
       // Test
-      rotation.slerp(Quaternion.fromAxisAngle(Vector3.up(), 180), 0.5);
+      rotation.slerpSelf(Quaternion.fromAxisAngle(Vector3.up(), 180), 0.5);
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling set() with a quaternion fires onChange() once", () => {
+    test("Calling setValue() with a quaternion fires onChange() once", () => {
       // Setup
       const rotation = new Rotation();
       let timesOnChangeCalled = 0;
       rotation.onChange(() => timesOnChangeCalled++);
 
       // Test
-      rotation.set(Quaternion.fromAxisAngle(Vector3.up(), 180));
+      rotation.setValue(Quaternion.fromAxisAngle(Vector3.up(), 180));
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling set with separate xyz components fires onChange() once", () => {
+    test("Calling setValue with separate xyz components fires onChange() once", () => {
       // Setup
       const rotation = new Rotation();
       let timesOnChangeCalled = 0;
       rotation.onChange(() => timesOnChangeCalled++);
 
       // Test
-      rotation.set(10, 20, 30);
+      rotation.setValue(10, 20, 30);
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
     });
-    test("Calling set with a partial Vector3Like fires onChange() once", () => {
+    test("Calling setValue with a partial Vector3Like fires onChange() once", () => {
       // Setup
       const rotation = new Rotation();
       let timesOnChangeCalled = 0;
       rotation.onChange(() => timesOnChangeCalled++);
 
       // Test
-      rotation.set({ x: 30, z: 15 });
+      rotation.setValue({ x: 30, z: 15 });
 
       // Assert
       expect(timesOnChangeCalled).toBe(1);
@@ -219,7 +219,7 @@ describe("Rotation", () => {
     expect(rotation.y).toBe(0);
     expect(rotation.z).toBe(0);
   });
-  test("Calling multiply() mutates correctly", () => {
+  test("Calling multiplySelf() mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
     const operand = WellKnownQuaternions['180Z']().quaternion;
@@ -228,14 +228,14 @@ describe("Rotation", () => {
     const expectedEuler = WellKnownQuaternions['180Z']().euler;
 
     // Test
-    rotation.multiply(operand);
+    rotation.multiplySelf(operand);
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
     expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
-  test("Calling slerp() mutates correctly", () => {
+  test("Calling slerpSelf() mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
     const operand = WellKnownQuaternions['180Z']().quaternion;
@@ -244,14 +244,14 @@ describe("Rotation", () => {
     const expectedEuler = WellKnownQuaternions['90Z']().euler;
 
     // Test
-    rotation.slerp(operand, 0.5);
+    rotation.slerpSelf(operand, 0.5);
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
     expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
-  test("Calling set() with a quaternion mutates correctly", () => {
+  test("Calling setValue() with a quaternion mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
     const quaternion = WellKnownQuaternions['90Z']().quaternion;
@@ -259,7 +259,7 @@ describe("Rotation", () => {
     const expectedEuler = WellKnownQuaternions['90Z']().euler;
 
     // Test
-    rotation.set(quaternion);
+    rotation.setValue(quaternion);
 
     // Assert
     expect(rotation.q).not.toBe(quaternion); // Should not be the same exact instance
@@ -267,7 +267,7 @@ describe("Rotation", () => {
     expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, expectedEuler);
   });
-  test("Calling set() with separate xyz components mutates correctly", () => {
+  test("Calling setValue() with separate xyz components mutates correctly", () => {
     // Setup
     const rotation = new Rotation();
     const euler = new Vector3(10, 20, 30);
@@ -275,14 +275,14 @@ describe("Rotation", () => {
     const expectedInverse = expectedQuaternion.invert();
 
     // Test
-    rotation.set(euler.x, euler.y, euler.z);
+    rotation.setValue(euler.x, euler.y, euler.z);
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);
     expectQuaternionsToBeEqual(rotation.qInverse, expectedInverse);
     expectVectorsToBeEqual(rotation.euler, euler);
   });
-  test("Calling set() with a partial Vector3Like mutates correctly", () => {
+  test("Calling setValue() with a partial Vector3Like mutates correctly", () => {
     // Setup
     const initialValue = { x: 10, y: 20, z: 30 };
     const rotation = new Rotation();
@@ -293,7 +293,7 @@ describe("Rotation", () => {
     const expectedInverse = expectedQuaternion.invert();
 
     // Test
-    rotation.set(update);
+    rotation.setValue(update);
 
     // Assert
     expectQuaternionsToBeEqual(rotation.q, expectedQuaternion);

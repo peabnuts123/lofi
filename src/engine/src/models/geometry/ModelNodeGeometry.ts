@@ -45,6 +45,7 @@ export class ModelNodeGeometry {
         const self = _self as Vector3[]; // @NOTE type laundering for mutability
 
         let vertexCount = 0;
+        const worldMatrix = worldMatrixComputed.value;
         for (const vertexPosition of model.geometry.allVertexPositionsComputed.value) {
           let current: Vector3;
           if (self[vertexCount] !== undefined) {
@@ -56,7 +57,7 @@ export class ModelNodeGeometry {
           }
 
           // Transform vertex position by ModelNode's world matrix
-          current.multiplySelf(worldMatrixComputed.value);
+          worldMatrix.transformPointInPlace(current);
           vertexCount++;
         }
       },
@@ -92,7 +93,7 @@ export class ModelNodeGeometry {
           }
 
           // Transform vertex normal by transposed inverse of ModelNode's world matrix
-          current.multiplySelf(worldMatrixTransposedInverse).normalizeSelf();
+          worldMatrixTransposedInverse.multiplyVectorInPlace(current).normalizeSelf();
           vertexCount++;
         }
       },
@@ -153,7 +154,7 @@ export class ModelNodeGeometry {
           }
 
           // Transform vertex normal by transposed inverse of ModelNode's world matrix
-          current.multiplySelf(worldMatrixTransposedInverse).normalizeSelf();
+          worldMatrixTransposedInverse.multiplyVectorInPlace(current).normalizeSelf();
           vertexCount++;
         }
       },
