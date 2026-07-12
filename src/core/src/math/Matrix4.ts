@@ -176,6 +176,47 @@ export class Matrix4 extends Observable {
     return this.transformPointInPlace(point.clone());
   }
 
+  public transformDirectionInPlace(direction: Vector3): Vector3 {
+    const { x, y, z } = direction;
+    return direction.setValue(
+      this.m00 * x + this.m01 * y + this.m02 * z,
+      this.m10 * x + this.m11 * y + this.m12 * z,
+      this.m20 * x + this.m21 * y + this.m22 * z,
+    );
+  }
+  public transformDirection(direction: Vector3): Vector3 {
+    return this.transformDirectionInPlace(direction.clone());
+  }
+
+  public transformNormalInPlace(normal: Vector3): Vector3 {
+    const { x, y, z } = normal;
+    const a00 = this.m00, a10 = this.m10, a20 = this.m20,
+      a01 = this.m01, a11 = this.m11, a21 = this.m21,
+      a02 = this.m02, a12 = this.m12, a22 = this.m22;
+    const b00 = a11 * a22 - a21 * a12;
+    const b01 = a20 * a12 - a10 * a22;
+    const b02 = a10 * a21 - a20 * a11;
+    const b10 = a21 * a02 - a01 * a22;
+    const b11 = a00 * a22 - a20 * a02;
+    const b12 = a20 * a01 - a00 * a21;
+    const b20 = a01 * a12 - a11 * a02;
+    const b21 = a10 * a02 - a00 * a12;
+    const b22 = a00 * a11 - a10 * a01;
+    let det = a00 * b00 + a01 * b01 + a02 * b02;
+    if (!det) {
+      throw new CannotInvertMatrixError("Matrix4: Can't transform normal, matrix determinant is 0");
+    }
+    det = 1.0 / det;
+    return normal.setValue(
+      (b00 * x + b01 * y + b02 * z) * det,
+      (b10 * x + b11 * y + b12 * z) * det,
+      (b20 * x + b21 * y + b22 * z) * det,
+    ).normalizeSelf();
+  }
+  public transformNormal(normal: Vector3): Vector3 {
+    return this.transformNormalInPlace(normal.clone());
+  }
+
   public invertSelf(): this {
     const a00 = this.m00, a10 = this.m10, a20 = this.m20, a30 = this.m30,
       a01 = this.m01, a11 = this.m11, a21 = this.m21, a31 = this.m31,

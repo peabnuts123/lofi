@@ -1,4 +1,3 @@
-import { Matrix3 } from "@lofi/core/math/Matrix3";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Vector3, type IReadonlyVector3, type IReadonlyVector2 } from "@lofi/core/math/vector";
 import type { IReadonlyColor4 } from "@lofi/core/math/Color4";
@@ -150,7 +149,6 @@ export class ModelPartGeometry {
     });
 
     /* Vertex normals */
-    const tmp_allVertexNormals = new Matrix3();
     this._allVertexNormals = new Computed<readonly IReadonlyVector3[]>([], {
       dependencies: [
         ...primitiveCaches.map((primitiveCache) => primitiveCache.geometry.vertexNormalsChanged),
@@ -176,10 +174,9 @@ export class ModelPartGeometry {
             }
 
             // Transform normal by transposed inverse of the skinMatrix
-            tmp_allVertexNormals
-              .normalSelf(skinMatrices[vertexCount])
-              .multiplyVectorInPlace(currentVertex)
-              .normalizeSelf();
+            // @TODO Performance: We could compute the inverse-transposes of these matrices in a separate computed
+            // and then just multiply them to avoid computing inverse every time.
+            skinMatrices[vertexCount].transformNormalInPlace(currentVertex);
 
             vertexCount++;
           }
