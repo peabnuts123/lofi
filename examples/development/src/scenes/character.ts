@@ -29,6 +29,7 @@ export abstract class Game {
     const { inputSystem: input } = engine;
     const scene = new Scene(engine);
     scene.lighting.ambientColor = new Color3(110, 100, 90);
+    scene.clearColour = new Color3(46, 29, 16);
 
     const runLoopHooks: Array<(dt: number) => void> = [];
 

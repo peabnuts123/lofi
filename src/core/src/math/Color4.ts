@@ -56,8 +56,35 @@ export class Color4 extends Observable implements IReadonlyColor4 {
     }
   }
 
-  // @TODO setValue(r: number, g: number, b: number, a: number): void;
-  // @TODO setValue(color: Color4Definition): void;
+  public scaleSelf(factor: number): this {
+    this.internal.r *= factor;
+    this.internal.g *= factor;
+    this.internal.b *= factor;
+    this.internal.a *= factor;
+    this.notifyOnChange();
+    return this;
+  }
+  public scale(factor: number): Color4 {
+    return this.clone().scaleSelf(factor);
+  }
+
+  public setValue(r: number, g: number, b: number, a: number): this;
+  public setValue(color: Color4Definition): this;
+  public setValue(rOrColor: number | Color4Definition, maybeG?: number, maybeB?: number, maybeA?: number): this {
+    if (typeof rOrColor === 'number') {
+      this.internal.r = rOrColor;
+      this.internal.g = maybeG!;
+      this.internal.b = maybeB!;
+      this.internal.a = maybeA!;
+    } else {
+      this.internal.r = rOrColor.r;
+      this.internal.g = rOrColor.g;
+      this.internal.b = rOrColor.b;
+      this.internal.a = rOrColor.a;
+    }
+    this.notifyOnChange();
+    return this;
+  }
 
   public clone(): Color4 {
     return new Color4(this.r, this.g, this.b, this.a);

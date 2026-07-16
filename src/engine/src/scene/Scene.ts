@@ -1,9 +1,12 @@
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
+import { Color3 } from "@lofi/core/math";
 
 import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";
 import { DrawableSceneNode } from "./DrawableSceneNode";
 import { CameraNode } from "./nodes/CameraNode";
+
+export const DefaultClearColor = Color3.black();
 
 export interface IScene {
 
@@ -19,6 +22,8 @@ export interface IScene {
   set engine(value: IEngine);
   get lighting(): SceneLighting;
   set lighting(value: SceneLighting);
+  get clearColour(): Color3;
+  set clearColour(value: Color3);
 }
 
 export class Scene implements IScene {
@@ -26,11 +31,13 @@ export class Scene implements IScene {
   public readonly engine: IEngine;
   private topLevelNodes: SceneNode[];
   public readonly lighting: SceneLighting;
+  public clearColour: Color3;
 
   public constructor(engine: IEngine) {
     this.engine = engine;
     this.topLevelNodes = [];
     this.lighting = new SceneLighting();
+    this.clearColour = DefaultClearColor.clone();
 
     if (engine.activeScene === undefined) {
       engine.loadScene(this);

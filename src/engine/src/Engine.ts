@@ -6,7 +6,7 @@ import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo }
 import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { MaterialInstance, ShaderVariant, Ubo } from "./materials";
-import type { IScene } from "./scene";
+import { DefaultClearColor, type IScene } from "./scene";
 import { RateCounter } from "@lofi/core/util/RateCounter";
 import { CollisionSystem } from "./collision";
 import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
@@ -266,7 +266,8 @@ export class Engine implements IEngine {
   private draw(drawQueue: DrawTask[]) {
     const { gl } = this;
 
-    gl.clearColor(0.05, 0.05, 0.2, 1); // @TODO configurable lol
+    const clearColor = this.activeScene?.clearColour ?? DefaultClearColor;
+    gl.clearColor(clearColor.r / 0xFF, clearColor.g / 0xFF, clearColor.b / 0xFF, 1); // @TODO configurable lol
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
