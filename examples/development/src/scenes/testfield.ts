@@ -97,6 +97,18 @@ export abstract class Game {
       await GltfLoader.loadModel('/models/Rig_Medium_General.glb', fileSystem),
       /* 05 - Animation target */
       await GltfLoader.loadModel('/models/rig_mage.glb', fileSystem),
+      /* 06 - Plane */
+      {
+        rootParts: [debugGeometry.simplePart({
+          name: 'ground',
+          primitive: debugGeometry.planePrimitive(100, 100),
+          material: await debugGeometry.material({
+            name: 'ground',
+            diffuseTexturePath: '/textures/stones.png',
+          }),
+        })],
+        animations: [],
+      }
     ];
 
     const runLoopHooks: Array<(dt: number, time: number) => void> = [];
@@ -110,6 +122,7 @@ export abstract class Game {
 
     // Load models
     const boxModel = await Model.fromDefinition(engine, models[0]);
+    const planeModel = await Model.fromDefinition(engine, models[6]);
     const burgerModel = await Model.fromDefinition(engine, models[1]);
 
     const cameraOrigin = new ObjectNode(scene, 'camera_origin');
@@ -211,25 +224,33 @@ export abstract class Game {
 
     /* Lighting */
     if (Flags.LightingEnabled) {
-      const LightDistance = 5;
+      const LightDistance = 3;
       const lightOrigin = new ObjectNode(scene, 'light_origin');
-      const light0 = new PointLightNode(scene, 'light0', Color3.red(), lightOrigin);
-      light0.position = new Vector3(
-        LightDistance * Math.sin(2 * Math.PI * 0.2 / 3),
-        LightDistance * Math.cos(2 * Math.PI * 1 / 3),
-        LightDistance,
-      );
-      const light1 = new PointLightNode(scene, 'light1', Color3.green(), lightOrigin);
-      light1.position = new Vector3(
-        LightDistance * Math.sin(2 * Math.PI * 2 / 3),
-        LightDistance * Math.cos(2 * Math.PI * 2 / 3),
-        LightDistance,
-      );
+      lightOrigin.position.z = 2;
 
-      const sunLight = new DirectionalLightNode(scene, 'sun', new Color3(0, 0x50, 0xFF));
-      sunLight.absoluteRotation.x = 30;
+      function createLight(name: string, angle: number, color: Color3): PointLightNode {
+        const lightParent = new ModelNode(scene, name, boxModel, lightOrigin);
+        lightParent.scale.scaleSelf(0.2);
+        lightParent.setMaterialOverride('ground', new Material({
+          unlit: true,
+          diffuseColor: color.toColor4(),
+          blendingMode: ShaderBlendingMode.Additive(),
+          diffuseTexture: 'unset',
+        }))
+        lightParent.position = new Vector3(
+          LightDistance * Math.sin(angle),
+          LightDistance * Math.cos(angle),
+          0,
+        );
+        return new PointLightNode(scene, `${name}:light`, { color }, lightParent);
+      }
+      /* const light0 =  */createLight('light0', 2 * Math.PI * 1 / 3, Color3.red());
+      /* const light1 =  */createLight('light1', 2 * Math.PI * 2 / 3, Color3.green());
 
-      const LightRotationSpeedDegreesPerSecond = 25;
+      const sunLight = new DirectionalLightNode(scene, 'sun', { color: new Color3(0, 0x50, 0xFF), intensity: 0.5 });
+      sunLight.absoluteRotation.x = -65;
+
+      const LightRotationSpeedDegreesPerSecond = -25;
       runLoopHooks.push((dt) => {
         lightOrigin.rotation.z += dt * LightRotationSpeedDegreesPerSecond;
       });
@@ -307,10 +328,6 @@ export abstract class Game {
 
           burger.position = new Vector3((i - GridW / 2) * GridSpacing + 0.5, (j - GridH / 2) * GridSpacing + 0.5, -0.5);
           burger.scale.scaleSelf(1.7);
-
-          const miniBurger = new ModelNode(scene, 'mini-burger', burgerModel, burger);
-          miniBurger.position = new Vector3(0.2, 0.2, 0);
-          miniBurger.scale.scaleSelf(0.5);
         }
       }
       runLoopHooks.push((_dt, time) => {

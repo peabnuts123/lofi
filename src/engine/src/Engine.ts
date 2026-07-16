@@ -45,6 +45,7 @@ export interface EngineConfig {
   },
   readonly lighting: {
     readonly maxPointLights: number;
+    readonly defaultPointLightRange: number;
     readonly maxDirectionalLights: number;
   },
   readonly models: {
@@ -57,6 +58,7 @@ export const DefaultEngineConfig = {
   },
   lighting: {
     maxPointLights: 4,
+    defaultPointLightRange: 10,
     maxDirectionalLights: 2,
   },
   models: {
@@ -114,6 +116,7 @@ export class Engine implements IEngine {
       },
       lighting: {
         maxPointLights: options?.lighting?.maxPointLights ?? DefaultEngineConfig.lighting.maxPointLights,
+        defaultPointLightRange: options?.lighting?.defaultPointLightRange ?? DefaultEngineConfig.lighting.defaultPointLightRange,
         maxDirectionalLights: options?.lighting?.maxDirectionalLights ?? DefaultEngineConfig.lighting.maxDirectionalLights,
       },
       models: {

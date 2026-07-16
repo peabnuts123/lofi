@@ -79,7 +79,7 @@ export class Player extends SceneNode {
     playerCollider.position.z = PlayerColliderSize.z / 2;
 
     /* Light */
-    const light = new PointLightNode(scene, 'light', Color3.white(), this);
+    const light = new PointLightNode(scene, 'light', { color: Color3.white(), range: 25 }, this);
     light.position.z = 1;
   }
 

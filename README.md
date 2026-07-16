@@ -36,22 +36,22 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Remove old shaders~~
   - [x] ~~Low-level API~~
   - [x] ~~MATH API REFACTOR: Flip the order of math operators (e.g. `Matrix4.transform(Vector3)` instead of `Vector3.multiplySelf(Matrix4)`)~~
-  - [ ] Lights have range or intensity or colour or something.
-  - [ ] Fix DebugModule
-  - [ ] Move ray casting into Scene or something
+  - [x] ~~Lights have range or intensity or colour or something.~~
   - [ ] Config for Clear color on scene, or camera?
+  - [ ] Move ray casting into a class I think
+  - [ ] Fix DebugModule
   - [ ] Move AABB + others into `util/maths` or something
-  - [ ] Build pipeline and CD
   - [ ] Split up combined files
     - [ ] vector.ts
     - [ ] observable.ts
     - [x] ~~____Geometry~~
+  - [ ] Build pipeline and CD
+  - [ ] Review TODOs and clean up documentation / repo
 
 ## Milestone: 0.2
   - [ ] Collision handling for concave geometry e.g. levels
   - [ ] Ability to reset / stop animation
     - [ ] Config e.g. animation looping
-  - [ ] At least write down what tests need to be written
   - [ ] Implement CUBICSPLINE animation
   - [ ] Allow camera to look straight down with pointAt()
 

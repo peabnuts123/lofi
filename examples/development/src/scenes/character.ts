@@ -116,7 +116,7 @@ export abstract class Game {
 
     /* Lighting */
     if (Flags.LightingEnabled) {
-      const light = new PointLightNode(scene, 'light', Color3.white());
+      const light = new PointLightNode(scene, 'light', { color: Color3.white() });
       light.position = new Vector3(1, 1, 2);
     }
 

@@ -9,18 +9,6 @@ import { MeshPrimitiveGeometry } from "./geometry";
 
 type MaterialCacheKey = number;
 
-/*
-  @TODO Low Level API backlog
-  // - Approximate BB is still listening to eg part rotations it should probably have next to no dependencies
-  // - Approximate AABB should only apply to unskinned models
-  // - Skinned normals need to be normalized as if using homogenous coordinates I think
-  // - Expose these types from a public place (i.e. iterating model => modelpart => meshprim)
-  // - Split types up into separate files
-  // - Should probably split ModelPart and Model geometries into X and XComputed
-  - Have a go writing some unit tests but probably don't exhaust it
-  // - AABB is not correct for cylindrical object (?) is it being aggregated instead of computed?
- */
-
 /**
  * Cache that holds {@linkcode MeshPrimitive} instances.
  * Since a {@linkcode MeshPrimitive}'s internal definition alters based on what properties are

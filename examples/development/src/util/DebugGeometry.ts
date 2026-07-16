@@ -17,8 +17,8 @@ export class DebugGeometry {
     material,
   }: {
     name: string,
-    primitive?: Partial<Omit<MeshPrimitiveDefinition, 'material'>>,
-    material?: Partial<MaterialDefinition>,
+    primitive?: Omit<MeshPrimitiveDefinition, 'material'>,
+    material?: MaterialDefinition,
   }): ModelPartDefinition {
     return {
       name,
@@ -30,7 +30,7 @@ export class DebugGeometry {
       },
       mesh: {
         primitives: [{
-          ...this.cubePrimitive(primitive),
+          ...(primitive ?? this.cubePrimitive()),
           material: {
             name: 'default',
             alpha: { mode: 'OPAQUE' },
@@ -69,6 +69,113 @@ export class DebugGeometry {
         texCoord: 0,
       },
     };
+  }
+
+  public planePrimitive(
+    subdivisionsX: number = 1,
+    subdivisionsY: number = 1,
+    overrides: Partial<MeshPrimitiveDefinition> = {},
+  ): MeshPrimitiveDefinition {
+    if (subdivisionsX < 1 || subdivisionsY < 1) {
+      throw new Error(`Plane primitive subdivisions must be greater than 0`);
+    }
+
+    const vertexCountX = subdivisionsX + 1;
+    const vertexCountY = subdivisionsY + 1;
+
+    const PlaneDim = 1;
+    const PlaneCornerCoord = -(PlaneDim / 2);
+
+    const positionBuffer = new Float32Array(vertexCountX * vertexCountY * 3 /* values per vertex */);
+    const normalsBuffer = new Float32Array(positionBuffer.length);
+    const indicesBuffer = new Uint32Array(subdivisionsX * subdivisionsY * 2 /* triangles */ * 3 /* indices per triangle */);
+    const colorsBuffer = new Float32Array(positionBuffer.length)
+    const textureCoordinatesBuffer = new Float32Array(positionBuffer.length);
+
+
+    for (let y = 0; y < vertexCountY; y++) {
+      const yNormalized = y / (vertexCountY - 1);
+      for (let x = 0; x < vertexCountX; x++) {
+        const vertexIndex = (y * vertexCountX + x);
+        const xNormalized = x / (vertexCountX - 1);
+
+        /* Positions */
+        positionBuffer[(vertexIndex * 3) + 0] = /* x */ PlaneCornerCoord + xNormalized * PlaneDim;
+        positionBuffer[(vertexIndex * 3) + 1] = /* y */ PlaneCornerCoord + yNormalized * PlaneDim;
+        positionBuffer[(vertexIndex * 3) + 2] = /* z */ 0;
+
+        /* Normals */
+        normalsBuffer[(vertexIndex * 3) + 0] = /* x */ 0;
+        normalsBuffer[(vertexIndex * 3) + 1] = /* y */ 0;
+        normalsBuffer[(vertexIndex * 3) + 2] = /* z */ 1;
+
+        /* Indices */
+        if (x < subdivisionsX && y < subdivisionsY) {
+          const indexOffset = (y * subdivisionsX + x) * 2 * 3;
+          /* Triangle A */
+          indicesBuffer[indexOffset + 0] = vertexIndex;
+          indicesBuffer[indexOffset + 1] = vertexIndex + 1;
+          indicesBuffer[indexOffset + 2] = vertexIndex + vertexCountX;
+          /* Triangle B */
+          indicesBuffer[indexOffset + 3] = vertexIndex + vertexCountX;
+          indicesBuffer[indexOffset + 4] = vertexIndex + 1;
+          indicesBuffer[indexOffset + 5] = vertexIndex + vertexCountX + 1;
+        }
+
+        /* Colors */
+        colorsBuffer[(vertexIndex * 3) + 0] = /* r */ 1;
+        colorsBuffer[(vertexIndex * 3) + 1] = /* g */ 1;
+        colorsBuffer[(vertexIndex * 3) + 2] = /* b */ 1;
+
+        /* Texture coordinates */
+        textureCoordinatesBuffer[(vertexIndex * 2) + 0] = /* r */ xNormalized;
+        textureCoordinatesBuffer[(vertexIndex * 2) + 1] = /* g */ yNormalized;
+      }
+    }
+
+    return {
+      mode: MeshPrimitiveMode.TRIANGLES,
+      positionData: {
+        componentCount: 3,
+        componentType: AccessorComponentType.FLOAT,
+        componentSize: 4,
+        normalized: false,
+        buffer: positionBuffer,
+      },
+      extents: new AxisAlignedBoundingBox(
+        new Vector3(-0.5, -0.5, 0),
+        new Vector3(0.5, 0.5, 0),
+      ),
+      normalData: {
+        componentCount: 3,
+        componentType: AccessorComponentType.FLOAT,
+        componentSize: 4,
+        normalized: false,
+        buffer: normalsBuffer,
+      },
+      color0Data: {
+        componentCount: 3,
+        componentType: AccessorComponentType.FLOAT,
+        componentSize: 4,
+        normalized: false,
+        buffer: colorsBuffer,
+      },
+      texCoord0Data: {
+        componentCount: 2,
+        componentType: AccessorComponentType.FLOAT,
+        componentSize: 4,
+        normalized: false,
+        buffer: textureCoordinatesBuffer,
+      },
+      indices: {
+        componentCount: 1,
+        componentType: AccessorComponentType.UNSIGNED_INT,
+        componentSize: 4,
+        normalized: false,
+        buffer: indicesBuffer,
+      },
+      ...overrides,
+    }
   }
 
   public cubePrimitive(overrides: Partial<MeshPrimitiveDefinition> = {}): MeshPrimitiveDefinition {

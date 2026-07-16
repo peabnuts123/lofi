@@ -32,6 +32,7 @@ export class MockEngine implements IEngine {
       },
       lighting: {
         maxPointLights: 2,
+        defaultPointLightRange: 10,
         maxDirectionalLights: 1,
       },
       models: {

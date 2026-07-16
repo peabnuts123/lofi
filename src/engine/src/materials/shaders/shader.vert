@@ -2,6 +2,14 @@
 
 #pragma inject(defines)
 
+/* Lighting constants */
+// `Constant` coefficient in lighting formula
+#define LIGHTING_COEFFICIENT_CONSTANT 1.0f
+// `Linear` coefficient in lighting formula
+#define LIGHTING_COEFFICIENT_LINEAR 0.0f
+// Value of lighting formula at `range`
+#define LIGHTING_INTENSITY_AT_MAX_RANGE 0.1f
+
 /* Defaults */
 #ifndef MAX_POINT_LIGHTS
   #define MAX_POINT_LIGHTS 1 // @NOTE Zero-length arrays not valid
@@ -58,8 +66,11 @@ layout(std140) uniform Lighting {
   // @NOTE Arrays are padded to vec4 under std140
   vec4 pointLightPositions[MAX_POINT_LIGHTS];
   vec4 pointLightColors[MAX_POINT_LIGHTS];
+  vec4 pointLightIntensities[MAX_POINT_LIGHTS];
+  vec4 pointLightRanges[MAX_POINT_LIGHTS];
   vec4 directionalLightOrientations[MAX_DIRECTIONAL_LIGHTS];
   vec4 directionalLightColors[MAX_DIRECTIONAL_LIGHTS];
+  vec4 directionalLightIntensities[MAX_POINT_LIGHTS];
 };
 
 void main() {
@@ -114,16 +125,57 @@ void main() {
 
   // Point lights
   for(int i = 0; i < MAX_POINT_LIGHTS; i++) {
-    vec3 lightDir = normalize(pointLightPositions[i].xyz - worldPosition);
-    float intensity = max(dot(worldNormal, lightDir), 0.0f);
-    fragmentLighting += intensity * pointLightColors[i].rgb;
+    float lightRange = pointLightRanges[i].x;
+    if(lightRange > 0.0f) {
+      float lightRangeSqr = lightRange * lightRange;
+      vec3 lightVector = pointLightPositions[i].xyz - worldPosition;
+      float lightDistanceSqr = dot(lightVector, lightVector);
+
+// @TODO REMOVE ALL THESE OTHER OPTIONS, just committing for posterity
+      // // Cut off light after max range, or at distance = 0
+      if(lightDistanceSqr > 0.0f /* && lightDistanceSqr <= lightRangeSqr */) {
+        float lightDistance = sqrt(lightDistanceSqr);
+        vec3 lightDir = normalize(lightVector);
+        float intensity = pointLightIntensities[i].x * max(dot(worldNormal, lightDir), 0.0f);
+
+        // @NOTE Classic GL lighting formula:
+        //  Attenuation = 1 / (K_c + K_l * d + K_q * d^2)
+        // d   = Distance to light source
+        // K_c = Constant lighting coefficient
+        // K_l = Linear lighting coefficient
+        // K_q = Quadratic lighting coefficient
+        // @NOTE GL Compliant
+        // float coefficientQuadratic = 1.0f / (2.0 * LIGHTING_INTENSITY_AT_MAX_RANGE * lightRangeSqr);
+        float coefficientQuadratic = ((1.0f / LIGHTING_INTENSITY_AT_MAX_RANGE) - 1.0f) / lightRangeSqr;
+        fragmentLighting += (intensity * pointLightColors[i].rgb) / (LIGHTING_COEFFICIENT_CONSTANT + LIGHTING_COEFFICIENT_LINEAR * lightDistance + coefficientQuadratic * lightDistanceSqr);
+
+        // @NOTE GL Compliant "half range"
+        // float coefficientQuadratic = 1.0f / lightRangeSqr;
+        // fragmentLighting += (intensity * pointLightColors[i].rgb) / (LIGHTING_COEFFICIENT_CONSTANT + LIGHTING_COEFFICIENT_LINEAR * lightDistance + coefficientQuadratic * lightDistanceSqr);
+
+        // @NOTE Other guy's
+        // float s = lightDistance / lightRange;
+        // float Q = 3.0f;
+        // fragmentLighting += (intensity * pointLightColors[i].rgb) * ((1.0f - s * s) * (1.0f - s * s)) / (1.0f + Q * s);
+
+        // @NOTE QUADRATIC
+        // fragmentLighting += (intensity * pointLightColors[i].rgb) * ((lightDistanceSqr/lightRangeSqr) - (2.0f * lightDistance / lightRange) + 1.0f);
+
+        // @NOTE LINEAR
+        // fragmentLighting += (intensity * pointLightColors[i].rgb) * (-lightDistance / lightRange + 1.0f);
+
+        // @NOTE CUTOFF
+        // float intensity = max(dot(worldNormal, lightDir), 0.0f);
+        // fragmentLighting += (intensity * pointLightColors[i].rgb);
+      }
+    }
   }
 
   // Directional lights
   for(int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
     vec3 lightDir = normalize(-directionalLightOrientations[i].xyz);
     float intensity = max(dot(worldNormal, lightDir), 0.0f);
-    fragmentLighting += intensity * directionalLightColors[i].rgb;
+    fragmentLighting += intensity * directionalLightIntensities[i].x * directionalLightColors[i].rgb;
   }
 #endif
 }

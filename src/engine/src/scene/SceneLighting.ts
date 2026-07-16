@@ -11,8 +11,11 @@ export const LightingUboPropertyNames = [
   'ambientLightColor',
   'pointLightPositions',
   'pointLightColors',
+  'pointLightIntensities',
+  'pointLightRanges',
   'directionalLightOrientations',
   'directionalLightColors',
+  'directionalLightIntensities',
 ] as const;
 export type LightingUboPropertyName = (typeof LightingUboPropertyNames)[number];
 export type LightingUbo = Ubo<LightingUboPropertyName>;
@@ -26,8 +29,11 @@ export class SceneLighting {
 
   private tmp_pointLightPositionData: Float32Array = new Float32Array();
   private tmp_pointLightColorData: Float32Array = new Float32Array();
+  private tmp_pointLightIntensityData: Float32Array = new Float32Array();
+  private tmp_pointLightRangeData: Float32Array = new Float32Array();
   private tmp_directionalLightOrientationData: Float32Array = new Float32Array();
   private tmp_directionalLightColorData: Float32Array = new Float32Array;
+  private tmp_directionalLightIntensityData: Float32Array = new Float32Array();
   private tmp_directionalLightVectors: Vector3[] = [];
 
   public constructor() {
@@ -65,6 +71,10 @@ export class SceneLighting {
         this.tmp_pointLightColorData[i * SizeOfVec4 + 0] = light.color.r / 0xFF;
         this.tmp_pointLightColorData[i * SizeOfVec4 + 1] = light.color.g / 0xFF;
         this.tmp_pointLightColorData[i * SizeOfVec4 + 2] = light.color.b / 0xFF;
+        /* Intensity */
+        this.tmp_pointLightIntensityData[i * SizeOfVec4 + 0] = light.intensity;
+        /* Range */
+        this.tmp_pointLightRangeData[i * SizeOfVec4 + 0] = light.range;
       } else {
         /* Light is empty - disable */
         /* - Position */
@@ -75,10 +85,16 @@ export class SceneLighting {
         this.tmp_pointLightColorData[i * SizeOfVec4 + 0] = 0;
         this.tmp_pointLightColorData[i * SizeOfVec4 + 1] = 0;
         this.tmp_pointLightColorData[i * SizeOfVec4 + 2] = 0;
+        /* Intensity */
+        this.tmp_pointLightIntensityData[i * SizeOfVec4 + 0] = 0;
+        /* Range */
+        this.tmp_pointLightRangeData[i * SizeOfVec4 + 0] = 0;
       }
     }
     ubo.setProperty(gl, 'pointLightPositions', this.tmp_pointLightPositionData);
     ubo.setProperty(gl, 'pointLightColors', this.tmp_pointLightColorData);
+    ubo.setProperty(gl, 'pointLightIntensities', this.tmp_pointLightIntensityData);
+    ubo.setProperty(gl, 'pointLightRanges', this.tmp_pointLightRangeData);
 
 
     // Directional lights
@@ -105,6 +121,8 @@ export class SceneLighting {
         this.tmp_directionalLightColorData[i * SizeOfVec4 + 0] = light.color.r / 0xFF;
         this.tmp_directionalLightColorData[i * SizeOfVec4 + 1] = light.color.g / 0xFF;
         this.tmp_directionalLightColorData[i * SizeOfVec4 + 2] = light.color.b / 0xFF;
+        /* Intensity */
+        this.tmp_directionalLightIntensityData[i * SizeOfVec4 + 0] = light.intensity;
       } else {
         /* Light is empty - disable */
         /* - Position */
@@ -115,10 +133,13 @@ export class SceneLighting {
         this.tmp_directionalLightColorData[i * SizeOfVec4 + 0] = 0;
         this.tmp_directionalLightColorData[i * SizeOfVec4 + 1] = 0;
         this.tmp_directionalLightColorData[i * SizeOfVec4 + 2] = 0;
+        /* Intensity */
+        this.tmp_directionalLightIntensityData[i * SizeOfVec4 + 0] = 0;
       }
     }
     ubo.setProperty(gl, 'directionalLightOrientations', this.tmp_directionalLightOrientationData);
     ubo.setProperty(gl, 'directionalLightColors', this.tmp_directionalLightColorData);
+    ubo.setProperty(gl, 'directionalLightIntensities', this.tmp_directionalLightIntensityData);
   }
 
   private ensureTmpValuesAreInitialised(lightingConfig: EngineConfig['lighting']): void {
@@ -129,6 +150,12 @@ export class SceneLighting {
     if (this.tmp_pointLightColorData.length !== lightingConfig.maxPointLights * SizeOfVec4) {
       this.tmp_pointLightColorData = new Float32Array(lightingConfig.maxPointLights * SizeOfVec4);
     }
+    if (this.tmp_pointLightIntensityData.length !== lightingConfig.maxPointLights * SizeOfVec4) {
+      this.tmp_pointLightIntensityData = new Float32Array(lightingConfig.maxPointLights * SizeOfVec4);
+    }
+    if (this.tmp_pointLightRangeData.length !== lightingConfig.maxPointLights * SizeOfVec4) {
+      this.tmp_pointLightRangeData = new Float32Array(lightingConfig.maxPointLights * SizeOfVec4);
+    }
 
     /* Directional lights */
     if (this.tmp_directionalLightOrientationData.length !== lightingConfig.maxDirectionalLights * SizeOfVec4) {
@@ -136,6 +163,9 @@ export class SceneLighting {
     }
     if (this.tmp_directionalLightColorData.length !== lightingConfig.maxDirectionalLights * SizeOfVec4) {
       this.tmp_directionalLightColorData = new Float32Array(lightingConfig.maxDirectionalLights * SizeOfVec4);
+    }
+    if (this.tmp_directionalLightIntensityData.length !== lightingConfig.maxDirectionalLights * SizeOfVec4) {
+      this.tmp_directionalLightIntensityData = new Float32Array(lightingConfig.maxDirectionalLights * SizeOfVec4);
     }
     if (this.tmp_directionalLightVectors.length !== lightingConfig.maxDirectionalLights) {
       this.tmp_directionalLightVectors.splice(0);
