@@ -2,6 +2,30 @@ import { type MediaStreamAudioDestinationNode, type IAudioContext } from 'standa
 import type { Engine, IEngine } from '@lofi/engine/Engine';
 import { zipSync } from 'fflate';
 
+
+/*
+  @TODO (2026-07-18) DebugModule needs a rewrite. It's currently a mess of semi-working and broken code.
+  Goals:
+    - Record
+      - A simple method that records a "good enough" video with audio from a running game instance
+      - Use the default video recording API (which can't produce ~very high quality video hence "good enough")
+      - Extract audio from the audio system (for some reason this has been proving difficult, audio artifacts etc.)
+      - Look up the engine instance from the canvas reference (?)
+      - Set the engine to 30 (or N) fps
+      - Options: length, delay, mute
+    - RecordRaw
+      - Comprehensive method for dumping lossless video by capturing every frame individually into a zip + audio
+      - Lock the engine to 30 (or N) fps
+      - Integrate tightly with the engine to dump the canvas buffer each repaint
+      - Extract audio from the audio system (for some reason this has been proving difficult, audio artifacts etc.)
+      - Look up the engine instance from the canvas reference (?)
+      - Options: length, delay, mute
+    - Screenshot
+      - Dump a lossless/full-quality screenshot to a file and prompt to download
+      - Options: scale (default: 2x)
+    - Should work in Tauri as well as browser (Tauri can use native file download rather than <a> tag)
+ */
+
 /**
  * Options for `DebugModule.recordCanvas()`.
  */
