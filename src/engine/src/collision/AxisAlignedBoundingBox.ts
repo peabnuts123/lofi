@@ -25,7 +25,6 @@ export interface IReadonlyAxisAlignedBoundingBox {
 }
 
 // @TODO We should validate to make sure min is always less than max.
-// @TODO Move out of `/collision` - it's just maths
 export class AxisAlignedBoundingBox implements IWireframeDrawable {
   public xMin: number;
   public xMax: number;

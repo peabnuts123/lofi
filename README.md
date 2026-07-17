@@ -40,7 +40,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Config for Clear color on scene, or camera?~~
   - [x] ~~Move ray casting into a class I think~~
   - [x] ~~Fix DrawDebug~~
-  - [ ] Move AABB + others into `util/maths` or something
+  - [x] ~~Move AABB + others into `util/maths` or something~~
   - [ ] Split up combined files
     - [ ] vector.ts
     - [ ] observable.ts
