@@ -111,7 +111,6 @@ export abstract class Game {
     const runLoopHooks: Array<(dt: number, time: number) => void> = [];
 
     // Get debug canvas
-    const debugCanvas = document.getElementById('debug-canvas') as HTMLCanvasElement;
     const engine = new Engine(canvas, fileSystem);
     const scene = new Scene(engine);
     scene.lighting.ambientColor = new Color3(30, 30, 30);
@@ -209,12 +208,6 @@ export abstract class Game {
           console.log(`Picked: `, result.target.name);
         } else {
           console.log(`NO RESULT`);
-        }
-      });
-      document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && debugCanvas) {
-          e.preventDefault();
-          debug_rayCastEntireScreen(debugCanvas, camera, scene);
         }
       });
     }
@@ -643,64 +636,6 @@ function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, s
     .normalizeSelf();
 
   return RayCast.scene(camera.absolutePosition, rayDirection, scene, RayCastMode.Infinite);
-}
-
-
-
-function debug_rayCastEntireScreen(canvas: HTMLCanvasElement, camera: CameraNode, scene: IScene) {
-  console.log('Ray casting scene to canvas...');
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  // Clear canvas
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Create image data for faster pixel manipulation
-  const imageData = ctx.createImageData(canvas.width, canvas.height);
-
-  const nodeNameToColor = (name: string): [number, number, number] => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = ((hash << 5) - hash) + name.charCodeAt(i);
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    const r = (hash & 0xFF0000) >> 16;
-    const g = (hash & 0x00FF00) >> 8;
-    const b = hash & 0x0000FF;
-    return [r, g, b];
-  };
-
-  const renderStart = performance.now();
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      const normalizedX = x / (canvas.width - 1);
-      const normalizedY = y / (canvas.height - 1);
-
-      const result = rayCastFromCamera(camera, scene, normalizedX, normalizedY);
-      const hitNode = result?.target;
-
-      const pixelIndex = (y * canvas.width + x) * 4;
-
-      if (hitNode) {
-        const [r, g, b] = nodeNameToColor(hitNode.name);
-        imageData.data[pixelIndex] = r;
-        imageData.data[pixelIndex + 1] = g;
-        imageData.data[pixelIndex + 2] = b;
-        imageData.data[pixelIndex + 3] = 255; // Alpha
-      } else {
-        // No hit - leave black (already cleared)
-        imageData.data[pixelIndex + 3] = 255; // Alpha
-      }
-    }
-  }
-
-  const renderStop = performance.now();
-  console.log(`Ray cast render: ${renderStop - renderStart}ms (${(renderStop - renderStart) / (canvas.width * canvas.height)}ms per pixel)`);
-
-  ctx.putImageData(imageData, 0, 0);
-  console.log('Ray cast complete!');
 }
 
 // @TODO We gotta move this into the engine lol
