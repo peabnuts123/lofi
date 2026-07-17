@@ -40,7 +40,7 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Config for Clear color on scene, or camera?~~
   - [x] ~~Move ray casting into a class I think~~
   - [ ] Fix DebugModule
-  - [ ] Fix DrawDebug
+  - [x] ~~Fix DrawDebug~~
   - [ ] Move AABB + others into `util/maths` or something
   - [ ] Split up combined files
     - [ ] vector.ts
@@ -118,6 +118,7 @@ These items are roughly in priority order.
   - Docs: Update code references to use `{@linkcode foo}` in favour of backticks. Use regex: /^\s*(/\*\*|\*).*`\w/
   - I suppose we should eventually either make MeshPrimitiveGeometry specific to triangles, or more generic (e.g. gl.LINES - it won't have triangles...)
   - `extents` on MeshPrimitiveGeometry should probably be observable and `approximateAabb` should be computed based on it
+  - BUG: First frame all the transforms are identity
 
 
 ## Ideas

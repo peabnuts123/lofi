@@ -3,15 +3,14 @@ import { Color4 } from '@lofi/core/math/Color4';
 import { RateCounter } from '@lofi/core/util/RateCounter';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model } from '@lofi/engine/models';
-import { Engine, type DrawTask, type IEngine } from '@lofi/engine/Engine';
-import { DrawableSceneNode, Scene, SceneNode, type IScene } from '@lofi/engine/scene';
+import { Engine } from '@lofi/engine/Engine';
+import { Scene, SceneNode, type IScene } from '@lofi/engine/scene';
 import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
 import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
 import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import { AccessorComponentType, type ModelDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
-import { DrawDebug } from '@lofi/engine/util/DrawDebug';
 import { RayCast, RayCastMode, type RayCastResult } from '@lofi/engine/collision/RayCast';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
@@ -112,10 +111,10 @@ export abstract class Game {
 
     // Get debug canvas
     const engine = new Engine(canvas, fileSystem);
+    const { debugDraw } = engine;
     const scene = new Scene(engine);
     scene.lighting.ambientColor = new Color3(30, 30, 30);
     scene.clearColour = new Color3(0, 0, 50);
-    const debug_visualiser = new DrawDebugVisualiser(scene, 'ray:debug');
 
     // Load models
     const boxModel = await Model.fromDefinition(engine, models[0]);
@@ -174,11 +173,9 @@ export abstract class Game {
         let result = RayCast.scene(rayOrigin.absolutePosition, rayDirection, scene);
         const raycastEnd = performance.now();
         const raycastHitPosition = result?.hitPosition ?? rayTarget.absolutePosition;
-        debug_visualiser.add(
-          DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, raycastHitPosition], { overlay: true, color: Color3.yellow() }),
-          DrawDebug.drawPolyLine(engine, [raycastHitPosition, rayTarget.absolutePosition], { overlay: true, color: Color3.red(), }),
-          DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, rayTarget.absolutePosition.withZ(rayOrigin.absolutePosition.z)], { overlay: true, color: new Color3(0x80, 0, 0), }),
-        );
+        debugDraw.drawPolyLine([rayOrigin.absolutePosition, raycastHitPosition], { overlay: true, color: Color3.yellow() });
+        debugDraw.drawPolyLine([raycastHitPosition, rayTarget.absolutePosition], { overlay: true, color: Color3.red(), });
+        debugDraw.drawPolyLine([rayOrigin.absolutePosition, rayTarget.absolutePosition.withZ(rayOrigin.absolutePosition.z)], { overlay: true, color: new Color3(0x80, 0, 0), });
 
         frameCounter.count();
         rayCastDurationCounter.count(raycastEnd - raycastStart)
@@ -636,20 +633,6 @@ function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, s
     .normalizeSelf();
 
   return RayCast.scene(camera.absolutePosition, rayDirection, scene, RayCastMode.Infinite);
-}
-
-// @TODO We gotta move this into the engine lol
-export class DrawDebugVisualiser extends DrawableSceneNode {
-  private readonly frameDrawTasks: DrawTask[] = [];
-
-  public add(...drawTasks: DrawTask[]): void {
-    this.frameDrawTasks.push(...drawTasks);
-  }
-
-  public override draw(_engine: IEngine, drawQueue: DrawTask[]): void {
-    drawQueue.push(...this.frameDrawTasks);
-    this.frameDrawTasks.length = 0;
-  }
 }
 
 function addVertexColors(modelDefinition: ModelDefinition): ModelDefinition {

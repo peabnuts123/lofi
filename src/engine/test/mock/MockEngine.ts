@@ -4,23 +4,26 @@ import type { IFileSystem } from "@lofi/engine/filesystem";
 import type { IScene } from "@lofi/engine/scene";
 import { type IAudioSystem } from "@lofi/engine/audio/AudioSystem";
 import { type IInputSystem } from "@lofi/engine/input";
+import { type IDebugDraw } from "@lofi/engine/util/DebugDraw";
 import { MockFileSystem } from "./MockFileSystem";
 import { MockAudioSystem } from './MockAudioSystem';
 import { MockInputSystem } from "./MockInputSystem";
 import { createMockWebGLContext } from "./MockWebGLContext";
+import { MockDebugDraw } from "./MockDebugDraw";
 
 export interface MockEngineConstructorArgs {
   fileSystem?: IFileSystem;
 }
 
 export class MockEngine implements IEngine {
+  config: EngineConfig;
   readonly gl: WebGL2RenderingContext;
   fileSystem: IFileSystem;
   collisionSystem: CollisionSystem;
   audioSystem: IAudioSystem;
   inputSystem: IInputSystem;
+  debugDraw: IDebugDraw;
   activeScene: IScene | undefined;
-  config: EngineConfig;
 
   public constructor({ fileSystem }: MockEngineConstructorArgs = {}) {
     this.gl = createMockWebGLContext();
@@ -41,6 +44,7 @@ export class MockEngine implements IEngine {
     };
     this.audioSystem = new MockAudioSystem();
     this.inputSystem = new MockInputSystem();
+    this.debugDraw = new MockDebugDraw();
   }
 
   public loadScene(scene: IScene): void {

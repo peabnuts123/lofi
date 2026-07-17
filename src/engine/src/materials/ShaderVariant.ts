@@ -1,8 +1,15 @@
+import type { Enum } from '@lofi/core/util/types';
 import { CameraUboIndex } from '@lofi/engine/scene/nodes/CameraNode';
 import { LightingUboIndex } from '@lofi/engine/scene/SceneLighting';
 import type { IEngine } from '@lofi/engine/Engine';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
+
+export type ShaderType = Enum<typeof ShaderType>;
+export const ShaderType = {
+  FRAGMENT_SHADER: 0x8B30,
+  VERTEX_SHADER: 0x8B31,
+} as const;
 
 export interface ShaderVariantOptions {
   hasDiffuseColor: boolean;
@@ -34,8 +41,8 @@ export class ShaderVariant {
 
     this.gl = gl;
     this.id = id;
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    const vertexShader = gl.createShader(ShaderType.VERTEX_SHADER);
+    const fragmentShader = gl.createShader(ShaderType.FRAGMENT_SHADER);
     const program = this.program = gl.createProgram();
 
     if (!vertexShader || !fragmentShader || !program) {
@@ -86,11 +93,11 @@ export class ShaderVariant {
     }
 
     const cameraUboBlockIndex = gl.getUniformBlockIndex(this.program, "Camera");
-    if (cameraUboBlockIndex !== WebGL2RenderingContext.INVALID_INDEX) {
+    if (cameraUboBlockIndex !== gl.INVALID_INDEX) {
       gl.uniformBlockBinding(this.program, cameraUboBlockIndex, CameraUboIndex);
     }
     const lightingUboBlockIndex = gl.getUniformBlockIndex(this.program, "Lighting");
-    if (lightingUboBlockIndex !== WebGL2RenderingContext.INVALID_INDEX) {
+    if (lightingUboBlockIndex !== gl.INVALID_INDEX) {
       gl.uniformBlockBinding(this.program, lightingUboBlockIndex, LightingUboIndex);
     }
   }

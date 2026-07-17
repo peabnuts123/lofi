@@ -2,7 +2,7 @@ import { Vector3 } from "@lofi/core/math/vector";
 import { AxisAlignedBoundingBox, CollisionSystem } from "@lofi/engine/collision";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import { DrawableSceneNode, type IScene, SceneNode } from "@lofi/engine/scene";
-import { DrawDebug, isWireframeDrawable } from "@lofi/engine/util/DrawDebug";
+import { isWireframeDrawable } from "@lofi/engine/util/DebugDraw";
 
 export interface CalculateIntersectionResult {
   mtv: Vector3;
@@ -140,11 +140,9 @@ export abstract class ColliderNode extends DrawableSceneNode {
     }
   }
 
-  public override draw(engine: IEngine, drawQueue: DrawTask[]): void {
+  public override draw(engine: IEngine, _drawQueue: DrawTask[]): void {
     if (this.drawWireframe && isWireframeDrawable(this)) {
-      drawQueue.push(
-        DrawDebug.drawWireframe(engine, this, { overlay: true }),
-      );
+      engine.debugDraw.drawWireframe(this, { overlay: true });
     }
   }
 }

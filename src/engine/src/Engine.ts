@@ -12,6 +12,7 @@ import { CollisionSystem } from "./collision";
 import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
 import { DebugModule } from "./util/DebugModule";
 import { InputSystem, type IInputSystem } from "./input";
+import { DebugDraw, type IDebugDraw } from "./util/DebugDraw";
 
 export type DrawTask = OpaqueDrawTask | TransparentDrawTask;
 
@@ -78,17 +79,19 @@ export interface IEngine {
   get collisionSystem(): CollisionSystem; // @TODO These should probably be behind interfaces
   get audioSystem(): IAudioSystem;
   get inputSystem(): IInputSystem;
+  get debugDraw(): IDebugDraw;
   get activeScene(): IScene | undefined;
 }
 
 export class Engine implements IEngine {
   private readonly canvas: HTMLCanvasElement;
+  public readonly config: EngineConfig;
   public readonly gl: WebGL2RenderingContext;
   public readonly fileSystem: IFileSystem;
   public readonly collisionSystem: CollisionSystem;
   public readonly audioSystem: IAudioSystem;
   public readonly inputSystem: InputSystem;
-  public readonly config: EngineConfig;
+  public readonly debugDraw: DebugDraw;
 
   private _normalTmp: Matrix3 = new Matrix3();
 
@@ -128,6 +131,7 @@ export class Engine implements IEngine {
     this.collisionSystem = new CollisionSystem();
     this.audioSystem = new AudioSystem({ channels: this.config.audio.numChannels });
     this.inputSystem = new InputSystem(canvas);
+    this.debugDraw = new DebugDraw(this);
 
 
     // Global UBOs
@@ -235,6 +239,7 @@ export class Engine implements IEngine {
       /* Draw scene */
       drawQueue.length = 0; // @NOTE Overwrite memory instead of reallocating every frame
       this.activeScene?.draw(drawQueue);
+      this.debugDraw.draw(drawQueue);
       this.sortDrawQueue(drawQueue);
       // @TODO probably formalise the debug counters into a concrete type
       const resources = this.draw(drawQueue);

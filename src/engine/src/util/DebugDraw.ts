@@ -1,12 +1,12 @@
 import { type IReadonlyVector3 } from "@lofi/core/math/vector";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color3 } from "@lofi/core/math/Color3";
-import type { IEngine, OpaqueDrawTask } from "@lofi/engine/Engine";
+import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
-import { MeshPrimitiveMode } from "@lofi/engine/loaders/definitions";
-import { BufferType } from "./createBuffer";
+import { AccessorComponentType, MeshPrimitiveMode } from "@lofi/engine/loaders/definitions";
+import { BufferType, BufferUsage } from "./createBuffer";
 
-const DebugVertexShaderSource = `#version 300 es
+export const DebugVertexShaderSource = `#version 300 es
   // @TODO use an #include for this
   layout(std140) uniform Camera {
     mat4 viewProjectionMatrix;
@@ -21,7 +21,7 @@ const DebugVertexShaderSource = `#version 300 es
   }
 `;
 
-const DebugFragmentShaderSource = `#version 300 es
+export const DebugFragmentShaderSource = `#version 300 es
   precision mediump float;
 
   out vec4 outputColor;
@@ -33,7 +33,7 @@ const DebugFragmentShaderSource = `#version 300 es
   }
 `;
 
-interface DrawOptions {
+export interface DrawOptions {
   /** Color used when drawing debug geometry. */
   color: Color3;
   /** World matrix to transform all debug geometry. */
@@ -44,20 +44,75 @@ interface DrawOptions {
    */
   overlay: boolean;
 }
-const DefaultDrawOptions: DrawOptions = {
+export const DefaultDrawOptions: DrawOptions = {
   color: Color3.yellow(),
   worldMatrix: new Matrix4(),
   overlay: false,
 };
 
-export class DrawDebug {
-  private static shader: ShaderVariant;
-  private static vertexPositionAttribute: number;
-  private static colorUniform: WebGLUniformLocation;
-  private static vertexBuffer: WebGLBuffer;
-  private static vao: WebGLVertexArrayObject;
+export interface IDebugDraw {
+  drawPolyLine(linePoints: readonly IReadonlyVector3[], options?: Partial<DrawOptions>): void;
+  drawWireframe(wireframe: IWireframeDrawable, options?: Partial<DrawOptions>): void;
+}
 
-  public static drawPolyLine(engine: IEngine, linePoints: readonly IReadonlyVector3[], options: Partial<DrawOptions> = {}): OpaqueDrawTask {
+export class DebugDraw implements IDebugDraw {
+  private shader: ShaderVariant;
+  private vertexPositionAttribute: number;
+  private colorUniform: WebGLUniformLocation;
+  private vertexBuffer: WebGLBuffer;
+  private vao: WebGLVertexArrayObject;
+
+  private readonly currentDrawTasks: DrawTask[];
+
+  public constructor(engine: IEngine) {
+    this.currentDrawTasks = [];
+
+    const { gl } = engine;
+
+    // @TODO should maybe store this `shader` on `Material.shader` as we're
+    //  ~slightly hacking at the moment
+    const shader = this.shader = new ShaderVariant(engine, 0, new DefaultShader(
+      DebugVertexShaderSource,
+      DebugFragmentShaderSource,
+    ));
+
+    this.vertexPositionAttribute = shader.getAttribute('vertexPosition')!;
+    this.colorUniform = shader.getUniform('color')!;
+
+    // Create VAO
+    this.vao = gl.createVertexArray();
+    if (!this.vao) {
+      throw new Error('Failed to create vertex array object');
+    }
+
+    // Set up VAO with buffer and attribute configuration
+    gl.bindVertexArray(this.vao);
+
+    this.vertexBuffer = gl.createBuffer();
+    if (!this.vertexBuffer) {
+      throw new Error('Failed to create vertex buffer');
+    }
+
+    gl.bindBuffer(BufferType.ARRAY_BUFFER, this.vertexBuffer);
+    gl.enableVertexAttribArray(this.vertexPositionAttribute);
+    gl.vertexAttribPointer(
+      this.vertexPositionAttribute,
+      3,
+      AccessorComponentType.FLOAT,
+      false,
+      0,
+      0,
+    );
+
+    gl.bindVertexArray(null);
+  }
+
+  public draw(drawQueue: DrawTask[]): void {
+    drawQueue.push(...this.currentDrawTasks);
+    this.currentDrawTasks.length = 0;
+  }
+
+  public drawPolyLine(linePoints: readonly IReadonlyVector3[], options: Partial<DrawOptions> = {}): void {
     // Map linePoints into (0,1)(1,2),(2,3), etc.
     const vertexPointData = linePoints
       .slice(0, linePoints.length - 1)
@@ -68,10 +123,10 @@ export class DrawDebug {
         ];
       });
 
-    return DrawDebug.drawLines(engine, vertexPointData, options);
+    return this.drawLines(vertexPointData, options);
   }
 
-  public static drawWireframe(engine: IEngine, wireframe: IWireframeDrawable, options: Partial<DrawOptions> = {}): OpaqueDrawTask {
+  public drawWireframe(wireframe: IWireframeDrawable, options: Partial<DrawOptions> = {}): void {
     // Map faces into closed-loop polylines
     const vertexPointData = wireframe.getWireframeFaces().flatMap((face: readonly IReadonlyVector3[]) => {
       return face
@@ -83,22 +138,19 @@ export class DrawDebug {
         });
     });
 
-    return DrawDebug.drawLines(engine, vertexPointData, options);
+    return this.drawLines(vertexPointData, options);
   }
 
-  private static drawLines(engine: IEngine, linePoints: readonly IReadonlyVector3[], options: Partial<DrawOptions>): OpaqueDrawTask {
+  private drawLines(linePoints: readonly IReadonlyVector3[], options: Partial<DrawOptions>): void {
     const drawOptions = {
       ...DefaultDrawOptions,
       ...options,
     };
 
-    // Ensure shader is initialised
-    DrawDebug.initShader(engine);
-
     // Build vertex array
     const vertices = new Float32Array(linePoints.flatMap((vertex) => [vertex.x, vertex.y, vertex.z]));
 
-    return {
+    this.currentDrawTasks.push({
       renderLayer: options.overlay ? Infinity : 0,
       isTransparent: false,
       shaderVariant: this.shader,
@@ -108,17 +160,17 @@ export class DrawDebug {
       },
       draw: {
         id: Math.trunc(Math.random() * 0xF000_0000) + 0x1000_0000, //  @NOTE Always unique
-        init: () => { }, // Because ID is unique, `init()` will ALWAYS be called, so it's not really needed
+        init: () => { }, // @NOTE Because ID is unique, `init()` will ALWAYS be called, so it's not really needed
         exec: ({ gl }) => {
           // Bind VAO (restores attribute configuration)
-          gl.bindVertexArray(DrawDebug.vao);
+          gl.bindVertexArray(this.vao);
 
           // Upload vertex data
-          gl.bindBuffer(BufferType.ARRAY_BUFFER, DrawDebug.vertexBuffer);
-          gl.bufferData(BufferType.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+          gl.bindBuffer(BufferType.ARRAY_BUFFER, this.vertexBuffer);
+          gl.bufferData(BufferType.ARRAY_BUFFER, vertices, BufferUsage.DYNAMIC_DRAW);
 
           // Bind uniforms
-          gl.uniform4fv(DrawDebug.colorUniform, new Float32Array([
+          gl.uniform4fv(this.colorUniform, new Float32Array([
             drawOptions.color.r / 0xFF,
             drawOptions.color.g / 0xFF,
             drawOptions.color.b / 0xFF,
@@ -132,49 +184,7 @@ export class DrawDebug {
           gl.bindVertexArray(null);
         },
       },
-    };
-  }
-
-  private static initShader(engine: IEngine): void {
-    if (DrawDebug.shader) return;
-
-    const gl = engine.gl;
-    // @TODO should maybe store this `shader` on `Material.shader` as we're
-    //  ~slightly hacking at the moment
-    const shader = DrawDebug.shader = new ShaderVariant(engine, 0, new DefaultShader(
-      DebugVertexShaderSource,
-      DebugFragmentShaderSource,
-    ));
-
-    DrawDebug.vertexPositionAttribute = shader.getAttribute('vertexPosition')!;
-    DrawDebug.colorUniform = shader.getUniform('color')!;
-
-    // Create VAO
-    DrawDebug.vao = gl.createVertexArray();
-    if (!DrawDebug.vao) {
-      throw new Error('Failed to create vertex array object');
-    }
-
-    // Set up VAO with buffer and attribute configuration
-    gl.bindVertexArray(DrawDebug.vao);
-
-    DrawDebug.vertexBuffer = gl.createBuffer();
-    if (!DrawDebug.vertexBuffer) {
-      throw new Error('Failed to create vertex buffer');
-    }
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, DrawDebug.vertexBuffer);
-    gl.enableVertexAttribArray(DrawDebug.vertexPositionAttribute);
-    gl.vertexAttribPointer(
-      DrawDebug.vertexPositionAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      0,
-      0,
-    );
-
-    gl.bindVertexArray(null);
+    });
   }
 }
 

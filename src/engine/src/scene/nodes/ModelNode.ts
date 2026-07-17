@@ -3,7 +3,7 @@ import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import type { Model } from "@lofi/engine/models";
 import { Animation } from "@lofi/engine/animation";
 import type { Material } from "@lofi/engine/materials";
-import { type IWireframeDrawable, type WireframeFaces } from "@lofi/engine/util/DrawDebug";
+import { type IWireframeDrawable, type WireframeFaces } from "@lofi/engine/util/DebugDraw";
 import { ModelMaterialOverrides, type MaterialOverrideType } from "@lofi/engine/models/ModelMaterialOverrides";
 import { ModelNodeGeometry } from "@lofi/engine/models/geometry";
 

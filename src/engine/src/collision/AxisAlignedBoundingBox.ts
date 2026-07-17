@@ -1,6 +1,6 @@
 import type { IReadonlyVector3, Matrix4, Vector3Definition } from "@lofi/core/math";
 import { Vector3 } from "@lofi/core/math/vector";
-import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DrawDebug";
+import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DebugDraw";
 
 export interface AxisAlignedBoundingBoxConstructorArgs {
   xMin: number;
