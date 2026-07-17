@@ -1,21 +1,18 @@
 import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt } from '@lofi/core/math';
 import { Color4 } from '@lofi/core/math/Color4';
 import { RateCounter } from '@lofi/core/util/RateCounter';
-import type { Enum } from '@lofi/core/util/types';
 import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
 import { Model } from '@lofi/engine/models';
-import type { Triangle } from '@lofi/engine/models/geometry';
 import { Engine, type DrawTask, type IEngine } from '@lofi/engine/Engine';
 import { DrawableSceneNode, Scene, SceneNode, type IScene } from '@lofi/engine/scene';
 import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
-import { rayAABBIntersection, rayTriangleIntersection } from '@lofi/engine/collision/ray';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
 import { Cubemap, Texture } from '@lofi/engine/textures';
 import { AudioClip } from '@lofi/engine/audio';
 import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
 import { AccessorComponentType, type ModelDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
 import { DrawDebug } from '@lofi/engine/util/DrawDebug';
+import { RayCast, RayCastMode, type RayCastResult } from '@lofi/engine/collision/RayCast';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 
@@ -175,9 +172,9 @@ export abstract class Game {
           .subtractSelf(rayOrigin.absolutePosition);
 
         const raycastStart = performance.now();
-        let raycastResult = rayCastScene(rayOrigin.absolutePosition, rayDirection, scene);
+        let result = RayCast.scene(rayOrigin.absolutePosition, rayDirection, scene);
         const raycastEnd = performance.now();
-        const raycastHitPosition = raycastResult?.[1] ?? rayTarget.absolutePosition;
+        const raycastHitPosition = result?.hitPosition ?? rayTarget.absolutePosition;
         debug_visualiser.add(
           DrawDebug.drawPolyLine(engine, [rayOrigin.absolutePosition, raycastHitPosition], { overlay: true, color: Color3.yellow() }),
           DrawDebug.drawPolyLine(engine, [raycastHitPosition, rayTarget.absolutePosition], { overlay: true, color: Color3.red(), }),
@@ -204,13 +201,12 @@ export abstract class Game {
         );
 
         const startTime = performance.now();
-        const raycastResult = rayCastFromCamera(camera, scene, clickNormalised.x, clickNormalised.y);
-        const result = raycastResult?.[0];
+        const result = rayCastFromCamera(camera, scene, clickNormalised.x, clickNormalised.y);
         const endTime = performance.now();
         console.log(`Single ray cast: ${toFixed(endTime - startTime, 1)}`);
 
-        if (result !== undefined) {
-          console.log(`Picked: `, result.name);
+        if (result?.target !== undefined) {
+          console.log(`Picked: `, result.target.name);
         } else {
           console.log(`NO RESULT`);
         }
@@ -628,7 +624,7 @@ export abstract class Game {
 
 const tmp_RayCastFromCameraDirection = Vector3.zero();
 const tmp_RayCastFromCameraInverseViewProjectionMatrix = new Matrix4();
-function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, screenY: number): [target: ModelNode, hitPosition: Vector3] | undefined {
+function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, screenY: number): RayCastResult | undefined {
   if (screenX > 1 || screenX < 0 || screenY > 1 || screenY < 0) {
     throw new Error(`Invalid args to ${rayCastFromCamera.name}: screen coordinates must be normalized values from 0-1`)
   }
@@ -646,93 +642,9 @@ function rayCastFromCamera(camera: CameraNode, scene: IScene, screenX: number, s
     .subtractSelf(camera.absolutePosition)
     .normalizeSelf();
 
-  return rayCastScene(camera.absolutePosition, rayDirection, scene, RayCastMode.Infinite);
+  return RayCast.scene(camera.absolutePosition, rayDirection, scene, RayCastMode.Infinite);
 }
 
-const RayCastMode = {
-  /** Ray cast will only return results shorter than the passed ray parameter. */
-  Bounded: 'Bounded',
-  /** Ray cast will return any result at any positive distance. */
-  Infinite: 'Infinite',
-} as const;
-type RayCastMode = Enum<typeof RayCastMode>;
-const tmp_PerformRayCastTriangleAABB = AxisAlignedBoundingBox.zero();
-const tmp_PerformRayCastRayDirection = Vector3.zero();
-function rayCastScene(rayOrigin: Vector3, rayDirection: Vector3, scene: IScene, mode: RayCastMode = RayCastMode.Bounded): [target: ModelNode, hitPosition: Vector3] | undefined {
-  let shortestRayLength: number = Number.MAX_SAFE_INTEGER;
-  let shortestRayResult: ModelNode | undefined = undefined;
-
-  const rayLength = rayDirection.length();
-
-  // @TODO Should this be returning a distance and not returning a result
-  // if the distance is longer than `rayDirection`?
-  const rayDirectionNormalized = tmp_PerformRayCastRayDirection
-    .setValue(rayDirection)
-    .normalizeSelf();
-
-  /*
-    ========
-    PHASE 1: Approximate AABB
-    ========
-   */
-  const possibleModels: ModelNode[] = [];
-  scene.forEachNodeInHierarchy((node) => {
-    if (node instanceof ModelNode) {
-      const approximateAABB = node.geometry.approximateAabb;
-      if (approximateAABB) {
-        const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, approximateAABB);
-        if (result !== undefined && !(mode === RayCastMode.Bounded && result > rayLength)) {
-          possibleModels.push(node);
-        }
-      }
-    }
-  });
-
-  /*
-    ========
-    PHASE 2: Triangle AABB
-    ========
-   */
-  const possibleTriangles: Array<[triangle: Triangle, node: ModelNode]> = [];
-  for (const possibleModel of possibleModels) {
-    for (const triangle of possibleModel.geometry.allTriangles) {
-      // Construct AABB for triangle
-      tmp_PerformRayCastTriangleAABB.xMin = Math.min(triangle[0].x, triangle[1].x, triangle[2].x);
-      tmp_PerformRayCastTriangleAABB.xMax = Math.max(triangle[0].x, triangle[1].x, triangle[2].x);
-      tmp_PerformRayCastTriangleAABB.yMin = Math.min(triangle[0].y, triangle[1].y, triangle[2].y);
-      tmp_PerformRayCastTriangleAABB.yMax = Math.max(triangle[0].y, triangle[1].y, triangle[2].y);
-      tmp_PerformRayCastTriangleAABB.zMin = Math.min(triangle[0].z, triangle[1].z, triangle[2].z);
-      tmp_PerformRayCastTriangleAABB.zMax = Math.max(triangle[0].z, triangle[1].z, triangle[2].z);
-
-      const result = rayAABBIntersection(rayOrigin, rayDirectionNormalized, tmp_PerformRayCastTriangleAABB);
-      if (result !== undefined && !(mode === RayCastMode.Bounded && result > rayLength)) {
-        possibleTriangles.push([
-          triangle,
-          possibleModel,
-        ]);
-      }
-    }
-  }
-
-  /*
-    ========
-    PHASE 3: Triangle
-    ========
-   */
-  for (const [triangle, node] of possibleTriangles) {
-    const result = rayTriangleIntersection(rayOrigin, rayDirectionNormalized, triangle);
-    if (result !== undefined && result < shortestRayLength && !(mode === RayCastMode.Bounded && result > rayLength)) {
-      shortestRayLength = result;
-      shortestRayResult = node;
-    }
-  }
-
-  if (shortestRayResult) {
-    return [shortestRayResult, rayDirectionNormalized.scale(shortestRayLength).addSelf(rayOrigin)];
-  } else {
-    return undefined;
-  }
-}
 
 
 function debug_rayCastEntireScreen(canvas: HTMLCanvasElement, camera: CameraNode, scene: IScene) {
@@ -766,8 +678,8 @@ function debug_rayCastEntireScreen(canvas: HTMLCanvasElement, camera: CameraNode
       const normalizedX = x / (canvas.width - 1);
       const normalizedY = y / (canvas.height - 1);
 
-      const raycastResult = rayCastFromCamera(camera, scene, normalizedX, normalizedY);
-      const hitNode = raycastResult?.[0];
+      const result = rayCastFromCamera(camera, scene, normalizedX, normalizedY);
+      const hitNode = result?.target;
 
       const pixelIndex = (y * canvas.width + x) * 4;
 

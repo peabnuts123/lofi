@@ -2,7 +2,7 @@ import { Vector3 } from '@lofi/core/math/vector';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 import { describe, test, expect } from 'vitest';
 
-import { rayAABBIntersection, rayTriangleIntersection } from './index';
+import { RayCast } from './RayCast';
 import type { Triangle } from "@lofi/engine/models/geometry";
 
 describe("Ray casting", () => {
@@ -23,7 +23,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(size, size, size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
       const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
@@ -47,7 +47,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(0, 0, -size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
       const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
@@ -71,7 +71,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(0, 0, -size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
 
       // Assert
       expect(result).toBeUndefined();
@@ -92,7 +92,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(-size, -size, -size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
 
       // Assert
       expect(result).toBeUndefined();
@@ -113,7 +113,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(size, size, size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
 
       // Assert
       expect(result).toBe(0);
@@ -134,7 +134,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(size, size, size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
 
       // Assert
       expect(result).toBe(0);
@@ -155,7 +155,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(size, size, size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
 
       // Assert
       expect(result).toBeUndefined();
@@ -176,7 +176,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(0, 0, -size);
 
       // Test
-      const result = rayAABBIntersection(rayOrigin, rayDirection, aabb);
+      const result = RayCast.intersectAABB(rayOrigin, rayDirection, aabb);
       const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
@@ -198,7 +198,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(-1, -1, -1);
 
       // Test
-      const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
+      const result = RayCast.intersectTriangle(rayOrigin, rayDirection, triangle);
       const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
@@ -218,7 +218,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(2, 1, -2);
 
       // Test
-      const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
+      const result = RayCast.intersectTriangle(rayOrigin, rayDirection, triangle);
       const intersectionPoint = result === undefined ? undefined : rayDirection.scale(result).addSelf(rayOrigin);
 
       // Assert
@@ -237,7 +237,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(-1, 0, 0);
 
       // Test
-      const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
+      const result = RayCast.intersectTriangle(rayOrigin, rayDirection, triangle);
 
       // Assert
       expect(result).toBeUndefined();
@@ -254,7 +254,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(-2, -1, 2);
 
       // Test
-      const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
+      const result = RayCast.intersectTriangle(rayOrigin, rayDirection, triangle);
 
       // Assert
       expect(result).toBeUndefined();
@@ -270,7 +270,7 @@ describe("Ray casting", () => {
       const rayDirection = new Vector3(0, 1, 0);
 
       // Test
-      const result = rayTriangleIntersection(rayOrigin, rayDirection, triangle);
+      const result = RayCast.intersectTriangle(rayOrigin, rayDirection, triangle);
 
       // Assert
       expect(result).toBeUndefined();

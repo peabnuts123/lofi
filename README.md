@@ -37,9 +37,10 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Low-level API~~
   - [x] ~~MATH API REFACTOR: Flip the order of math operators (e.g. `Matrix4.transform(Vector3)` instead of `Vector3.multiplySelf(Matrix4)`)~~
   - [x] ~~Lights have range or intensity or colour or something.~~
-  - [ ] Config for Clear color on scene, or camera?
-  - [ ] Move ray casting into a class I think
+  - [x] ~~Config for Clear color on scene, or camera?~~
+  - [x] ~~Move ray casting into a class I think~~
   - [ ] Fix DebugModule
+  - [ ] Fix DrawDebug
   - [ ] Move AABB + others into `util/maths` or something
   - [ ] Split up combined files
     - [ ] vector.ts
