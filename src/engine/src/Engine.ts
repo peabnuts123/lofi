@@ -161,7 +161,6 @@ export class Engine implements IEngine {
 
     // Count number of frames drawn per second
     const fps = new RateCounter('FPS');
-    // RateCounter.tmp = new RateCounter('tmp_per_frame', fps);
 
     const Debug_ResourceCountersEnabled = false;
     const debug_resourceCounters = {
