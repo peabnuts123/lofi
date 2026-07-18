@@ -41,9 +41,9 @@ Work in progress. LoFi is not published to npm yet, but it will be soon.
   - [x] ~~Move ray casting into a class I think~~
   - [x] ~~Fix DrawDebug~~
   - [x] ~~Move AABB + others into `util/maths` or something~~
-  - [ ] Split up combined files
-    - [ ] vector.ts
-    - [ ] observable.ts
+  - [x] ~~Split up combined files~~
+    - [x] ~~vector.ts~~
+    - [x] ~~observable.ts~~
     - [x] ~~____Geometry~~
   - [ ] Build pipeline and CD
   - [ ] Review TODOs and clean up documentation / repo
