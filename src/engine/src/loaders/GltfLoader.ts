@@ -190,11 +190,8 @@ export abstract class GltfLoader {
 
       const texture = material.getBaseColorTexture()?.getImage();
       if (texture) {
-        const textureInfo = material.getBaseColorTextureInfo()!;
-        const textureCoord = textureInfo?.getTexCoord();
         materialDefinition.diffuseTexture = {
           buffer: texture,
-          texCoord: textureCoord,
         };
       }
 

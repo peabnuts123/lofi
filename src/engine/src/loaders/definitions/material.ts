@@ -6,6 +6,5 @@ export interface MaterialDefinition {
   diffuseColor?: Color4;
   diffuseTexture?: {
     buffer: Uint8Array<ArrayBuffer>;
-    texCoord: number;
   },
 }

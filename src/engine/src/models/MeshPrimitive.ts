@@ -4,7 +4,7 @@ import { IdPool } from "@lofi/core/util/IdPool";
 import { type DrawTask, type IEngine, type OpaqueDrawTask, type TransparentDrawTask } from "@lofi/engine/Engine";
 import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
 import { BufferType } from "@lofi/engine/util/createBuffer";
-import type { MeshPrimitiveGeometry, VertexTextureCoordinateAttribute } from "./geometry";
+import type { MeshPrimitiveGeometry } from "./geometry";
 
 export interface MeshPrimitiveExtents {
   min: Vector3;
@@ -150,10 +150,9 @@ export class MeshPrimitive {
         0,
       );
     }
-    const texCoordIndex = primitive.defaultMaterialDefinition?.diffuseTexture?.texCoord;
     const textureCoordAttribute = shader.getAttribute('textureCoord');
-    if (textureCoordAttribute !== undefined && texCoordIndex !== undefined) {
-      const textureCoordAttributeData = primitive[`texCoord${texCoordIndex}Attribute` as keyof MeshPrimitiveGeometry] as (VertexTextureCoordinateAttribute | undefined);
+    if (textureCoordAttribute !== undefined) {
+      const textureCoordAttributeData = primitive.textureCoordinatesAttribute;
       if (textureCoordAttributeData) {
         gl.enableVertexAttribArray(textureCoordAttribute);
         gl.bindBuffer(BufferType.ARRAY_BUFFER, textureCoordAttributeData.glBuffer);

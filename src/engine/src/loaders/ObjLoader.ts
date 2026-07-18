@@ -359,7 +359,6 @@ export class ObjLoader {
       const textureFile = await this.filesystem.readFile(texturePath);
       materialDefinition.diffuseTexture = {
         buffer: textureFile.bytes,
-        texCoord: 0,
       };
 
       // Decode and scan texture for transparent pixels as the ultimate check
