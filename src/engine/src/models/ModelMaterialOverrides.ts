@@ -111,7 +111,7 @@ export class ModelMaterialOverrides extends Observable {
       return materialInstance;
     } else {
       materialInstance = new Computed(new MaterialInstance(), {
-        dependencies: [],
+        dependencies: [], // @NOTE Dependencies managed dynamically by `reconcileComputedMaterialInstanceDependencies`
         recompute: (self) => {
           // Get dependencies
           const defaultMaterial = this.getDefaultMaterial(materialName);
@@ -186,11 +186,18 @@ export class ModelMaterialOverrides extends Observable {
 
   public get parent(): ModelMaterialOverridesParent { return this._parent; }
   public set parent(value: ModelMaterialOverridesParent) {
+    // Stop observing old parent
     if (this.stopObservingParent) {
       this.stopObservingParent();
+      this.stopObservingParent = undefined;
     }
+    // Assign new parent
     this._parent = value;
+    // Observe new parent
+    if (value instanceof ModelMaterialOverrides) {
+      this.stopObservingParent = value.onChange(() => this.onParentChange());
+    }
+    // Process updated parent dependencies
     this.onParentChange();
-    this.notifyOnChange();
   }
 }
