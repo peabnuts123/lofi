@@ -5,7 +5,6 @@ import { Vector3 } from './Vector3';
 import { Vector2 } from './Vector2';
 
 /* @TODO Test backlog
-  - Vector2
   - divideSelf/divide by 0 throws error
   - withX/withY/withZ
   - Setting the same value(s) does not fire on change
