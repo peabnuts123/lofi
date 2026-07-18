@@ -269,7 +269,7 @@ describe(MeshPrimitiveGeometry.name, () => {
 
       // Assert
       expect(geometry.jointIndices).toBeUndefined();
-      expect(geometry.joints0Attribute).toBeUndefined();
+      expect(geometry.jointIndicesAttribute).toBeUndefined();
     });
     test("Joint indices (type=UNSIGNED_BYTE) (normalized=false)", () => {
       // Setup
@@ -299,10 +299,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(jointIndices[2], `Joint indices at index ${i} '2' should match`).toEqual(mockJointIndices[i][2]);
         expect(jointIndices[3], `Joint indices at index ${i} '3' should match`).toEqual(mockJointIndices[i][3]);
       });
-      expect(geometry.joints0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentCount);
-      expect(geometry.joints0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentSize);
-      expect(geometry.joints0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentType);
-      expect(geometry.joints0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.joints0Data!.normalized);
+      expect(geometry.jointIndicesAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentCount);
+      expect(geometry.jointIndicesAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentSize);
+      expect(geometry.jointIndicesAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentType);
+      expect(geometry.jointIndicesAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.joints0Data!.normalized);
     });
     test("Joint indices (type=UNSIGNED_SHORT) (normalized=false)", () => {
       // Setup
@@ -332,10 +332,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(jointIndices[2], `Joint indices at index ${i} '2' should match`).toEqual(mockJointIndices[i][2]);
         expect(jointIndices[3], `Joint indices at index ${i} '3' should match`).toEqual(mockJointIndices[i][3]);
       });
-      expect(geometry.joints0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentCount);
-      expect(geometry.joints0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentSize);
-      expect(geometry.joints0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentType);
-      expect(geometry.joints0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.joints0Data!.normalized);
+      expect(geometry.jointIndicesAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentCount);
+      expect(geometry.jointIndicesAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentSize);
+      expect(geometry.jointIndicesAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.joints0Data!.componentType);
+      expect(geometry.jointIndicesAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.joints0Data!.normalized);
     });
     test("No joint weights", () => {
       // Setup
@@ -350,7 +350,7 @@ describe(MeshPrimitiveGeometry.name, () => {
 
       // Assert
       expect(geometry.jointWeights).toBeUndefined();
-      expect(geometry.weights0Attribute).toBeUndefined();
+      expect(geometry.jointWeightsAttribute).toBeUndefined();
     });
     test("Joint weights (type=FLOAT) (normalized=false)", () => {
       // Setup
@@ -380,10 +380,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(jointWeights[2], `Joint weights at index ${i} '2' should match`).toBeCloseTo(mockJointWeights[i][2]);
         expect(jointWeights[3], `Joint weights at index ${i} '3' should match`).toBeCloseTo(mockJointWeights[i][3]);
       });
-      expect(geometry.weights0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentCount);
-      expect(geometry.weights0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentSize);
-      expect(geometry.weights0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentType);
-      expect(geometry.weights0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.weights0Data!.normalized);
+      expect(geometry.jointWeightsAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentCount);
+      expect(geometry.jointWeightsAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentSize);
+      expect(geometry.jointWeightsAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentType);
+      expect(geometry.jointWeightsAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.weights0Data!.normalized);
     });
     test("Joint weights (type=UNSIGNED_BYTE) (normalized=true)", () => {
       // Setup
@@ -418,10 +418,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(jointWeights[2], `Joint weights at index ${i} '2' should match`).toBeCloseTo(mockJointWeights[i][2]);
         expect(jointWeights[3], `Joint weights at index ${i} '3' should match`).toBeCloseTo(mockJointWeights[i][3]);
       });
-      expect(geometry.weights0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentCount);
-      expect(geometry.weights0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentSize);
-      expect(geometry.weights0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentType);
-      expect(geometry.weights0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.weights0Data!.normalized);
+      expect(geometry.jointWeightsAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentCount);
+      expect(geometry.jointWeightsAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentSize);
+      expect(geometry.jointWeightsAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentType);
+      expect(geometry.jointWeightsAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.weights0Data!.normalized);
     });
     test("Joint weights (type=UNSIGNED_SHORT) (normalized=true)", () => {
       // Setup
@@ -456,10 +456,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(jointWeights[2], `Joint weights at index ${i} '2' should match`).toBeCloseTo(mockJointWeights[i][2]);
         expect(jointWeights[3], `Joint weights at index ${i} '3' should match`).toBeCloseTo(mockJointWeights[i][3]);
       });
-      expect(geometry.weights0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentCount);
-      expect(geometry.weights0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentSize);
-      expect(geometry.weights0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentType);
-      expect(geometry.weights0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.weights0Data!.normalized);
+      expect(geometry.jointWeightsAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentCount);
+      expect(geometry.jointWeightsAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentSize);
+      expect(geometry.jointWeightsAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.weights0Data!.componentType);
+      expect(geometry.jointWeightsAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.weights0Data!.normalized);
     });
     test("No colors", () => {
       // Setup
@@ -473,7 +473,7 @@ describe(MeshPrimitiveGeometry.name, () => {
 
       // Assert
       expect(geometry.vertexColors).toBeUndefined();
-      expect(geometry.color0Attribute).toBeUndefined();
+      expect(geometry.colorAttribute).toBeUndefined();
     });
     test("Colors (type=FLOAT) (normalized=false) (componentCount=3)", () => {
       // Setup
@@ -503,10 +503,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(color.b, `Vertex color at index ${i} 'b' should match`).toBeCloseTo(mockColors[i].b);
         expect(color.a, `Vertex color at index ${i} 'a' should match`).toBeCloseTo(0xFF);
       });
-      expect(geometry.color0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
-      expect(geometry.color0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
-      expect(geometry.color0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
-      expect(geometry.color0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
+      expect(geometry.colorAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
+      expect(geometry.colorAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
+      expect(geometry.colorAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
+      expect(geometry.colorAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
     });
     test("Colors (type=UNSIGNED_BYTE) (normalized=true) (componentCount=3)", () => {
       // Setup
@@ -543,10 +543,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(color.b, `Vertex color at index ${i} 'b' should match`).toBeCloseTo(mockColors[i].b);
         expect(color.a, `Vertex color at index ${i} 'a' should match`).toBeCloseTo(0xFF);
       });
-      expect(geometry.color0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
-      expect(geometry.color0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
-      expect(geometry.color0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
-      expect(geometry.color0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
+      expect(geometry.colorAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
+      expect(geometry.colorAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
+      expect(geometry.colorAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
+      expect(geometry.colorAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
     });
     test("Colors (type=UNSIGNED_SHORT) (normalized=true) (componentCount=3)", () => {
       // Setup
@@ -581,10 +581,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(color.b, `Vertex color at index ${i} 'b' should match`).toBeCloseTo(mockColors[i].b);
         expect(color.a, `Vertex color at index ${i} 'a' should match`).toBeCloseTo(0xFF);
       });
-      expect(geometry.color0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
-      expect(geometry.color0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
-      expect(geometry.color0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
-      expect(geometry.color0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
+      expect(geometry.colorAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
+      expect(geometry.colorAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
+      expect(geometry.colorAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
+      expect(geometry.colorAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
     });
     test("Colors (type=FLOAT) (normalized=false) (componentCount=4)", () => {
       // Setup
@@ -614,10 +614,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(color.b, `Vertex color at index ${i} 'b' should match`).toBeCloseTo(mockColors[i].b);
         expect(color.a, `Vertex color at index ${i} 'a' should match`).toBeCloseTo(mockColors[i].a);
       });
-      expect(geometry.color0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
-      expect(geometry.color0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
-      expect(geometry.color0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
-      expect(geometry.color0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
+      expect(geometry.colorAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
+      expect(geometry.colorAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
+      expect(geometry.colorAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
+      expect(geometry.colorAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
     });
     test("Colors (type=UNSIGNED_BYTE) (normalized=true) (componentCount=4)", () => {
       // Setup
@@ -655,10 +655,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(color.b, `Vertex color at index ${i} 'b' should match`).toBeCloseTo(mockColors[i].b);
         expect(color.a, `Vertex color at index ${i} 'a' should match`).toBeCloseTo(mockColors[i].a);
       });
-      expect(geometry.color0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
-      expect(geometry.color0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
-      expect(geometry.color0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
-      expect(geometry.color0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
+      expect(geometry.colorAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
+      expect(geometry.colorAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
+      expect(geometry.colorAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
+      expect(geometry.colorAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
     });
     test("Colors (type=UNSIGNED_SHORT) (normalized=true) (componentCount=4)", () => {
       // Setup
@@ -694,10 +694,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(color.b, `Vertex color at index ${i} 'b' should match`).toBeCloseTo(mockColors[i].b);
         expect(color.a, `Vertex color at index ${i} 'a' should match`).toBeCloseTo(mockColors[i].a);
       });
-      expect(geometry.color0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
-      expect(geometry.color0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
-      expect(geometry.color0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
-      expect(geometry.color0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
+      expect(geometry.colorAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.color0Data!.componentCount);
+      expect(geometry.colorAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.color0Data!.componentSize);
+      expect(geometry.colorAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.color0Data!.componentType);
+      expect(geometry.colorAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.color0Data!.normalized);
     });
     test("No texture coordinates", () => {
       // Setup
@@ -711,7 +711,7 @@ describe(MeshPrimitiveGeometry.name, () => {
 
       // Assert
       expect(geometry.vertexTextureCoordinates).toBeUndefined();
-      expect(geometry.texCoord0Attribute).toBeUndefined();
+      expect(geometry.textureCoordinatesAttribute).toBeUndefined();
     });
     test("Texture coordinates (type=FLOAT) (normalized=false)", () => {
       // Setup
@@ -739,10 +739,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(texCoord.x, `Texture coordinate at index ${i} 'x' should match`).toBeCloseTo(mockTexCoords[i].x);
         expect(texCoord.y, `Texture coordinate at index ${i} 'y' should match`).toBeCloseTo(mockTexCoords[i].y);
       });
-      expect(geometry.texCoord0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentCount);
-      expect(geometry.texCoord0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentSize);
-      expect(geometry.texCoord0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentType);
-      expect(geometry.texCoord0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.normalized);
+      expect(geometry.textureCoordinatesAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentCount);
+      expect(geometry.textureCoordinatesAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentSize);
+      expect(geometry.textureCoordinatesAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentType);
+      expect(geometry.textureCoordinatesAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.normalized);
     });
     test("Texture coordinates (type=UNSIGNED_SHORT) (normalized=true)", () => {
       // Setup
@@ -773,10 +773,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(texCoord.x, `Texture coordinate at index ${i} 'x' should match`).toBeCloseTo(mockTexCoords[i].x);
         expect(texCoord.y, `Texture coordinate at index ${i} 'y' should match`).toBeCloseTo(mockTexCoords[i].y);
       });
-      expect(geometry.texCoord0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentCount);
-      expect(geometry.texCoord0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentSize);
-      expect(geometry.texCoord0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentType);
-      expect(geometry.texCoord0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.normalized);
+      expect(geometry.textureCoordinatesAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentCount);
+      expect(geometry.textureCoordinatesAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentSize);
+      expect(geometry.textureCoordinatesAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentType);
+      expect(geometry.textureCoordinatesAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.normalized);
     });
     test("Texture coordinates (type=UNSIGNED_BYTE) (normalized=true)", () => {
       // Setup
@@ -807,10 +807,10 @@ describe(MeshPrimitiveGeometry.name, () => {
         expect(texCoord.x, `Texture coordinate at index ${i} 'x' should match`).toBeCloseTo(mockTexCoords[i].x);
         expect(texCoord.y, `Texture coordinate at index ${i} 'y' should match`).toBeCloseTo(mockTexCoords[i].y);
       });
-      expect(geometry.texCoord0Attribute!.componentCount).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentCount);
-      expect(geometry.texCoord0Attribute!.componentSize).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentSize);
-      expect(geometry.texCoord0Attribute!.componentType).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentType);
-      expect(geometry.texCoord0Attribute!.normalized).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.normalized);
+      expect(geometry.textureCoordinatesAttribute!.componentCount).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentCount);
+      expect(geometry.textureCoordinatesAttribute!.componentSize).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentSize);
+      expect(geometry.textureCoordinatesAttribute!.componentType).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.componentType);
+      expect(geometry.textureCoordinatesAttribute!.normalized).toBe(mockMeshPrimitiveDefinition.texCoord0Data!.normalized);
     });
   });
   describe("Observability", () => {

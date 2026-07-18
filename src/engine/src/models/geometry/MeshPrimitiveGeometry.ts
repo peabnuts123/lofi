@@ -74,10 +74,10 @@ export class MeshPrimitiveGeometry {
   public readonly positionAttribute: Readonly<VertexPositionAttribute>;
   public readonly normalAttribute: Readonly<VertexNormalAttribute>;
   public readonly indicesAttribute: Readonly<TriangleIndicesAttribute>;
-  public readonly joints0Attribute: Readonly<VertexJointIndicesAttribute> | undefined;
-  public readonly weights0Attribute: Readonly<VertexJointWeightsAttribute> | undefined;
-  public readonly color0Attribute: Readonly<VertexColorAttribute> | undefined;
-  public readonly texCoord0Attribute: Readonly<VertexTextureCoordinateAttribute> | undefined;
+  public readonly jointIndicesAttribute: Readonly<VertexJointIndicesAttribute> | undefined;
+  public readonly jointWeightsAttribute: Readonly<VertexJointWeightsAttribute> | undefined;
+  public readonly colorAttribute: Readonly<VertexColorAttribute> | undefined;
+  public readonly textureCoordinatesAttribute: Readonly<VertexTextureCoordinateAttribute> | undefined;
 
   /* Parsed data */
   private readonly _vertexPositions: readonly Vector3[];
@@ -372,14 +372,14 @@ export class MeshPrimitiveGeometry {
       this._jointIndices = Object.freeze(this.parseJointIndicesAttribute(definition.joints0Data));
       this._jointWeights = Object.freeze(this.parseJointWeightsAttribute(definition.weights0Data));
       // Create GL buffers
-      this.joints0Attribute = this.createVertexAttribute(definition.joints0Data, BufferType.ARRAY_BUFFER);
-      this.weights0Attribute = this.createVertexAttribute(definition.weights0Data, BufferType.ARRAY_BUFFER);
+      this.jointIndicesAttribute = this.createVertexAttribute(definition.joints0Data, BufferType.ARRAY_BUFFER);
+      this.jointWeightsAttribute = this.createVertexAttribute(definition.weights0Data, BufferType.ARRAY_BUFFER);
       // Create mutation observers
       this.jointIndicesMutationObserver = new VertexAttributeMutationObserver(
         this._jointIndices,
-        this.joints0Attribute,
+        this.jointIndicesAttribute,
         this.jointIndicesChanged,
-        this.createTmpBufferForVertexAttribute(this.joints0Attribute, this._jointIndices.length),
+        this.createTmpBufferForVertexAttribute(this.jointIndicesAttribute, this._jointIndices.length),
         (jointIndices, buffer, offset) => {
           buffer[offset + 0] = jointIndices[0];
           buffer[offset + 1] = jointIndices[1];
@@ -389,14 +389,14 @@ export class MeshPrimitiveGeometry {
       );
       this.jointWeightsMutationObserver = new VertexAttributeMutationObserver(
         this._jointWeights,
-        this.weights0Attribute,
+        this.jointWeightsAttribute,
         this.jointWeightsChanged,
-        this.createTmpBufferForVertexAttribute(this.weights0Attribute, this._jointWeights.length),
+        this.createTmpBufferForVertexAttribute(this.jointWeightsAttribute, this._jointWeights.length),
         (jointWeights, buffer, offset) => {
-          buffer[offset + 0] = this.denormalizeValue(jointWeights[0], this.weights0Attribute!);
-          buffer[offset + 1] = this.denormalizeValue(jointWeights[1], this.weights0Attribute!);
-          buffer[offset + 2] = this.denormalizeValue(jointWeights[2], this.weights0Attribute!);
-          buffer[offset + 3] = this.denormalizeValue(jointWeights[3], this.weights0Attribute!);
+          buffer[offset + 0] = this.denormalizeValue(jointWeights[0], this.jointWeightsAttribute!);
+          buffer[offset + 1] = this.denormalizeValue(jointWeights[1], this.jointWeightsAttribute!);
+          buffer[offset + 2] = this.denormalizeValue(jointWeights[2], this.jointWeightsAttribute!);
+          buffer[offset + 3] = this.denormalizeValue(jointWeights[3], this.jointWeightsAttribute!);
         },
       );
     }
@@ -406,19 +406,19 @@ export class MeshPrimitiveGeometry {
       // Parse data
       this._vertexColors = Object.freeze(this.parseVertexColorAttribute(definition.color0Data));
       // Create GL buffer
-      this.color0Attribute = this.createVertexAttribute(definition.color0Data, BufferType.ARRAY_BUFFER);
+      this.colorAttribute = this.createVertexAttribute(definition.color0Data, BufferType.ARRAY_BUFFER);
       // Create mutation observer
       this.vertexColorsMutationObserver = new VertexAttributeMutationObserver(
         this._vertexColors,
-        this.color0Attribute,
+        this.colorAttribute,
         this.vertexColorsChanged,
-        this.createTmpBufferForVertexAttribute(this.color0Attribute, this._vertexColors.length),
+        this.createTmpBufferForVertexAttribute(this.colorAttribute, this._vertexColors.length),
         (vertexColor, buffer, offset) => {
-          buffer[offset + 0] = this.denormalizeValue(vertexColor.r / 0xFF, this.color0Attribute!);
-          buffer[offset + 1] = this.denormalizeValue(vertexColor.g / 0xFF, this.color0Attribute!);
-          buffer[offset + 2] = this.denormalizeValue(vertexColor.b / 0xFF, this.color0Attribute!);
-          if (this.color0Attribute!.componentCount === 4) {
-            buffer[offset + 3] = this.denormalizeValue(vertexColor.a / 0xFF, this.color0Attribute!);
+          buffer[offset + 0] = this.denormalizeValue(vertexColor.r / 0xFF, this.colorAttribute!);
+          buffer[offset + 1] = this.denormalizeValue(vertexColor.g / 0xFF, this.colorAttribute!);
+          buffer[offset + 2] = this.denormalizeValue(vertexColor.b / 0xFF, this.colorAttribute!);
+          if (this.colorAttribute!.componentCount === 4) {
+            buffer[offset + 3] = this.denormalizeValue(vertexColor.a / 0xFF, this.colorAttribute!);
           }
         },
       );
@@ -429,16 +429,16 @@ export class MeshPrimitiveGeometry {
       // Parse data
       this._vertexTextureCoordinates = Object.freeze(this.parseVertexTextureCoordinatesAttribute(definition.texCoord0Data));
       // Create GL buffer
-      this.texCoord0Attribute = this.createVertexAttribute(definition.texCoord0Data, BufferType.ARRAY_BUFFER);
+      this.textureCoordinatesAttribute = this.createVertexAttribute(definition.texCoord0Data, BufferType.ARRAY_BUFFER);
       // Create mutation observer
       this.vertexTextureCoordinatesMutationObserver = new VertexAttributeMutationObserver(
         this._vertexTextureCoordinates,
-        this.texCoord0Attribute,
+        this.textureCoordinatesAttribute,
         this.vertexTextureCoordinatesChanged,
-        this.createTmpBufferForVertexAttribute(this.texCoord0Attribute, this._vertexTextureCoordinates.length),
+        this.createTmpBufferForVertexAttribute(this.textureCoordinatesAttribute, this._vertexTextureCoordinates.length),
         (vertexTexCoord, buffer, offset) => {
-          buffer[offset + 0] = this.denormalizeValue(vertexTexCoord.x, this.texCoord0Attribute!);
-          buffer[offset + 1] = this.denormalizeValue(vertexTexCoord.y, this.texCoord0Attribute!);
+          buffer[offset + 0] = this.denormalizeValue(vertexTexCoord.x, this.textureCoordinatesAttribute!);
+          buffer[offset + 1] = this.denormalizeValue(vertexTexCoord.y, this.textureCoordinatesAttribute!);
         },
       );
     }

@@ -138,15 +138,15 @@ export class MeshPrimitive {
 
     /* Vertex colors */
     const vertexColorAttribute = shader.getAttribute('vertexColor');
-    if (vertexColorAttribute !== undefined && primitive.color0Attribute) {
+    if (vertexColorAttribute !== undefined && primitive.colorAttribute) {
       gl.enableVertexAttribArray(vertexColorAttribute);
-      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.color0Attribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.colorAttribute.glBuffer);
       gl.vertexAttribPointer(
         vertexColorAttribute,
-        primitive.color0Attribute.componentCount,
-        primitive.color0Attribute.componentType,
-        primitive.color0Attribute.normalized,
-        primitive.color0Attribute.componentCount * primitive.color0Attribute.componentSize,
+        primitive.colorAttribute.componentCount,
+        primitive.colorAttribute.componentType,
+        primitive.colorAttribute.normalized,
+        primitive.colorAttribute.componentCount * primitive.colorAttribute.componentSize,
         0,
       );
     }
@@ -170,29 +170,29 @@ export class MeshPrimitive {
 
     /* Joint indices */
     const vertexJointsAttribute = shader.getAttribute('vertexJoints');
-    if (vertexJointsAttribute !== undefined && primitive.joints0Attribute) {
+    if (vertexJointsAttribute !== undefined && primitive.jointIndicesAttribute) {
       gl.enableVertexAttribArray(vertexJointsAttribute);
-      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.joints0Attribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.jointIndicesAttribute.glBuffer);
       gl.vertexAttribPointer(
         vertexJointsAttribute,
-        primitive.joints0Attribute.componentCount,
-        primitive.joints0Attribute.componentType,
-        primitive.joints0Attribute.normalized,
-        primitive.joints0Attribute.componentCount * primitive.joints0Attribute.componentSize,
+        primitive.jointIndicesAttribute.componentCount,
+        primitive.jointIndicesAttribute.componentType,
+        primitive.jointIndicesAttribute.normalized,
+        primitive.jointIndicesAttribute.componentCount * primitive.jointIndicesAttribute.componentSize,
         0,
       );
     }
     /* Joint weights */
     const vertexWeightsAttribute = shader.getAttribute('vertexWeights');
-    if (vertexWeightsAttribute !== undefined && primitive.weights0Attribute) {
+    if (vertexWeightsAttribute !== undefined && primitive.jointWeightsAttribute) {
       gl.enableVertexAttribArray(vertexWeightsAttribute);
-      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.weights0Attribute.glBuffer);
+      gl.bindBuffer(BufferType.ARRAY_BUFFER, primitive.jointWeightsAttribute.glBuffer);
       gl.vertexAttribPointer(
         vertexWeightsAttribute,
-        primitive.weights0Attribute.componentCount,
-        primitive.weights0Attribute.componentType,
-        primitive.weights0Attribute.normalized,
-        primitive.weights0Attribute.componentCount * primitive.weights0Attribute.componentSize,
+        primitive.jointWeightsAttribute.componentCount,
+        primitive.jointWeightsAttribute.componentType,
+        primitive.jointWeightsAttribute.normalized,
+        primitive.jointWeightsAttribute.componentCount * primitive.jointWeightsAttribute.componentSize,
         0,
       );
     }

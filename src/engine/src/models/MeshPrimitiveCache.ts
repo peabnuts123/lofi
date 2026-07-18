@@ -62,7 +62,7 @@ export class MeshPrimitiveCache {
   private createMaterialInstanceStructuralKey(material: MaterialInstance): MaterialCacheKey {
     const blendingMode = ShaderBlendingModeTypeEnumValue[material.blendingMode.type];
     const hasDiffuseColor = material.diffuseColor !== undefined;
-    const hasDiffuseTexture = material.diffuseTexture !== undefined && this.geometry.texCoord0Attribute !== undefined;
+    const hasDiffuseTexture = material.diffuseTexture !== undefined && this.geometry.textureCoordinatesAttribute !== undefined;
     // @NOTE @ASSUMPTION if skin attributes are defined then ModelPart has a skin defined
     const unlit = material.unlit;
     const hasReflection = material.reflectionCubemap !== undefined;
