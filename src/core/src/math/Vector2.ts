@@ -1,4 +1,4 @@
-import { Observable } from "@lofi/core/util/observable";
+import { Observable } from "@lofi/core/util/Observable";
 
 export interface Vector2Like {
   x: number;

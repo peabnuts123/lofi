@@ -1,4 +1,4 @@
-import { Computed, Observable, WritableComputed } from "@lofi/core/util/observable";
+import { Computed, Observable, WritableComputed } from "@lofi/core/util";
 import { Quaternion, type IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
 import { EulerVector3 } from "@lofi/core/math/EulerVector3";
 import type { Vector3Like } from "@lofi/core/math/Vector3";

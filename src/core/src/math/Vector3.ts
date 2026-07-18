@@ -1,4 +1,4 @@
-import { Observable } from "@lofi/core/util/observable";
+import { Observable } from "@lofi/core/util/Observable";
 
 import type { IReadonlyVector2, Vector2, Vector2Like } from "./Vector2";
 

@@ -1,4 +1,4 @@
-import { Observable } from "@lofi/core/util/observable";
+import { Observable } from "@lofi/core/util/Observable";
 
 import { Quaternion } from "./Quaternion";
 import { RadiansToDegrees } from "./util";

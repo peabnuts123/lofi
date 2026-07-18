@@ -1,4 +1,4 @@
-import { Computed, Observable, type StopObservingFn } from "@lofi/core/util/observable";
+import { Computed, Observable, type StopObservingFn } from "@lofi/core/util";
 import { Material, MaterialInstance } from "@lofi/engine/materials";
 
 export type MaterialOverrideType = 'override' | 'replace';

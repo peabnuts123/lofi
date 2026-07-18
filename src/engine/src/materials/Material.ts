@@ -1,10 +1,10 @@
 import { Color4 } from '@lofi/core/math/Color4';
+import { Observable } from '@lofi/core/util/Observable';
 import { Texture, Cubemap } from '@lofi/engine/textures';
 import type { IEngine } from '@lofi/engine/Engine';
 import type { MaterialDefinition } from '@lofi/engine/loaders/definitions';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
-import { Observable } from '@lofi/core/util/observable';
 
 export type Unset = 'unset';
 

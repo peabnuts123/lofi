@@ -3,7 +3,7 @@ import { ModelPartGeometry } from './ModelPartGeometry';
 import { MeshPrimitiveCache } from '../MeshPrimitiveCache';
 import { MockEngine } from '@test/mock/MockEngine';
 import { createMockMeshPrimitiveDefinition } from './MeshPrimitiveGeometry.test';
-import { Computed } from '@lofi/core/util/observable';
+import { Computed } from '@lofi/core/util/Computed';
 import { Matrix4, Quaternion, Vector3 } from '@lofi/core/math';
 import { expectVectorArraysToBeEqual } from '@test/util/expect';
 

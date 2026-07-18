@@ -1,7 +1,7 @@
 import { type IReadonlyVector3 } from "@lofi/core/math/Vector3";
 import { type IReadonlyVector2 } from "@lofi/core/math/Vector2";
 import type { IReadonlyColor4 } from "@lofi/core/math/Color4";
-import { Computed } from "@lofi/core/util/observable";
+import { Computed } from "@lofi/core/util/Computed";
 import { Optional, type Mutable } from "@lofi/core/util/types";
 import { AxisAlignedBoundingBox, type IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
 

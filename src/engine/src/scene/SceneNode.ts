@@ -2,7 +2,7 @@ import { Vector3 } from "@lofi/core/math/Vector3";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Rotation } from "@lofi/core/transform/Rotation";
 import { Transform } from "@lofi/core/transform/Transform";
-import type { Computed } from "@lofi/core/util/observable";
+import type { Computed } from "@lofi/core/util/Computed";
 
 import type { IScene } from "./Scene";
 

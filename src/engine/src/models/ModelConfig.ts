@@ -1,4 +1,4 @@
-import { Observable } from "@lofi/core/util/observable";
+import { Observable } from "@lofi/core/util/Observable";
 import type { AxisAlignedBoundingBoxConstructorArgs } from "@lofi/engine/collision/AxisAlignedBoundingBox";
 
 export interface ScaleBasedAABBApproximationPolicy {

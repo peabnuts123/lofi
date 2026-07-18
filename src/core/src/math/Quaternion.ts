@@ -1,4 +1,4 @@
-import { Observable } from "@lofi/core/util/observable";
+import { Observable } from "@lofi/core/util/Observable";
 
 import { DegreesToRadians } from "./util";
 import { Vector3, type Vector3Like } from "./Vector3";

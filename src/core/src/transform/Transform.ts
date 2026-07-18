@@ -1,4 +1,4 @@
-import { Computed, WritableComputed } from "@lofi/core/util/observable";
+import { Computed, WritableComputed } from "@lofi/core/util";
 import { Vector3, Matrix4, Quaternion } from "@lofi/core/math";
 
 import { Rotation } from "./Rotation";

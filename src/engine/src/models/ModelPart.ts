@@ -2,7 +2,7 @@ import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Vector3 } from "@lofi/core/math/Vector3";
 import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
-import { Computed } from "@lofi/core/util/observable";
+import { Computed } from "@lofi/core/util/Computed";
 import type { ModelPartDefinition, TransformDefinition } from "@lofi/engine/loaders/definitions/model";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";
 import { MaterialInstance } from "@lofi/engine/materials";
