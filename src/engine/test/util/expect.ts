@@ -2,7 +2,7 @@ import { expect } from "vitest";
 
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
-import type { Vector3Definition } from "@lofi/core/math/vector";
+import type { Vector3Like } from "@lofi/core/math/Vector3";
 
 export function expectQuaternionsToBeEqual(actual: IReadOnlyQuaternion, expected: IReadOnlyQuaternion): void {
   expect(actual.x, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.x, 8);
@@ -11,13 +11,13 @@ export function expectQuaternionsToBeEqual(actual: IReadOnlyQuaternion, expected
   expect(actual.w, `Expected '${actual}' to equal ${expected}`).toBeCloseTo(expected.w, 8);
 }
 
-export function expectVectorsToBeEqual(actual: Vector3Definition, expected: Vector3Definition, message?: string): void {
+export function expectVectorsToBeEqual(actual: Vector3Like, expected: Vector3Like, message?: string): void {
   expect(actual.x, `${message ? message + ". " : ""}Expected '${JSON.stringify({ x: actual.x, y: actual.y, z: actual.z })}' to equal ${JSON.stringify({ x: expected.x, y: expected.y, z: expected.z })}`).toBeCloseTo(expected.x, 8);
   expect(actual.y, `${message ? message + ". " : ""}Expected '${JSON.stringify({ x: actual.x, y: actual.y, z: actual.z })}' to equal ${JSON.stringify({ x: expected.x, y: expected.y, z: expected.z })}`).toBeCloseTo(expected.y, 8);
   expect(actual.z, `${message ? message + ". " : ""}Expected '${JSON.stringify({ x: actual.x, y: actual.y, z: actual.z })}' to equal ${JSON.stringify({ x: expected.x, y: expected.y, z: expected.z })}`).toBeCloseTo(expected.z, 8);
 }
 
-export function expectVectorArraysToBeEqual(actual: readonly Vector3Definition[], expected: readonly Vector3Definition[]): void {
+export function expectVectorArraysToBeEqual(actual: readonly Vector3Like[], expected: readonly Vector3Like[]): void {
   expect(actual.length, "Array lengths should be equal").toEqual(expected.length);
   actual.forEach((actual, i) => {
     expectVectorsToBeEqual(actual, expected[i], `Vectors at index ${i} are not equal`);

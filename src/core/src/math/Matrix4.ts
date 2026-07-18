@@ -3,7 +3,7 @@ import type { TypedArray } from "@lofi/core/util/types";
 import { Observable } from "../util";
 import { CannotInvertMatrixError } from "./Matrix3";
 import type { Quaternion } from "./Quaternion";
-import type { Vector3 } from "./vector";
+import type { Vector3 } from "./Vector3";
 
 
 export type Matrix4InitialValues = [

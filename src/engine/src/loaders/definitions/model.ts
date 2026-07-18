@@ -1,6 +1,6 @@
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { Quaternion } from "@lofi/core/math/Quaternion";
-import type { Vector3 } from "@lofi/core/math/vector";
+import type { Vector3 } from "@lofi/core/math/Vector3";
 import type { Enum } from "@lofi/core/util";
 import type { VirtualFile } from "@lofi/engine/filesystem";
 import type { AxisAlignedBoundingBox } from "@lofi/engine/collision";

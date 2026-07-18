@@ -1,6 +1,7 @@
 import { inverseLerp, lerp } from "@lofi/core/math/util";
-import { Vector2, Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import { Quaternion } from "@lofi/core/math/Quaternion";
+import { Vector2 } from "@lofi/core/math/Vector2";
 import type { AnimationChannelDefinition, AnimationChannelTargetPath, AnimationChannelValues, AnimationSamplerInterpolation, AnimationTypeValue } from "@lofi/engine/loaders/definitions";
 import type { Model, ModelPart } from "@lofi/engine/models";
 

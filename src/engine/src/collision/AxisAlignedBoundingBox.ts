@@ -1,5 +1,5 @@
-import type { IReadonlyVector3, Matrix4, Vector3Definition } from "@lofi/core/math";
-import { Vector3 } from "@lofi/core/math/vector";
+import type { IReadonlyVector3, Matrix4, Vector3Like } from "@lofi/core/math";
+import { Vector3 } from "@lofi/core/math";
 import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DebugDraw";
 
 export interface AxisAlignedBoundingBoxConstructorArgs {
@@ -33,9 +33,9 @@ export class AxisAlignedBoundingBox implements IWireframeDrawable {
   public zMin: number;
   public zMax: number;
 
-  public constructor(min: Vector3Definition, max: Vector3Definition);
+  public constructor(min: Vector3Like, max: Vector3Like);
   public constructor(args: AxisAlignedBoundingBoxConstructorArgs);
-  public constructor(minOrArgs: Vector3Definition | AxisAlignedBoundingBoxConstructorArgs, max?: Vector3Definition) {
+  public constructor(minOrArgs: Vector3Like | AxisAlignedBoundingBoxConstructorArgs, max?: Vector3Like) {
     if ('x' in minOrArgs) {
       /* Separate min/max args */
       this.xMin = minOrArgs.x;

@@ -1,6 +1,6 @@
 import { type IAudioContext, AudioContext, DynamicsCompressorNode, GainNode, type IAudioNode } from 'standardized-audio-context';
 
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import type { AudioSourceNode } from "@lofi/engine/scene/nodes";
 import type { IEngine } from "@lofi/engine/Engine";
 

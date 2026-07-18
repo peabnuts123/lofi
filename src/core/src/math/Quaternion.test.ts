@@ -2,7 +2,7 @@ import { expectQuaternionsToBeEqual, expectVectorsToBeEqual } from '@test/util/e
 
 import { describe, test, expect } from 'vitest';
 import { Quaternion } from './Quaternion';
-import { Vector3 } from './vector';
+import { Vector3 } from './Vector3';
 import { WellKnownQuaternions } from '@test/util/quaternions';
 
 /*

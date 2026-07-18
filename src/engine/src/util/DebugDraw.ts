@@ -1,4 +1,4 @@
-import { type IReadonlyVector3 } from "@lofi/core/math/vector";
+import { type IReadonlyVector3 } from "@lofi/core/math/Vector3";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Color3 } from "@lofi/core/math/Color3";
 import type { DrawTask, IEngine } from "@lofi/engine/Engine";

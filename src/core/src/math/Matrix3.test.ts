@@ -1,6 +1,6 @@
 import { describe, test } from 'vitest';
 import { Matrix3 } from './Matrix3';
-import { Vector3 } from './vector';
+import { Vector3 } from './Vector3';
 import { expectVectorsToBeEqual } from '@test/util/expect';
 
 describe(Matrix3.name, () => {

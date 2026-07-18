@@ -2,8 +2,7 @@ import { Observable } from "@lofi/core/util";
 import { Color4 } from "./Color4";
 import { clamp } from "./util";
 
-// @TODO Rename to Color3Like
-export interface Color3Definition {
+export interface Color3Like {
   r: number;
   g: number;
   b: number;
@@ -53,8 +52,8 @@ export class Color3 extends Observable implements IReadonlyColor3 {
   }
 
   public setValue(r: number, g: number, b: number): this;
-  public setValue(color: Color3Definition): this;
-  public setValue(rOrColor: number | Color3Definition, maybeG?: number, maybeB?: number): this {
+  public setValue(color: Color3Like): this;
+  public setValue(rOrColor: number | Color3Like, maybeG?: number, maybeB?: number): this {
     if (typeof rOrColor === 'number') {
       this.internal.r = rOrColor;
       this.internal.g = maybeG!;

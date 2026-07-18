@@ -1,14 +1,13 @@
 import { Observable } from "@lofi/core/util";
-import { type Color3Definition } from "./Color3";
+import { type Color3Like } from "./Color3";
 import { clamp } from "./util";
 
-export interface Color4Definition {
+export interface Color4Like {
   r: number;
   g: number;
   b: number;
   a: number;
 }
-
 
 class Color4InternalBuffer {
   public static readonly BufferSize: number = 4;
@@ -38,9 +37,9 @@ export interface IReadonlyColor4 {
 export class Color4 extends Observable implements IReadonlyColor4 {
   private readonly internal: Color4InternalBuffer;
 
-  public constructor(color: Color3Definition, a?: number);
+  public constructor(color: Color3Like, a?: number);
   public constructor(r: number, g: number, b: number, a?: number);
-  public constructor(redOrColor: number | Color3Definition, greenOrAlpha?: number, blue?: number, alpha?: number) {
+  public constructor(redOrColor: number | Color3Like, greenOrAlpha?: number, blue?: number, alpha?: number) {
     super();
     this.internal = new Color4InternalBuffer();
     if (typeof redOrColor === 'number') {
@@ -69,8 +68,8 @@ export class Color4 extends Observable implements IReadonlyColor4 {
   }
 
   public setValue(r: number, g: number, b: number, a: number): this;
-  public setValue(color: Color4Definition): this;
-  public setValue(rOrColor: number | Color4Definition, maybeG?: number, maybeB?: number, maybeA?: number): this {
+  public setValue(color: Color4Like): this;
+  public setValue(rOrColor: number | Color4Like, maybeG?: number, maybeB?: number, maybeA?: number): this {
     if (typeof rOrColor === 'number') {
       this.internal.r = rOrColor;
       this.internal.g = maybeG!;

@@ -2,7 +2,8 @@
 import { Accessor, WebIO, type GLTF, Node as GltfPart, Document, Material } from '@gltf-transform/core';
 
 import { Matrix4 } from '@lofi/core/math/Matrix4';
-import { Vector2, Vector3 } from '@lofi/core/math/vector';
+import { Vector3 } from '@lofi/core/math/Vector3';
+import { Vector2 } from '@lofi/core/math/Vector2';
 import { Quaternion } from '@lofi/core/math/Quaternion';
 import { Color4 } from '@lofi/core/math/Color4';
 import { canonicalisePath } from '@lofi/core/util/path';

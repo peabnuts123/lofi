@@ -1,6 +1,7 @@
 import { Computed, Observable, WritableComputed } from "@lofi/core/util/observable";
 import { Quaternion, type IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
-import { EulerVector3, type Vector3Definition } from "@lofi/core/math/vector";
+import { EulerVector3 } from "@lofi/core/math/EulerVector3";
+import type { Vector3Like } from "@lofi/core/math/Vector3";
 
 // I dub thee... "Eulernion"
 export class Rotation extends Observable {
@@ -49,9 +50,9 @@ export class Rotation extends Observable {
 
   public setValue(quaternion: Quaternion): void;
   public setValue(x: number, y: number, z: number): void;
-  public setValue(eulerAngles: Partial<Vector3Definition>): void;
+  public setValue(eulerAngles: Partial<Vector3Like>): void;
   public setValue(
-    eulerAnglesOrQuaternionOrX: Partial<Vector3Definition> | Quaternion | number,
+    eulerAnglesOrQuaternionOrX: Partial<Vector3Like> | Quaternion | number,
     maybeY?: number,
     maybeZ?: number,
   ): void {
@@ -82,7 +83,7 @@ export class Rotation extends Observable {
 
   /* Euler */
   public get euler(): EulerVector3 { return this._euler.value; }
-  public set euler(value: Vector3Definition) { this.euler.setValue(value); }
+  public set euler(value: Vector3Like) { this.euler.setValue(value); }
   public get x(): number { return this.euler.x; }
   public set x(value: number) { this.euler.x = value; }
   public get y(): number { return this.euler.y; }

@@ -1,7 +1,8 @@
 import { Observable } from "@lofi/core/util/observable";
 
 import { DegreesToRadians } from "./util";
-import { EulerVector3, Vector3, type Vector3Definition } from "./vector";
+import { Vector3, type Vector3Like } from "./Vector3";
+import { EulerVector3 } from "./EulerVector3";
 
 export interface IReadOnlyQuaternion {
   toEuler(): EulerVector3;
@@ -250,8 +251,8 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
   }
 
   public fromEulerSelf(x: number, y: number, z: number): this;
-  public fromEulerSelf(vector: Vector3Definition): this;
-  public fromEulerSelf(xOrVector: number | Vector3Definition, y?: number, z?: number): this {
+  public fromEulerSelf(vector: Vector3Like): this;
+  public fromEulerSelf(xOrVector: number | Vector3Like, y?: number, z?: number): this {
     if (typeof xOrVector === 'number') {
       this.fromEulerSelfXYZ(xOrVector, y as number, z as number);
     } else {
@@ -268,7 +269,7 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
       z * DegreesToRadians,
     );
   }
-  private fromEulerSelfVector(vector: Vector3Definition): void {
+  private fromEulerSelfVector(vector: Vector3Like): void {
     this.__fromEulerInner(
       vector.x * DegreesToRadians,
       vector.y * DegreesToRadians,
@@ -314,9 +315,9 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
      * @param y Rotation around Y axis in degrees.
      * @param z Rotation around Z axis in degrees.
      */
-  public static fromEuler(vector: Vector3Definition): Quaternion;
+  public static fromEuler(vector: Vector3Like): Quaternion;
   public static fromEuler(x: number, y: number, z: number): Quaternion;
-  public static fromEuler(xOrVector: number | Vector3Definition, y?: number, z?: number): Quaternion {
+  public static fromEuler(xOrVector: number | Vector3Like, y?: number, z?: number): Quaternion {
     // @NOTE TypeScript is too dumb to figure this one out
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return Quaternion.identity().fromEulerSelf(xOrVector as any, y as any, z as any);
@@ -327,7 +328,7 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
   private static tmp_fromLookDirectionSelf_up: Vector3 | undefined;
   private static tmp_fromLookDirectionSelf_right: Vector3 | undefined;
   private static tmp_fromLookDirectionSelf_DefaultUp: Vector3 | undefined;
-  public fromLookDirectionSelf(forward: Vector3Definition, up?: Vector3Definition): this {
+  public fromLookDirectionSelf(forward: Vector3Like, up?: Vector3Like): this {
     // Param defaults
     up ??= (Quaternion.tmp_fromLookDirectionSelf_DefaultUp ??= Vector3.up());
 
@@ -389,7 +390,7 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
    * @param forward Direction to convert into a Quaternion.
    * @param up (Optional) Up vector determining the roll of the resulting Quaternion.
    */
-  public static fromLookDirection(forward: Vector3Definition, up?: Vector3Definition): Quaternion {
+  public static fromLookDirection(forward: Vector3Like, up?: Vector3Like): Quaternion {
     return Quaternion.identity().fromLookDirectionSelf(forward, up);
   }
 

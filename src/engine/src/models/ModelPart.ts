@@ -1,5 +1,5 @@
 import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import { Transform } from "@lofi/core/transform/Transform";
 import type { Rotation } from "@lofi/core/transform/Rotation";
 import { Computed } from "@lofi/core/util/observable";

@@ -9,11 +9,12 @@ import {
 } from 'online-3d-viewer/source/engine/import/importerobj';
 import { MaterialSource } from 'online-3d-viewer';
 
-import { Vector3, type Vector3Definition, type Vector2Like } from '@lofi/core/math/vector';
+import { Vector3, type Vector3Like } from '@lofi/core/math/Vector3';
+import type { Vector2Like } from '@lofi/core/math';
 import { Quaternion } from '@lofi/core/math/Quaternion';
 import { Color4 } from '@lofi/core/math/Color4';
 import { canonicalisePath, getFileExtension } from '@lofi/core/util/path';
-import type { Color3Definition } from '@lofi/core/math/Color3';
+import type { Color3Like } from '@lofi/core/math/Color3';
 import type { IFileSystem, VirtualFile } from '@lofi/engine/filesystem';
 import { Texture } from '@lofi/engine/textures';
 import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
@@ -157,9 +158,9 @@ export class ObjLoader {
 
   private async parseMesh(mesh: Mesh): Promise<MeshPrimitiveDefinition[]> {
     const groupedPrimitiveData = new Map<number, {
-      positions: Vector3Definition[],
-      normals: Vector3Definition[],
-      colors: Color3Definition[],
+      positions: Vector3Like[],
+      normals: Vector3Like[],
+      colors: Color3Like[],
       texCoords: Vector2Like[],
     }>();
 

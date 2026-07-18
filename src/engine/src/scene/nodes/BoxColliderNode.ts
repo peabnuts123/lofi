@@ -1,4 +1,4 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import { SceneNode, type IScene } from "@lofi/engine/scene";
 import type { IWireframeDrawable, WireframeFaces } from "@lofi/engine/util/DebugDraw";
 import { SATColliderNode } from "./SatColliderNode";

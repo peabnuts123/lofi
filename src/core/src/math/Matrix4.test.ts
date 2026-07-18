@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { Matrix4 } from './Matrix4';
-import { Vector3 } from './vector';
+import { Vector3 } from './Vector3';
 import { expectVectorsToBeEqual } from '@test/util/expect';
 import { Quaternion } from './Quaternion';
 

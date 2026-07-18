@@ -1,4 +1,4 @@
-import type { IReadonlyVector3 } from "@lofi/core/math/vector";
+import type { IReadonlyVector3 } from "@lofi/core/math/Vector3";
 import { Observable } from "@lofi/core/util/observable";
 
 export * from './MeshPrimitiveGeometry';

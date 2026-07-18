@@ -1,8 +1,8 @@
-import { Vector3 } from "@lofi/core/math/vector";
-import type { AnimationDefinition, ModelDefinition, ModelPartDefinition } from "./definitions";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import { Quaternion } from "@lofi/core/math/Quaternion";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { type TypedArray } from "@lofi/core/util";
+import type { AnimationDefinition, ModelDefinition, ModelPartDefinition } from "./definitions";
 
 
 export const ZUpConversionQuaternion = Quaternion.fromAxisAngle(Vector3.right(), 90);

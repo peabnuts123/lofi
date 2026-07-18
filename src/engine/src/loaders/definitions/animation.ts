@@ -1,5 +1,6 @@
 import type { ArrayElementType } from "@lofi/core/util/types";
-import type { Vector2, Vector3 } from "@lofi/core/math/vector";
+import type { Vector3 } from "@lofi/core/math/Vector3";
+import type { Vector2 } from "@lofi/core/math/Vector2";
 import type { Quaternion } from "@lofi/core/math/Quaternion";
 
 export type AnimationSamplerInterpolation = 'LINEAR' | 'STEP' | 'CUBICSPLINE';

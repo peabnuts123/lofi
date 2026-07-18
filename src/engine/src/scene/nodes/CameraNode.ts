@@ -1,4 +1,4 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import { DegreesToRadians } from "@lofi/core/math/util";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import type { Ubo } from "@lofi/engine/materials/Ubo";

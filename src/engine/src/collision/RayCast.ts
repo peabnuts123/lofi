@@ -1,4 +1,4 @@
-import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/vector";
+import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/Vector3";
 import type { Enum } from "@lofi/core/util/types";
 import type { IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision/AxisAlignedBoundingBox";
 import type { Triangle } from "@lofi/engine/models/geometry";

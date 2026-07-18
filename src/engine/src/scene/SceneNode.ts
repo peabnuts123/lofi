@@ -1,4 +1,4 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import { Matrix4 } from "@lofi/core/math/Matrix4";
 import { Rotation } from "@lofi/core/transform/Rotation";
 import { Transform } from "@lofi/core/transform/Transform";

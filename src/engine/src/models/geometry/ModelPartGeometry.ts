@@ -1,5 +1,6 @@
 import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { Vector3, type IReadonlyVector3, type IReadonlyVector2 } from "@lofi/core/math/vector";
+import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/Vector3";
+import { type IReadonlyVector2 } from "@lofi/core/math/Vector2";
 import type { IReadonlyColor4 } from "@lofi/core/math/Color4";
 import { Computed } from "@lofi/core/util/observable";
 import { Optional, type Mutable } from "@lofi/core/util/types";

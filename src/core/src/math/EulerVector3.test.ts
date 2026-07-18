@@ -1,7 +1,9 @@
 import { expectVectorsToBeEqual } from '@test/util/expect';
 
 import { describe, test, expect } from 'vitest';
-import { Vector2, EulerVector3, Vector3 } from './vector';
+import { EulerVector3 } from './EulerVector3';
+import { Vector3 } from './Vector3';
+import { Vector2 } from './Vector2';
 
 /*
   @TODO Test Backlog

@@ -2,7 +2,7 @@
 import type { TypedArray } from "@lofi/core/util/types";
 
 import { Matrix4 } from "./Matrix4";
-import type { Vector3 } from "./vector";
+import type { Vector3 } from "./Vector3";
 
 export type Matrix3InitialValues = [
   m00: number, m10: number, m20: number,

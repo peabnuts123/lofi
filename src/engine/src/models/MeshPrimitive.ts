@@ -1,4 +1,4 @@
-import { Vector3 } from "@lofi/core/math/vector";
+import { Vector3 } from "@lofi/core/math/Vector3";
 import type { Matrix4 } from "@lofi/core/math/Matrix4";
 import { IdPool } from "@lofi/core/util/IdPool";
 import { type DrawTask, type IEngine, type OpaqueDrawTask, type TransparentDrawTask } from "@lofi/engine/Engine";

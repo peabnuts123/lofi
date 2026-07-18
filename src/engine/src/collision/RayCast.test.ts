@@ -1,9 +1,10 @@
-import { Vector3 } from '@lofi/core/math/vector';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 import { describe, test, expect } from 'vitest';
 
-import { RayCast } from './RayCast';
+import { Vector3 } from '@lofi/core/math/Vector3';
+import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
 import type { Triangle } from "@lofi/engine/models/geometry";
+
+import { RayCast } from './RayCast';
 
 describe("Ray casting", () => {
   describe("Ray-AABB intersection", () => {
