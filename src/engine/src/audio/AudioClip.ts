@@ -1,4 +1,4 @@
-import type { IEngine } from "@lofi/engine/Engine";
+import  type { IEngine } from "@lopoly/engine/Engine";
 
 export interface AudioClipOptions {
   loop?: boolean;

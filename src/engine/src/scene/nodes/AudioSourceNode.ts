@@ -1,9 +1,9 @@
 import { type IAudioContext, GainNode, PannerNode, AudioBufferSourceNode } from 'standardized-audio-context';
 
-import { Vector3 } from "@lofi/core/math/Vector3";
-import type { AudioClip } from "@lofi/engine/audio/AudioClip";
-import type { IAudioSystem } from "@lofi/engine/audio/AudioSystem";
-import { SceneNode, type IScene } from "@lofi/engine/scene";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
+import  type { AudioClip } from "@lopoly/engine/audio/AudioClip";
+import  type { IAudioSystem } from "@lopoly/engine/audio/AudioSystem";
+import  { SceneNode, type IScene } from "@lopoly/engine/scene";
 
 export interface SpatialAudioSourceNodeOptions {
 }

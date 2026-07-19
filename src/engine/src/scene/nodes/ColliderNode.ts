@@ -1,8 +1,8 @@
-import { Vector3 } from "@lofi/core/math/Vector3";
-import { AxisAlignedBoundingBox, CollisionSystem } from "@lofi/engine/collision";
-import type { DrawTask, IEngine } from "@lofi/engine/Engine";
-import { DrawableSceneNode, type IScene, SceneNode } from "@lofi/engine/scene";
-import { isWireframeDrawable } from "@lofi/engine/util/DebugDraw";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
+import  { AxisAlignedBoundingBox, CollisionSystem } from "@lopoly/engine/collision";
+import  type { DrawTask, IEngine } from "@lopoly/engine/Engine";
+import  { DrawableSceneNode, type IScene, SceneNode } from "@lopoly/engine/scene";
+import  { isWireframeDrawable } from "@lopoly/engine/util/DebugDraw";
 
 export interface CalculateIntersectionResult {
   mtv: Vector3;

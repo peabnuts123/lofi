@@ -11,10 +11,10 @@
     "allowJs": true,
     "noEmit": true,
     "paths": {
-      "@lofi/common/*": [
+      "@lopoly/common/*": [
         "../common/*"
       ],
-      "@lofi/core/*": [
+      "@lopoly/core/*": [
         "./src/*"
       ],
       "@test/*": [

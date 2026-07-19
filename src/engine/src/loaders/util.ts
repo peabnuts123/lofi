@@ -1,7 +1,7 @@
-import { Vector3 } from "@lofi/core/math/Vector3";
-import { Quaternion } from "@lofi/core/math/Quaternion";
-import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { type TypedArray } from "@lofi/core/util";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
+import  { Quaternion } from "@lopoly/core/math/Quaternion";
+import  { Matrix4 } from "@lopoly/core/math/Matrix4";
+import  { type TypedArray } from "@lopoly/core/util";
 import type { AnimationDefinition, ModelDefinition, ModelPartDefinition } from "./definitions";
 
 

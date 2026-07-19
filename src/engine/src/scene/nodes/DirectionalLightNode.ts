@@ -1,5 +1,5 @@
-import { Color3 } from "@lofi/core/math/Color3";
-import { type IScene, SceneNode } from "@lofi/engine/scene";
+import  { Color3 } from "@lopoly/core/math/Color3";
+import  { type IScene, SceneNode } from "@lopoly/engine/scene";
 import type { LightIntensity } from "./PointLightNode";
 
 export interface DirectionalLightConstructorOptions {

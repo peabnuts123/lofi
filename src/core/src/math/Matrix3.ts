@@ -1,5 +1,5 @@
 
-import type { TypedArray } from "@lofi/core/util/types";
+import  type { TypedArray } from "@lopoly/core/util/types";
 
 import { Matrix4 } from "./Matrix4";
 import type { Vector3 } from "./Vector3";

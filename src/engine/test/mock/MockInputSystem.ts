@@ -1,5 +1,5 @@
-import type { AddInputArgs, AddInputBindingArgs, IInputSystem, InputConfiguration, InputDeviceId, InputSystem, RemoveInputBindingArgs } from "@lofi/engine/input";
-import type { PlayerNumber, NumberZeroToOne, NumberNegativeOneToOne } from "@lofi/engine/input/types";
+import  type { AddInputArgs, AddInputBindingArgs, IInputSystem, InputConfiguration, InputDeviceId, InputSystem, RemoveInputBindingArgs } from "@lopoly/engine/input";
+import  type { PlayerNumber, NumberZeroToOne, NumberNegativeOneToOne } from "@lopoly/engine/input/types";
 
 export class MockInputSystem implements IInputSystem {
   configure(_configuration: InputConfiguration): void {

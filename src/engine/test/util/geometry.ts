@@ -1,7 +1,7 @@
 
-import { Vector3, Quaternion, Color4 } from '@lofi/core/math';
-import { AccessorComponentType, MeshPrimitiveMode, type MaterialDefinition, type MeshPrimitiveDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
+import  { Vector3, Quaternion, Color4 } from '@lopoly/core/math';
+import  { AccessorComponentType, MeshPrimitiveMode, type MaterialDefinition, type MeshPrimitiveDefinition, type ModelPartDefinition } from '@lopoly/engine/loaders/definitions';
+import  { AxisAlignedBoundingBox } from '@lopoly/engine/collision';
 
 
 

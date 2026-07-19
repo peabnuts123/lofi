@@ -2,10 +2,10 @@ import { describe, test, expect } from 'vitest';
 
 import { expectMatrix4sToBeEqual, expectQuaternionsToBeEqual, expectVectorsToBeEqual } from '@test/util/expect';
 
-import { Vector3 } from '@lofi/core/math/Vector3';
-import { Quaternion } from '@lofi/core/math/Quaternion';
-import { Matrix4 } from '@lofi/core/math/Matrix4';
-import { lerp } from '@lofi/core/math/util';
+import  { Vector3 } from '@lopoly/core/math/Vector3';
+import  { Quaternion } from '@lopoly/core/math/Quaternion';
+import  { Matrix4 } from '@lopoly/core/math/Matrix4';
+import  { lerp } from '@lopoly/core/math/util';
 
 import { Transform } from './Transform';
 

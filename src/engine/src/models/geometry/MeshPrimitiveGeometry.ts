@@ -1,6 +1,6 @@
-import { Color4, Vector2, Vector3, type IReadonlyColor4, type IReadonlyVector2, type IReadonlyVector3 } from "@lofi/core/math";
-import { Computed, Observable, ObservableEvent, type Mutable, type TypedArray } from "@lofi/core/util";
-import type { IEngine } from "@lofi/engine/Engine";
+import  { Color4, Vector2, Vector3, type IReadonlyColor4, type IReadonlyVector2, type IReadonlyVector3 } from "@lopoly/core/math";
+import  { Computed, Observable, ObservableEvent, type Mutable, type TypedArray } from "@lopoly/core/util";
+import  type { IEngine } from "@lopoly/engine/Engine";
 import {
   type AnyAttributeDefinition,
   type AttributeDefinition,
@@ -16,9 +16,9 @@ import {
   type VertexJointWeightsAttributeDefinition,
   type TriangleIndicesAttributeDefinition,
   AccessorComponentType,
-} from "@lofi/engine/loaders/definitions";
-import { createBuffer, BufferType } from "@lofi/engine/util/createBuffer";
-import type { IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
+} from "@lopoly/engine/loaders/definitions";
+import  { createBuffer, BufferType } from "@lopoly/engine/util/createBuffer";
+import  type { IReadonlyAxisAlignedBoundingBox } from "@lopoly/engine/collision";
 import {
   JointIndices,
   JointWeights,

@@ -1,8 +1,8 @@
 
-import { Vector3, Quaternion, Color4 } from '@lofi/core/math';
-import { AccessorComponentType, MeshPrimitiveMode, type MaterialDefinition, type MeshPrimitiveDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
-import type { IFileSystem } from '@lofi/engine/filesystem';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
+import  { Vector3, Quaternion, Color4 } from '@lopoly/core/math';
+import  { AccessorComponentType, MeshPrimitiveMode, type MaterialDefinition, type MeshPrimitiveDefinition, type ModelPartDefinition } from '@lopoly/engine/loaders/definitions';
+import  type { IFileSystem } from '@lopoly/engine/filesystem';
+import  { AxisAlignedBoundingBox } from '@lopoly/engine/collision';
 
 export class DebugGeometry {
   private readonly fileSystem: IFileSystem;

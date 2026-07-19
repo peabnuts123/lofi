@@ -1,7 +1,7 @@
-import { Quaternion, Vector3 } from "@lofi/core/math";
-import type { IInputSystem } from "@lofi/engine/input";
-import { SceneNode, type IScene } from "@lofi/engine/scene";
-import { CameraNode, ObjectNode } from "@lofi/engine/scene/nodes";
+import  { Quaternion, Vector3 } from "@lopoly/core/math";
+import  type { IInputSystem } from "@lopoly/engine/input";
+import  { SceneNode, type IScene } from "@lopoly/engine/scene";
+import  { CameraNode, ObjectNode } from "@lopoly/engine/scene/nodes";
 import { Room, type RoomBounds } from "./Room";
 
 const CameraRotateSpeed = 150;

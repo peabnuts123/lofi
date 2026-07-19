@@ -1,4 +1,4 @@
-import { Observable } from "@lofi/core/util";
+import  { Observable } from "@lopoly/core/util";
 import { type Color3Like } from "./Color3";
 import { clamp } from "./util";
 

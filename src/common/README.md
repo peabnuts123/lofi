@@ -1,3 +1,3 @@
-# LoFi - Common
+# LoPoly - Common
 
-This is the common module of LoFi that contains shared code used by the other modules at development time. This package is not published to npm.
+This is the common module of LoPoly that contains shared code used by the other modules at development time. This package is not published to npm.

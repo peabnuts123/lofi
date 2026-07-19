@@ -1,9 +1,9 @@
-import { Vector3 } from "@lofi/core/math/Vector3";
-import { DegreesToRadians } from "@lofi/core/math/util";
-import { Matrix4 } from "@lofi/core/math/Matrix4";
-import type { Ubo } from "@lofi/engine/materials/Ubo";
-import { SceneNode } from "@lofi/engine/scene/SceneNode";
-import type { IScene } from "@lofi/engine/scene/Scene";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
+import  { DegreesToRadians } from "@lopoly/core/math/util";
+import  { Matrix4 } from "@lopoly/core/math/Matrix4";
+import  type { Ubo } from "@lopoly/engine/materials/Ubo";
+import  { SceneNode } from "@lopoly/engine/scene/SceneNode";
+import  type { IScene } from "@lopoly/engine/scene/Scene";
 
 export const CameraUboPropertyNames = [
   'viewProjectionMatrix',

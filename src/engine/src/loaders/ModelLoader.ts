@@ -1,4 +1,4 @@
-import type { IFileSystem } from "@lofi/engine/filesystem";
+import  type { IFileSystem } from "@lopoly/engine/filesystem";
 import type { ModelDefinition } from "./definitions";
 
 /*

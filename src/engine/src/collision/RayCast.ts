@@ -1,10 +1,10 @@
-import { Vector3, type IReadonlyVector3 } from "@lofi/core/math/Vector3";
-import type { Enum } from "@lofi/core/util/types";
-import type { IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision/AxisAlignedBoundingBox";
-import type { Triangle } from "@lofi/engine/models/geometry";
-import { AxisAlignedBoundingBox } from "@lofi/engine/collision/AxisAlignedBoundingBox";
-import { ModelNode } from "@lofi/engine/scene/nodes/ModelNode";
-import type { IScene } from "@lofi/engine/scene/Scene";
+import  { Vector3, type IReadonlyVector3 } from "@lopoly/core/math/Vector3";
+import  type { Enum } from "@lopoly/core/util/types";
+import  type { IReadonlyAxisAlignedBoundingBox } from "@lopoly/engine/collision/AxisAlignedBoundingBox";
+import  type { Triangle } from "@lopoly/engine/models/geometry";
+import  { AxisAlignedBoundingBox } from "@lopoly/engine/collision/AxisAlignedBoundingBox";
+import  { ModelNode } from "@lopoly/engine/scene/nodes/ModelNode";
+import  type { IScene } from "@lopoly/engine/scene/Scene";
 
 export const RayCastMode = {
   /** Ray cast will only return results shorter than the passed ray parameter. */

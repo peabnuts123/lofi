@@ -11,7 +11,7 @@
     "types": ["node"],
 
     "paths": {
-      "@lofi/common/*": [
+      "@lopoly/common/*": [
         "./*"
       ],
     },

@@ -1,4 +1,4 @@
-import type { AnimationDefinition } from "@lofi/engine/loaders/definitions";
+import  type { AnimationDefinition } from "@lopoly/engine/loaders/definitions";
 import { AnimationChannel } from "./AnimationChannel";
 
 export class Animation {

@@ -1,4 +1,4 @@
-import { buildLibrary } from '@lofi/common/scripts/build';
+import  { buildLibrary } from '@lopoly/common/scripts/build';
 
 await buildLibrary({
   tsConfigPath: 'tsconfig.build.json',

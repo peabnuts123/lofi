@@ -1,4 +1,4 @@
-import type { Color4 } from "@lofi/core/math/Color4";
+import  type { Color4 } from "@lopoly/core/math/Color4";
 
 export interface MaterialDefinition {
   name: string;

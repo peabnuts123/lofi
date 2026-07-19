@@ -3,7 +3,7 @@ import './style.css';
 import { Game } from './scenes/testfield';
 // import { Game } from './scenes/character';
 
-import { DebugModule } from '@lofi/engine/util/DebugModule';
+import  { DebugModule } from '@lopoly/engine/util/DebugModule';
 
 try {
   DebugModule.register();

@@ -1,8 +1,8 @@
 {
-  "name": "@lofi/engine",
+  "name": "@lopoly/engine",
   "private": true,
   "version": "0.0.1",
-  "description": "LoFi is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.",
+  "description": "LoPoly is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.",
   "author": "peabnuts123",
   "keywords": [
     "gamedev",
@@ -11,13 +11,13 @@
     "retro",
     "retrogaming"
   ],
-  "homepage": "https://github.com/peabnuts123/lofi",
+  "homepage": "https://github.com/peabnuts123/lopoly",
   "bugs": {
-    "url": "https://github.com/peabnuts123/lofi/issues"
+    "url": "https://github.com/peabnuts123/lopoly/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/peabnuts123/lofi.git",
+    "url": "git+https://github.com/peabnuts123/lopoly.git",
     "directory": "src/engine"
   },
   "type": "module",
@@ -37,7 +37,7 @@
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",
     "@gltf-transform/extensions": "^4.3.0",
-    "@lofi/core": "0.0.1",
+    "@lopoly/core": "0.0.1",
     "fflate": "^0.8.2",
     "online-3d-viewer": "^0.18.0",
     "standardized-audio-context": "^25.3.77"

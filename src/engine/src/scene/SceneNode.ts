@@ -1,8 +1,8 @@
-import { Vector3 } from "@lofi/core/math/Vector3";
-import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { Rotation } from "@lofi/core/transform/Rotation";
-import { Transform } from "@lofi/core/transform/Transform";
-import type { Computed } from "@lofi/core/util/Computed";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
+import  { Matrix4 } from "@lopoly/core/math/Matrix4";
+import  { Rotation } from "@lopoly/core/transform/Rotation";
+import  { Transform } from "@lopoly/core/transform/Transform";
+import  type { Computed } from "@lopoly/core/util/Computed";
 
 import type { IScene } from "./Scene";
 

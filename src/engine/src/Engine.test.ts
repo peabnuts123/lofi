@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { Engine, type DrawTask } from './Engine';
 import { MaterialInstance, ShaderVariant } from './materials';
-import { Matrix4 } from '@lofi/core/math';
+import  { Matrix4 } from '@lopoly/core/math';
 
 describe("Engine", () => {
   test("sortDrawQueue() correctly sorts tasks in a manner efficient for rendering", () => {

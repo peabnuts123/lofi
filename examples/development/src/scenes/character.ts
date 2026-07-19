@@ -1,11 +1,11 @@
-import { Vector2, Vector3, Color3 } from '@lofi/core/math';
-import { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
-import { Model } from '@lofi/engine/models';
-import { Engine } from '@lofi/engine/Engine';
-import { Scene } from '@lofi/engine/scene';
-import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
-import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
-import { GamepadAxis, GamepadButton, KeyCode, MouseWheelDirection } from '@lofi/engine/input';
+import  { Vector2, Vector3, Color3 } from '@lopoly/core/math';
+import  { CameraNode, ModelNode, ObjectNode, PointLightNode } from '@lopoly/engine/scene/nodes';
+import  { Model } from '@lopoly/engine/models';
+import  { Engine } from '@lopoly/engine/Engine';
+import  { Scene } from '@lopoly/engine/scene';
+import  { WebFileSystem } from '@lopoly/engine/filesystem/WebFileSystem';
+import  { GltfLoader } from '@lopoly/engine/loaders/GltfLoader';
+import  { GamepadAxis, GamepadButton, KeyCode, MouseWheelDirection } from '@lopoly/engine/input';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 

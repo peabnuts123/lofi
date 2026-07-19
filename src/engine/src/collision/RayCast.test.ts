@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'vitest';
 
-import { Vector3 } from '@lofi/core/math/Vector3';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
-import type { Triangle } from "@lofi/engine/models/geometry";
+import  { Vector3 } from '@lopoly/core/math/Vector3';
+import  { AxisAlignedBoundingBox } from '@lopoly/engine/collision';
+import  type { Triangle } from "@lopoly/engine/models/geometry";
 
 import { RayCast } from './RayCast';
 

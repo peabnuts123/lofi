@@ -1,12 +1,12 @@
 import './style.css';
 
-import { Vector3, Color3 } from '@lofi/core/math';
-import { Engine } from '@lofi/engine/Engine';
-import { Scene } from '@lofi/engine/scene';
-import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
-import { DebugModule } from '@lofi/engine/util/DebugModule';
+import  { Vector3, Color3 } from '@lopoly/core/math';
+import  { Engine } from '@lopoly/engine/Engine';
+import  { Scene } from '@lopoly/engine/scene';
+import  { WebFileSystem } from '@lopoly/engine/filesystem/WebFileSystem';
+import  { DebugModule } from '@lopoly/engine/util/DebugModule';
 
-import { GamepadAxis, GamepadButton, InputSystem, KeyCode, MouseWheelDirection } from '@lofi/engine/input';
+import  { GamepadAxis, GamepadButton, InputSystem, KeyCode, MouseWheelDirection } from '@lopoly/engine/input';
 import { Room } from './Room';
 import { Camera } from './Camera';
 import { Player } from './Player';

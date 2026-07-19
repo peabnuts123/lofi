@@ -1,4 +1,4 @@
-import { toFixed } from "@lofi/core/math/util";
+import  { toFixed } from "@lopoly/core/math/util";
 
 export interface RateCounterConstructorOptions {
   intervalSeconds: number;

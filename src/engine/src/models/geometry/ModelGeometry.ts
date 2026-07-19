@@ -1,9 +1,9 @@
-import { type IReadonlyVector3 } from "@lofi/core/math/Vector3";
-import { type IReadonlyVector2 } from "@lofi/core/math/Vector2";
-import type { IReadonlyColor4 } from "@lofi/core/math/Color4";
-import { Computed } from "@lofi/core/util/Computed";
-import { Optional, type Mutable } from "@lofi/core/util/types";
-import { AxisAlignedBoundingBox, type IReadonlyAxisAlignedBoundingBox } from "@lofi/engine/collision";
+import  { type IReadonlyVector3 } from "@lopoly/core/math/Vector3";
+import  { type IReadonlyVector2 } from "@lopoly/core/math/Vector2";
+import  type { IReadonlyColor4 } from "@lopoly/core/math/Color4";
+import  { Computed } from "@lopoly/core/util/Computed";
+import  { Optional, type Mutable } from "@lopoly/core/util/types";
+import  { AxisAlignedBoundingBox, type IReadonlyAxisAlignedBoundingBox } from "@lopoly/engine/collision";
 
 import type { ModelPart } from "../ModelPart";
 import type { ModelConfig } from "../ModelConfig";
