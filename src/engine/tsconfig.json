@@ -14,13 +14,13 @@
     "allowJs": true,
     "noEmit": true,
     "paths": {
-      "@lofi/common/*": [
+      "@lopoly/common/*": [
         "../common/*"
       ],
-      "@lofi/core/*": [
+      "@lopoly/core/*": [
         "../core/src/*"
       ],
-      "@lofi/engine/*": [
+      "@lopoly/engine/*": [
         "./src/*"
       ],
       "@test/*": [

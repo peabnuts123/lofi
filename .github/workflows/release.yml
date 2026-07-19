@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # Required for creating releases
+  id-token: write # Required for npm Trusted Publishing
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
+
+env:
+  NODE_VERSION: 24 # @NOTE Should match .nvmrc
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # @NOTE Sanity check. This should be already validated
+      # by PR, but this will catch any wonky action on main
+      - name: Validate package version numbers
+        run: node scripts/validate-versions.js
+
+      - name: Read VERSION
+        id: version
+        working-directory: src/core
+        run: echo "VERSION=$(node -p "require('./package.json').version" | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Publish to npm
+        run: npm run publish
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Release v${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

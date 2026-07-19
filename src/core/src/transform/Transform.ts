@@ -1,5 +1,5 @@
-import { Computed, WritableComputed } from "@lofi/core/util";
-import { Vector3, Matrix4, Quaternion } from "@lofi/core/math";
+import  { Computed, WritableComputed } from "@lopoly/core/util";
+import  { Vector3, Matrix4, Quaternion } from "@lopoly/core/math";
 
 import { Rotation } from "./Rotation";
 
@@ -7,7 +7,7 @@ interface TransformNodeTarget {
   get name(): string;
 }
 
-// @TODO Could lift up into `@lofi/engine` ?
+// @TODO Could lift up into `@lopoly/engine` ?
 export class Transform<T extends TransformNodeTarget> {
   private readonly _position: Vector3;
   private readonly _rotation: Rotation;

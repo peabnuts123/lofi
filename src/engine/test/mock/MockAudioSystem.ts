@@ -2,9 +2,9 @@
 import { AudioContext as MockAudioContext } from "standardized-audio-context-mock";
 import type { IAudioNode, IAudioContext, GainNode } from "standardized-audio-context";
 
-import type { IAudioSystem, PlayAudioResult } from "@lofi/engine/audio";
-import type { IEngine } from "@lofi/engine/Engine";
-import type { AudioSourceNode } from "@lofi/engine/scene/nodes";
+import  type { IAudioSystem, PlayAudioResult } from "@lopoly/engine/audio";
+import  type { IEngine } from "@lopoly/engine/Engine";
+import  type { AudioSourceNode } from "@lopoly/engine/scene/nodes";
 
 export class MockAudioSystem implements IAudioSystem {
   public readonly context: IAudioContext;

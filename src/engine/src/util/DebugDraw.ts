@@ -1,9 +1,9 @@
-import { type IReadonlyVector3 } from "@lofi/core/math/Vector3";
-import { Matrix4 } from "@lofi/core/math/Matrix4";
-import { Color3 } from "@lofi/core/math/Color3";
-import type { DrawTask, IEngine } from "@lofi/engine/Engine";
-import { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lofi/engine/materials";
-import { AccessorComponentType, MeshPrimitiveMode } from "@lofi/engine/loaders/definitions";
+import  { type IReadonlyVector3 } from "@lopoly/core/math/Vector3";
+import  { Matrix4 } from "@lopoly/core/math/Matrix4";
+import  { Color3 } from "@lopoly/core/math/Color3";
+import  type { DrawTask, IEngine } from "@lopoly/engine/Engine";
+import  { DefaultShader, Material, MaterialInstance, ShaderVariant } from "@lopoly/engine/materials";
+import  { AccessorComponentType, MeshPrimitiveMode } from "@lopoly/engine/loaders/definitions";
 import { BufferType, BufferUsage } from "./createBuffer";
 
 export const DebugVertexShaderSource = `#version 300 es

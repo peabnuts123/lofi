@@ -1,3 +1,3 @@
 # Example - Development
 
-This is an example project that is primarily used for developing the LoFi engine itself.
+This is an example project that is primarily used for developing the LoPoly engine itself.

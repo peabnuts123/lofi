@@ -1,17 +1,17 @@
-import { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt } from '@lofi/core/math';
-import { Color4 } from '@lofi/core/math/Color4';
-import { RateCounter } from '@lofi/core/util/RateCounter';
-import { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lofi/engine/scene/nodes';
-import { Model } from '@lofi/engine/models';
-import { Engine } from '@lofi/engine/Engine';
-import { Scene, SceneNode, type IScene } from '@lofi/engine/scene';
-import { WebFileSystem } from '@lofi/engine/filesystem/WebFileSystem';
-import { Material, ShaderBlendingMode } from '@lofi/engine/materials';
-import { Cubemap, Texture } from '@lofi/engine/textures';
-import { AudioClip } from '@lofi/engine/audio';
-import { GltfLoader } from '@lofi/engine/loaders/GltfLoader';
-import { AccessorComponentType, type ModelDefinition, type ModelPartDefinition } from '@lofi/engine/loaders/definitions';
-import { RayCast, RayCastMode, type RayCastResult } from '@lofi/engine/collision/RayCast';
+import  { Vector2, Vector3, Color3, DegreesToRadians, Matrix4, toFixed, sin, cos, randInt } from '@lopoly/core/math';
+import  { Color4 } from '@lopoly/core/math/Color4';
+import  { RateCounter } from '@lopoly/core/util/RateCounter';
+import  { AudioSourceNode, BoxColliderNode, CameraNode, ColliderNode, ConvexMeshColliderNode, DirectionalLightNode, ModelNode, ObjectNode, PointLightNode } from '@lopoly/engine/scene/nodes';
+import  { Model } from '@lopoly/engine/models';
+import  { Engine } from '@lopoly/engine/Engine';
+import  { Scene, SceneNode, type IScene } from '@lopoly/engine/scene';
+import  { WebFileSystem } from '@lopoly/engine/filesystem/WebFileSystem';
+import  { Material, ShaderBlendingMode } from '@lopoly/engine/materials';
+import  { Cubemap, Texture } from '@lopoly/engine/textures';
+import  { AudioClip } from '@lopoly/engine/audio';
+import  { GltfLoader } from '@lopoly/engine/loaders/GltfLoader';
+import  { AccessorComponentType, type ModelDefinition, type ModelPartDefinition } from '@lopoly/engine/loaders/definitions';
+import  { RayCast, RayCastMode, type RayCastResult } from '@lopoly/engine/collision/RayCast';
 
 import { DebugGeometry } from '@game/util/DebugGeometry';
 

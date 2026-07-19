@@ -1,5 +1,5 @@
-import { buildLibrary } from '@lofi/common/scripts/build';
-import { copyFile, findFiles, joinPaths, makeDirectory, readFile, relativePath, writeFile } from '@lofi/common/scripts/util';
+import  { buildLibrary } from '@lopoly/common/scripts/build';
+import  { copyFile, findFiles, joinPaths, makeDirectory, readFile, relativePath, writeFile } from '@lopoly/common/scripts/util';
 
 const SrcDirectory = 'src';
 

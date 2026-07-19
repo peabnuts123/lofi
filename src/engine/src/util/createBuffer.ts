@@ -1,4 +1,4 @@
-import type { Enum } from "@lofi/core/util/types";
+import  type { Enum } from "@lopoly/core/util/types";
 
 export const BufferUsage = {
   STATIC_DRAW: 0x88E4,

@@ -1,7 +1,7 @@
-import { Computed, Observable, WritableComputed } from "@lofi/core/util";
-import { Quaternion, type IReadOnlyQuaternion } from "@lofi/core/math/Quaternion";
-import { EulerVector3 } from "@lofi/core/math/EulerVector3";
-import type { Vector3Like } from "@lofi/core/math/Vector3";
+import  { Computed, Observable, WritableComputed } from "@lopoly/core/util";
+import  { Quaternion, type IReadOnlyQuaternion } from "@lopoly/core/math/Quaternion";
+import  { EulerVector3 } from "@lopoly/core/math/EulerVector3";
+import  type { Vector3Like } from "@lopoly/core/math/Vector3";
 
 // I dub thee... "Eulernion"
 export class Rotation extends Observable {

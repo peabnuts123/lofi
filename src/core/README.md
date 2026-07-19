@@ -1,3 +1,3 @@
-# LoFi - Core
+# LoPoly - Core
 
-This is the core module of LoFi that contains abstract logic e.g. maths and utilities.
+This is the core module of LoPoly that contains abstract logic e.g. maths and utilities.

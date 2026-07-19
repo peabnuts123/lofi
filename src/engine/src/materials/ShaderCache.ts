@@ -1,6 +1,6 @@
-import { IdPool } from '@lofi/core/util/IdPool';
-import type { IEngine } from '@lofi/engine/Engine';
-import type { MeshPrimitiveGeometry } from '@lofi/engine/models/geometry';
+import  { IdPool } from '@lopoly/core/util/IdPool';
+import  type { IEngine } from '@lopoly/engine/Engine';
+import  type { MeshPrimitiveGeometry } from '@lopoly/engine/models/geometry';
 
 import { ShaderVariant } from './ShaderVariant';
 import { MaterialInstance } from './MaterialInstance';

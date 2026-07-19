@@ -1,11 +1,11 @@
-import { DrawableSceneNode, SceneNode, type IScene } from "@lofi/engine/scene";
-import type { DrawTask, IEngine } from "@lofi/engine/Engine";
-import type { Model } from "@lofi/engine/models";
-import { Animation } from "@lofi/engine/animation";
-import type { Material } from "@lofi/engine/materials";
-import { type IWireframeDrawable, type WireframeFaces } from "@lofi/engine/util/DebugDraw";
-import { ModelMaterialOverrides, type MaterialOverrideType } from "@lofi/engine/models/ModelMaterialOverrides";
-import { ModelNodeGeometry } from "@lofi/engine/models/geometry";
+import  { DrawableSceneNode, SceneNode, type IScene } from "@lopoly/engine/scene";
+import  type { DrawTask, IEngine } from "@lopoly/engine/Engine";
+import  type { Model } from "@lopoly/engine/models";
+import  { Animation } from "@lopoly/engine/animation";
+import  type { Material } from "@lopoly/engine/materials";
+import  { type IWireframeDrawable, type WireframeFaces } from "@lopoly/engine/util/DebugDraw";
+import  { ModelMaterialOverrides, type MaterialOverrideType } from "@lopoly/engine/models/ModelMaterialOverrides";
+import  { ModelNodeGeometry } from "@lopoly/engine/models/geometry";
 
 export class ModelNode extends DrawableSceneNode implements IWireframeDrawable {
   private _model: Model;

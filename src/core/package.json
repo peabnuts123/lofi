@@ -1,8 +1,7 @@
 {
-  "name": "@lofi/core",
-  "private": true,
-  "version": "0.0.1",
-  "description": "Core math and utilities for the LoFi 3D game engine.",
+  "name": "@lopoly/core",
+  "version": "0.0.2",
+  "description": "Core math and utilities for the LoPoly 3D game engine.",
   "author": "peabnuts123",
   "keywords": [
     "gamedev",
@@ -11,13 +10,13 @@
     "retro",
     "retrogaming"
   ],
-  "homepage": "https://github.com/peabnuts123/lofi",
+  "homepage": "https://github.com/peabnuts123/lopoly",
   "bugs": {
-    "url": "https://github.com/peabnuts123/lofi/issues"
+    "url": "https://github.com/peabnuts123/lopoly/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/peabnuts123/lofi.git",
+    "url": "git+https://github.com/peabnuts123/lopoly.git",
     "directory": "src/core"
   },
   "type": "module",

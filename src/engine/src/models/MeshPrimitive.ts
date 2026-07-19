@@ -1,9 +1,9 @@
-import { Vector3 } from "@lofi/core/math/Vector3";
-import type { Matrix4 } from "@lofi/core/math/Matrix4";
-import { IdPool } from "@lofi/core/util/IdPool";
-import { type DrawTask, type IEngine, type OpaqueDrawTask, type TransparentDrawTask } from "@lofi/engine/Engine";
-import { ShaderCache, ShaderVariant, MaterialInstance } from "@lofi/engine/materials";
-import { BufferType } from "@lofi/engine/util/createBuffer";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
+import  type { Matrix4 } from "@lopoly/core/math/Matrix4";
+import  { IdPool } from "@lopoly/core/util/IdPool";
+import  { type DrawTask, type IEngine, type OpaqueDrawTask, type TransparentDrawTask } from "@lopoly/engine/Engine";
+import  { ShaderCache, ShaderVariant, MaterialInstance } from "@lopoly/engine/materials";
+import  { BufferType } from "@lopoly/engine/util/createBuffer";
 import type { MeshPrimitiveGeometry } from "./geometry";
 
 export interface MeshPrimitiveExtents {

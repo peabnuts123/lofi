@@ -1,7 +1,7 @@
-import type { EngineConfig } from "@lofi/engine/Engine";
-import type { Ubo } from "@lofi/engine/materials/Ubo";
-import { Color3 } from "@lofi/core/math/Color3";
-import { Vector3 } from "@lofi/core/math/Vector3";
+import  type { EngineConfig } from "@lopoly/engine/Engine";
+import  type { Ubo } from "@lopoly/engine/materials/Ubo";
+import  { Color3 } from "@lopoly/core/math/Color3";
+import  { Vector3 } from "@lopoly/core/math/Vector3";
 
 import type { PointLightNode, DirectionalLightNode } from "./nodes";
 

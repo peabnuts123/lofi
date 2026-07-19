@@ -1,4 +1,4 @@
-import { Scene } from "@lofi/engine/scene";
+import  { Scene } from "@lopoly/engine/scene";
 
 import { MockEngine, type MockEngineConstructorArgs } from "@test/mock/MockEngine";
 import { MockSceneNode } from "@test/mock/MockSceneNode";

@@ -1,14 +1,14 @@
-import { IdPool } from '@lofi/core/util/IdPool';
-import { Color4 } from '@lofi/core/math/Color4';
-import { Texture, Cubemap } from '@lofi/engine/textures';
+import  { IdPool } from '@lopoly/core/util/IdPool';
+import  { Color4 } from '@lopoly/core/math/Color4';
+import  { Texture, Cubemap } from '@lopoly/engine/textures';
 
-import VertexShaderSource from '@lofi/engine/materials/shaders/shader.vert';
-import FragmentShaderSource from '@lofi/engine/materials/shaders/shader.frag';
+import  VertexShaderSource from '@lopoly/engine/materials/shaders/shader.vert';
+import  FragmentShaderSource from '@lopoly/engine/materials/shaders/shader.frag';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
 import { DefaultShader, type IShader } from './ShaderVariant';
 import { Material } from './Material';
-import { clamp01 } from '@lofi/core/math/util';
+import  { clamp01 } from '@lopoly/core/math/util';
 
 export const MaterialDefaults = {
   unlit: false,

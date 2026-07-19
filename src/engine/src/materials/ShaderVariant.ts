@@ -1,7 +1,7 @@
-import type { Enum } from '@lofi/core/util/types';
-import { CameraUboIndex } from '@lofi/engine/scene/nodes/CameraNode';
-import { LightingUboIndex } from '@lofi/engine/scene/SceneLighting';
-import type { IEngine } from '@lofi/engine/Engine';
+import  type { Enum } from '@lopoly/core/util/types';
+import  { CameraUboIndex } from '@lopoly/engine/scene/nodes/CameraNode';
+import  { LightingUboIndex } from '@lopoly/engine/scene/SceneLighting';
+import  type { IEngine } from '@lopoly/engine/Engine';
 
 import { ShaderBlendingMode } from './ShaderBlendingMode';
 

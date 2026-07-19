@@ -1,5 +1,5 @@
 import { type MediaStreamAudioDestinationNode, type IAudioContext } from 'standardized-audio-context';
-import type { Engine, IEngine } from '@lofi/engine/Engine';
+import  type { Engine, IEngine } from '@lopoly/engine/Engine';
 import { zipSync } from 'fflate';
 
 
@@ -54,7 +54,7 @@ type SaveOverrideFunction = (data: Blob, filename: string) => void | Promise<voi
 
 /**
  * Debug module registered into devtools as `window.Debug` (or just `Debug`).
- * Contains various debug utilities for working on LoFi games.
+ * Contains various debug utilities for working on LoPoly games.
  */
 export class DebugModule {
   private static engineInstances: Map<HTMLCanvasElement, Engine> = new Map();

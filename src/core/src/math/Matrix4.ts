@@ -1,4 +1,4 @@
-import type { TypedArray } from "@lofi/core/util/types";
+import  type { TypedArray } from "@lopoly/core/util/types";
 
 import { Observable } from "../util";
 import { CannotInvertMatrixError } from "./Matrix3";

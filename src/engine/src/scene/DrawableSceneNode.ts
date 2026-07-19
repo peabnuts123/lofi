@@ -1,4 +1,4 @@
-import type { DrawTask, IEngine } from "@lofi/engine/Engine";
+import  type { DrawTask, IEngine } from "@lopoly/engine/Engine";
 
 import { SceneNode } from "./SceneNode";
 import type { IScene } from "./Scene";

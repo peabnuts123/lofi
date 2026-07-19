@@ -1,5 +1,5 @@
-import type { DrawTask, IEngine } from "@lofi/engine/Engine";
-import { Color3 } from "@lofi/core/math";
+import  type { DrawTask, IEngine } from "@lopoly/engine/Engine";
+import  { Color3 } from "@lopoly/core/math";
 
 import { SceneLighting } from "./SceneLighting";
 import type { SceneNode } from "./SceneNode";

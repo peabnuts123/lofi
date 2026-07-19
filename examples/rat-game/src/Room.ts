@@ -1,10 +1,10 @@
-import { Vector3 } from "@lofi/core/math";
-import { Model } from "@lofi/engine/models";
-import { SceneNode, type IScene } from "@lofi/engine/scene";
-import { AudioSourceNode, BoxColliderNode, ModelNode } from "@lofi/engine/scene/nodes";
+import  { Vector3 } from "@lopoly/core/math";
+import  { Model } from "@lopoly/engine/models";
+import  { SceneNode, type IScene } from "@lopoly/engine/scene";
+import  { AudioSourceNode, BoxColliderNode, ModelNode } from "@lopoly/engine/scene/nodes";
 import type { Player } from "./Player";
-import { AudioClip } from "@lofi/engine/audio";
-import { GltfLoader } from "@lofi/engine/loaders/GltfLoader";
+import  { AudioClip } from "@lopoly/engine/audio";
+import  { GltfLoader } from "@lopoly/engine/loaders/GltfLoader";
 
 /* Config */
 const CoinTriggerSize = 0.5;

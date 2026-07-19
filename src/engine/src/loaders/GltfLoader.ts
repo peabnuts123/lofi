@@ -1,15 +1,15 @@
 
 import { Accessor, WebIO, type GLTF, Node as GltfPart, Document, Material } from '@gltf-transform/core';
 
-import { Matrix4 } from '@lofi/core/math/Matrix4';
-import { Vector3 } from '@lofi/core/math/Vector3';
-import { Vector2 } from '@lofi/core/math/Vector2';
-import { Quaternion } from '@lofi/core/math/Quaternion';
-import { Color4 } from '@lofi/core/math/Color4';
-import { canonicalisePath } from '@lofi/core/util/path';
-import type { IFileSystem } from '@lofi/engine/filesystem';
-import { mapBufferChunks } from '@lofi/engine/util/array';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision';
+import  { Matrix4 } from '@lopoly/core/math/Matrix4';
+import  { Vector3 } from '@lopoly/core/math/Vector3';
+import  { Vector2 } from '@lopoly/core/math/Vector2';
+import  { Quaternion } from '@lopoly/core/math/Quaternion';
+import  { Color4 } from '@lopoly/core/math/Color4';
+import  { canonicalisePath } from '@lopoly/core/util/path';
+import  type { IFileSystem } from '@lopoly/engine/filesystem';
+import  { mapBufferChunks } from '@lopoly/engine/util/array';
+import  { AxisAlignedBoundingBox } from '@lopoly/engine/collision';
 
 import {
   AccessorComponentType,

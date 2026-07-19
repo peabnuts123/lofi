@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { MeshPrimitiveGeometry } from './MeshPrimitiveGeometry';
 import { MockEngine } from '@test/mock/MockEngine';
-import { AccessorComponentType, MeshPrimitiveMode, type MeshPrimitiveDefinition } from '@lofi/engine/loaders/definitions';
-import { Color3, Color4, Vector2, Vector3 } from '@lofi/core/math';
+import  { AccessorComponentType, MeshPrimitiveMode, type MeshPrimitiveDefinition } from '@lopoly/engine/loaders/definitions';
+import  { Color3, Color4, Vector2, Vector3 } from '@lopoly/core/math';
 import { expectVectorArraysToBeEqual } from '@test/util/expect';
-import { AxisAlignedBoundingBox } from '@lofi/engine/collision/AxisAlignedBoundingBox';
+import  { AxisAlignedBoundingBox } from '@lopoly/engine/collision/AxisAlignedBoundingBox';
 import { JointIndices, JointWeights, TriangleIndices } from '.';
 
 /*
