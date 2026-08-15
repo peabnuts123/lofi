@@ -75,6 +75,18 @@ These items are roughly in priority order.
   - [ ] Custom shaders
   - [ ] Animated textures
 
+## Ideas
+  - Built-in 3d primitives e.g. cube, sphere, etc.
+  - Lights based on camera proximity (or is this a PolyZone feature?)
+  - A second param for `addChild()` that lets you mutate the child, or a factory function?
+    - Or a `parent` param for Node constructors for implicit local coordinates
+    - Or `addChild()` returns the param for fluent-style adding
+  - Memoize / cache values like `getVerticesWorldSpace`
+    - ~~Some kind of generic pattern for Dirty____?~~ observables.
+    - Should be more possible now that we have observables.
+    - Or potentially a specific worldMatrix-based cache
+
+
 ### Not yet prioritised
   - Test all Model properties e.g. VertexColors
   - Lighting UBO can probably use an array lol
@@ -136,15 +148,4 @@ These items are roughly in priority order.
   - What if encode debug captured video directly to mp4 in-browser
   - Support for touch inputs? how does that work?
   - Does `MouseButton` need to be renamed / refactored?
-
-
-## Ideas
-  - Built-in 3d primitives e.g. cube, sphere, etc.
-  - Lights based on camera proximity (or is this a PolyZone feature?)
-  - A second param for `addChild()` that lets you mutate the child, or a factory function?
-    - Or a `parent` param for Node constructors for implicit local coordinates
-    - Or `addChild()` returns the param for fluent-style adding
-  - Memoize / cache values like `getVerticesWorldSpace`
-    - ~~Some kind of generic pattern for Dirty____?~~ observables.
-    - Should be more possible now that we have observables.
-    - Or potentially a specific worldMatrix-based cache
+  - Should InputSystem config (for e.g. analog buttons etc) live in Engine Config?

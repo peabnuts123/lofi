@@ -10,6 +10,9 @@ import type { NativeGamepadAxisIndex, NativeGamepadButtonIndex, NativeGamepadInd
 import { NativeStandardGamepadAxisMapping, NativeStandardGamepadButtonMapping } from "./mapping";
 
 export interface IInputSystem {
+  analogButtonPressedThreshold: number;
+  axisDeadZone: number;
+
   configure(configuration: InputConfiguration): void;
   addInput(inputConfig: AddInputArgs): void;
   removeInput(type: 'button' | 'axis', name: string): void;
@@ -50,20 +53,20 @@ export function gamepadIndexToDeviceId(index: NativeGamepadIndex): GamepadDevice
 }
 
 /* InputSystem state */
-type InputState<TInput extends string | number, TRange extends number = NumberZeroToOne> = {
+export type InputState<TInput extends string | number, TRange extends number = NumberZeroToOne> = {
   current: Partial<Record<TInput, TRange>>;
   previous: Partial<Record<TInput, TRange>>;
 }
-type KeyboardInputState = InputState<KeyCodeValue>;
-type MouseInputState = InputState<MouseButtonValue>;
-type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
-type GamepadButtonInputState = InputState<GamepadButtonValue>;
-type GamepadAxisInputState = InputState<GamepadAxisValue, NumberNegativeOneToOne>;
-type PointerState = {
-  x: number | undefined,
-  y: number | undefined,
-  xDelta: number,
-  yDelta: number,
+export type KeyboardInputState = InputState<KeyCodeValue>;
+export type MouseInputState = InputState<MouseButtonValue>;
+export type MouseWheelInputState = InputState<MouseWheelDirectionValue>;
+export type GamepadButtonInputState = InputState<GamepadButtonValue>;
+export type GamepadAxisInputState = InputState<GamepadAxisValue, NumberNegativeOneToOne>;
+export interface PointerState {
+  x: number | undefined;
+  y: number | undefined;
+  xDelta: number;
+  yDelta: number;
 };
 
 /* Function parameters */
@@ -93,9 +96,9 @@ export class InputSystem implements IInputSystem {
    */
   public analogButtonPressedThreshold = 0.2;
   /**
-   * Threshold under which the value of an analog axis is ignored.
+   * Threshold under which the value of an axis is ignored.
    */
-  public analogAxisDeadZone = 0.1;
+  public axisDeadZone = 0.1;
 
   /**
    * @NOTE Canvas requirements for touch input:
@@ -447,7 +450,7 @@ export class InputSystem implements IInputSystem {
     }
 
     // Do not return a value if the largest magnitude number is less than the axis dead zone
-    if (maxValue > this.analogAxisDeadZone || maxValue < -this.analogAxisDeadZone) {
+    if (maxValue > this.axisDeadZone || maxValue < -this.axisDeadZone) {
       return maxValue;
     } else {
       return 0;
