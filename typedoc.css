@@ -1,0 +1,12 @@
+/* Hide unnecessary bloat */
+.tsd-returns-title, /* "Returns: number" */
+.tsd-sources        /* "Implementation of foo.bar" */
+{
+    display: none;
+}
+
+/* Utility class to highlight potential targets to hide */
+.to-hide {
+  background: fuchsia !important;
+  color: white !important;
+}

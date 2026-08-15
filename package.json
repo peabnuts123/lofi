@@ -14,7 +14,9 @@
     "build": "npm run build --workspaces",
     "test": "npm test --workspaces",
     "publish": "npm run publish --workspaces",
-    "checkall": "npm run checkall --workspaces"
+    "checkall": "npm run checkall --workspaces",
+    "predocs": "npm run build",
+    "docs": "typedoc"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -23,6 +25,7 @@
     "http-server": "^14.1.1",
     "jsdom": "^27.4.0",
     "tsx": "^4.21.0",
+    "typedoc": "^0.28.20",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.50.0",
     "vitest": "^4.0.16"

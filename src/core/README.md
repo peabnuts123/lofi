@@ -1,3 +1,3 @@
-# LoPoly - Core
+# @lopoly/core
 
-This is the core module of LoPoly that contains abstract logic e.g. maths and utilities.
+The core module of LoPoly contains abstract logic such as math functions and utilities.

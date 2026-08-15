@@ -309,13 +309,13 @@ export class Quaternion extends Observable implements IReadOnlyQuaternion {
     this.internal.w = cosYaw * cosPitch * cosRoll - sinYaw * sinPitch * sinRoll;
   }
 
-  /**
-     * Creates a quaternion from Euler angles (in degrees).
-     * @param x Rotation around X axis in degrees.
-     * @param y Rotation around Y axis in degrees.
-     * @param z Rotation around Z axis in degrees.
-     */
   public static fromEuler(vector: Vector3Like): Quaternion;
+  /**
+   * Creates a quaternion from Euler angles (in degrees).
+   * @param x Rotation around X axis in degrees.
+   * @param y Rotation around Y axis in degrees.
+   * @param z Rotation around Z axis in degrees.
+   */
   public static fromEuler(x: number, y: number, z: number): Quaternion;
   public static fromEuler(xOrVector: number | Vector3Like, y?: number, z?: number): Quaternion {
     // @NOTE TypeScript is too dumb to figure this one out

@@ -270,6 +270,7 @@ export class Vector3 extends Observable implements IReadonlyVector3 {
     }
   }
 
+  /** The Y component of this vector. */
   public get y(): number { return this.internal.y; }
   public set y(value: number) {
     if (this.internal.y !== value) {

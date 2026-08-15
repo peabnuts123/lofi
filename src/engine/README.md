@@ -1,3 +1,3 @@
-# LoPoly - Engine
+# @lopoly/engine
 
-This is the actual game engine module of LoPoly that contains logic for creating games e.g. WebGL rendering, collision handling, input, etc.
+The engine component of LoPoly contains the main entry point of the library and the majority of the engine's business logic.
