@@ -16,7 +16,7 @@ export default {
     entryPointStrategy: "expand",
     exclude: ["**/*.test.ts"],
     disableSources: true,
-    readme: "documents-todo-rename/index.md"
+    readme: "docs/index.md"
   },
   projectDocuments: [
     "README.md",
