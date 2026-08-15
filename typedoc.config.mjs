@@ -14,9 +14,9 @@ export default {
   packageOptions: {
     entryPoints: ["src"],
     entryPointStrategy: "expand",
-    exclude: ["**/*.test.ts"],
+    exclude: ["**/*.test.ts", "src/index.ts"],
     disableSources: true,
-    readme: "docs/index.md"
+    readme: "docs/index.md",
   },
   projectDocuments: [
     "README.md",
