@@ -1,10 +1,9 @@
-import  { IFileSystem, VirtualFile } from "@lopoly/engine/filesystem";
+import  { type IFileSystem, VirtualFile } from "@lopoly/engine/filesystem";
 
-export class MockFileSystem extends IFileSystem {
+export class MockFileSystem implements IFileSystem {
   private files: Map<string, Uint8Array<ArrayBuffer>> = new Map();
 
   constructor(initialFiles?: Record<string, string | Uint8Array<ArrayBuffer>>) {
-    super("mock");
     if (initialFiles) {
       for (const [path, content] of Object.entries(initialFiles)) {
         this.addFile(path, content);
@@ -45,10 +44,6 @@ export class MockFileSystem extends IFileSystem {
    */
   public clear(): void {
     this.files.clear();
-  }
-
-  public getUrlForPath(path: string): string {
-    return `${this.resolverProtocol}${path}`;
   }
 
   public readFile(path: string): Promise<VirtualFile> {
