@@ -25,4 +25,4 @@ coverage/
 # Incremental typescript compilation
 *.tsbuildinfo
 
-docs/
+/docs/
