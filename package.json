@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "author": "peabnuts123",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "workspaces": [
     "@NOTE: THESE MUST BE LISTED IN THIS ORDER",
     "src/engine",

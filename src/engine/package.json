@@ -40,5 +40,5 @@
     "online-3d-viewer": "^0.18.0",
     "standardized-audio-context": "^25.3.77"
   },
-  "license": "UNLICENSED"
+  "license": "MIT"
 }
