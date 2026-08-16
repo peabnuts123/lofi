@@ -1,6 +1,6 @@
 {
   "name": "@lopoly/core",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Core math and utilities for the LoPoly 3D game engine.",
   "author": "peabnuts123",
   "keywords": [
