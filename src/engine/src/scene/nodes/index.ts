@@ -6,4 +6,5 @@ export * from './ConvexMeshColliderNode';
 export * from './DirectionalLightNode';
 export * from './ModelNode';
 export * from './ObjectNode';
+export * from './SatColliderNode';
 export * from './PointLightNode';
