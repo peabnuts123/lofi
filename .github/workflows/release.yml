@@ -17,8 +17,9 @@ env:
   NODE_VERSION: 24 # @NOTE Should match .nvmrc
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
+    name: Publish version
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -54,3 +55,45 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-docs:
+    runs-on: ubuntu-latest
+    name: Build docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static files
+        id: build
+        run: npm run docs
+
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+  deploy-docs:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    name: Deploy docs
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
