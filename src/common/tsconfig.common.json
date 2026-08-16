@@ -11,6 +11,7 @@
 
     // Other Outputs
     "declaration": true,
+    "declarationMap": true,
     "noEmitOnError": true,
 
     // Stricter Typechecking Options

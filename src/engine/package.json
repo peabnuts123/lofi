@@ -1,7 +1,7 @@
 {
   "name": "@lopoly/engine",
-  "version": "0.0.2",
-  "description": "LoPoly is a 3D game engine built using WebGL with only simple/retro features which makes it very simple to use.",
+  "version": "0.0.3",
+  "description": "Simple 3D WebGL game engine for making games from the year 2000.",
   "author": "peabnuts123",
   "keywords": [
     "gamedev",
@@ -40,5 +40,5 @@
     "online-3d-viewer": "^0.18.0",
     "standardized-audio-context": "^25.3.77"
   },
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

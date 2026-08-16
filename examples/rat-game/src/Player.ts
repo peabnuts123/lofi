@@ -1,11 +1,11 @@
-import  { Vector3, Quaternion, Vector2, Color3 } from '@lopoly/core/math';
-import  { AudioSourceNode, BoxColliderNode, ModelNode, PointLightNode } from '@lopoly/engine/scene/nodes';
-import  { SceneNode, type IScene } from '@lopoly/engine/scene';
-import  type { IInputSystem } from '@lopoly/engine/input';
+import { Vector3, Quaternion, Vector2, Color3 } from '@lopoly/core/math';
+import { AudioSourceNode, BoxColliderNode, ModelNode, PointLightNode } from '@lopoly/engine/scene/nodes';
+import { SceneNode, type IScene } from '@lopoly/engine/scene';
+import { type IInputSystem } from '@lopoly/engine/input';
 import type { Camera } from './Camera';
-import  { Model } from '@lopoly/engine/models';
-import  { GltfLoader } from '@lopoly/engine/loaders/GltfLoader';
-import  { AudioClip } from '@lopoly/engine/audio';
+import { Model } from '@lopoly/engine/models';
+import { GltfLoader } from '@lopoly/engine/loaders/GltfLoader';
+import { AudioClip } from '@lopoly/engine/audio';
 
 // Config
 const PlayerMaxSpeed = 3.5;

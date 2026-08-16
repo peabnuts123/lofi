@@ -2,6 +2,9 @@ import  type { AddInputArgs, AddInputBindingArgs, IInputSystem, InputConfigurati
 import  type { PlayerNumber, NumberZeroToOne, NumberNegativeOneToOne } from "@lopoly/engine/input/types";
 
 export class MockInputSystem implements IInputSystem {
+  analogButtonPressedThreshold: number = 0.2;
+  axisDeadZone: number = 0.1;
+
   configure(_configuration: InputConfiguration): void {
     throw new Error("Method not implemented.");
   }

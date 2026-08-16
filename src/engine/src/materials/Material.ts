@@ -20,12 +20,12 @@ export interface MaterialConstructorOptions {
 export class Material extends Observable {
   public static readonly DefaultMaterial = new Material();
 
-  public _diffuseColor: Color4 | undefined | Unset;
-  public _diffuseTexture: Texture | undefined | Unset;
-  public _unlit: boolean | undefined | Unset;
-  public _blendingMode: ShaderBlendingMode | undefined | Unset;
-  public _reflectionCubemap: Cubemap | undefined | Unset;
-  public _reflectionIntensity: number | undefined | Unset;
+  private _diffuseColor: Color4 | undefined | Unset;
+  private _diffuseTexture: Texture | undefined | Unset;
+  private _unlit: boolean | undefined | Unset;
+  private _blendingMode: ShaderBlendingMode | undefined | Unset;
+  private _reflectionCubemap: Cubemap | undefined | Unset;
+  private _reflectionIntensity: number | undefined | Unset;
 
   /**
    *

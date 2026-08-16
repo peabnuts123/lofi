@@ -63,7 +63,7 @@ export class DebugModule {
    * Optional override for saving files (e.g. for Tauri integration).
    * If set, this will be called with (data: Blob, filename: string) instead of using <a> tag download.
    */
-  public saveOverride: SaveOverrideFunction | undefined;
+  private saveOverride: SaveOverrideFunction | undefined;
 
   private _currentMediaRecorder: MediaRecorder | undefined = undefined;
   private _currentRecordingBlobs: Blob[] | undefined = undefined;

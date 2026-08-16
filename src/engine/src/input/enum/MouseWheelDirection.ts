@@ -9,11 +9,11 @@ import { createInputEnum, type InputEnumValues } from "./InputEnum";
  * NOTE: Mouse wheel inputs DO NOT fire "released" events. They are instantaneous inputs only.
  */
 export const MouseWheelDirection = createInputEnum('MouseWheel', {
-  Up: 'up' as const,
-  Down: 'down' as const,
-  Left: 'left' as const,
-  Right: 'right' as const,
-  Forward: 'forward' as const,
-  Back: 'back' as const,
-});
+  Up: 'up',
+  Down: 'down',
+  Left: 'left',
+  Right: 'right',
+  Forward: 'forward',
+  Back: 'back',
+} as const);
 export type MouseWheelDirectionValue = InputEnumValues<typeof MouseWheelDirection>;

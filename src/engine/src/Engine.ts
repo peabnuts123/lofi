@@ -1,13 +1,13 @@
-import  { CannotInvertMatrixError, Matrix3 } from "@lopoly/core/math/Matrix3";
-import  type { DeepPartial } from "@lopoly/core/util/types";
-import  { type Matrix4 } from "@lopoly/core/math";
+import { CannotInvertMatrixError, Matrix3 } from "@lopoly/core/math/Matrix3";
+import type { DeepPartial } from "@lopoly/core/util/types";
+import { type Matrix4 } from "@lopoly/core/math";
 
 import { CameraUboIndex, CameraUboName, CameraUboPropertyNames, type CameraUbo } from "./scene/nodes/CameraNode";
 import type { IFileSystem } from "./filesystem";
 import { LightingUboIndex, LightingUboName, LightingUboPropertyNames, type LightingUbo } from "./scene/SceneLighting";
 import { MaterialInstance, ShaderVariant, Ubo } from "./materials";
 import { DefaultClearColor, type IScene } from "./scene";
-import  { RateCounter } from "@lopoly/core/util/RateCounter";
+import { RateCounter } from "@lopoly/core/util/RateCounter";
 import { CollisionSystem } from "./collision";
 import { AudioSystem, type IAudioSystem } from "./audio/AudioSystem";
 import { DebugModule } from "./util/DebugModule";
