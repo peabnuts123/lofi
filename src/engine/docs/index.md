@@ -21,11 +21,11 @@ The Engine has many Scenes, each of which contain a hierarchy of many SceneNodes
 
 #### Engine
 
-[Engine](#engine-1) is the top-level object. It contains all the logic for running the game, and is in charge of the run loop.
+{@link Engine.Engine Engine} is the top-level object. It contains all the logic for running the game, and is in charge of the run loop.
 
 An engine is created from 2 things:
   - A `<canvas>` instance
-  - An [IFileSystem](#ifilesystem) instance
+  - An {@link filesystem/IFileSystem.IFileSystem IFileSystem} instance
 
 The canvas is the HTMLCanvasElement that will be used to render the game. Style and position this element to display your game somewhere on the page. The canvas also dictates the resolution at which your game runs (through `width` and `height` HTML attributes).
 
@@ -33,7 +33,7 @@ The file system is an abstract interface that tells the engine how to access all
 
 #### File systems
 
-[IFileSystem](#ifilesystem) is an abstract interface that lets LoPoly access the data for your game. For example, a default [WebFileSystem](#webfilesystem) is provided that lets LoPoly read resources from web urls (e.g. `/models/player.glb` reads from `https://foo.com/models/player.glb`).
+{@link filesystem/IFileSystem.IFileSystem IFileSystem} is an abstract interface that lets LoPoly access the data for your game. A default {@link filesystem/WebFileSystem.WebFileSystem WebFileSystem} is provided that lets LoPoly read resources from web urls (e.g. `/models/player.glb` reads from `https://foo.com/models/player.glb`).
 
 This allows you to serve LoPoly games from different sources e.g. from a web domain, from memory, from [Tauri's file system plugin](https://v2.tauri.app/plugin/file-system/), etc.
 
@@ -45,21 +45,21 @@ A scene is best thought of as a "level" or "screen" within your game. Only one s
 
 #### Scene nodes
 
-[SceneNode](#scenenode) is any node in the hierarchy within a scene. There are many types of scene node:
-- [ModelNode](#modelnode)
-- [CameraNode](#cameranode)
-- [PointLightNode](#pointlightnode)
-- [BoxColliderNode](#boxcollidernode)
-- [AudioSourceNode](#audiosourcenode)
+A {@link scene/SceneNode.SceneNode SceneNode} is any node in the hierarchy within a scene. There are many types of scene node:
+- {@link scene/nodes/ModelNode.ModelNode ModelNode}
+- {@link scene/nodes/CameraNode.CameraNode CameraNode}
+- {@link scene/nodes/PointLightNode.PointLightNode PointLightNode}
+- {@link scene/nodes/BoxColliderNode.BoxColliderNode BoxColliderNode}
+- {@link scene/nodes/AudioSourceNode.AudioSourceNode AudioSourceNode}
 - etc.
 
-Scene nodes have a [Transform](#transform) (i.e. position, rotation, scale) as well as children. Scene nodes inherit their parent's transform (e.g. moving the parent also moves the child).
+Scene nodes have a {@link @lopoly/core!transform/Transform.Transform Transform} (i.e. position, rotation, scale) as well as children. Scene nodes inherit their parent's transform (e.g. moving the parent also moves the child).
 
 When accessing a scene node's transform, you will note two versions of each property e.g.
-  - `position`
-  - `absolutePosition`
+  - {@link @lopoly/core!transform/Transform.Transform.position position}
+  - {@link @lopoly/core!transform/Transform.Transform.absolutePosition absolutePosition}
 
-Both properties are mutable. The absolute property (e.g. `absolutePosition`) references the property irrespective of the hierarchy (e.g. the node's actual position within the scene), whereas the other property (e.g. `position`) references the property local to its parent (e.g. the node's position relative to its parent).
+Both properties are mutable. The absolute property (e.g. {@link @lopoly/core!transform/Transform.Transform.absolutePosition absolutePosition}) references the property irrespective of the hierarchy (e.g. the node's actual position within the scene), whereas the other property (e.g. {@link @lopoly/core!transform/Transform.Transform.position position}) references the property local to its parent (e.g. the node's position relative to its parent).
 
 **Note** that, unlike Unity, nodes don't have "components" or any other attributes. Rather, "game objects" are composed of hierarchies of different nodes.
 
@@ -71,15 +71,15 @@ All assets are loaded through the engine's [file system](#file-systems). Differe
 
 LoPoly supports loading the following 3D model formats:
   - [glTF](https://github.com/khronosgroup/gltf) (`.glb` or `.gltf` + external resources)
-    - Use `GltfLoader.loadModel(path, fileSystem)`
+    - Use  {@link loaders/GltfLoader.GltfLoader.loadModel GltfLoader.loadModel(path, fileSystem)}
   - [Wavefront OBJ](https://en.wikipedia.org/wiki/Wavefront_.obj_file)
-    - Use `ObjLoader.loadModel(path, fileSystem)`
+    - Use {@link loaders/ObjLoader.ObjLoader.loadModel ObjLoader.loadModel(path, fileSystem)}
 
-Loading a model reads the file format and returns a [ModelDefinition](#modeldefinition). A model definition is an in-memory representation of the geometry, animations and materials contained within a model asset.
+Loading a model reads the file format and returns a {@link loaders/definitions/model.ModelDefinition ModelDefinition}. A model definition is an in-memory representation of the geometry, animations and materials contained within a model asset.
 
-A model definition cannot be used directly. It must first be loaded into a [Model](#model) using `Model.fromDefinition(engine, definition)`. This separation exists for a few reasons:
+A model definition cannot be used directly. It must first be loaded into a {@link models/Model.Model Model} using {@link models/Model.Model.fromDefinition Model.fromDefinition()}. This separation exists for a few reasons:
 - Allow editing of a model definition before it is loaded (e.g. to add more capabilities, such as vertex colors)
-- Allow selective sharing of model modifications and overrides between many [ModelNode](#modelnode) instances (e.g. loading a model twice to make "red" and "blue" versions)
+- Allow selective sharing of model modifications and overrides between many {@link scene/nodes/ModelNode.ModelNode ModelNode} instances (e.g. loading a model twice to make "red" and "blue" versions)
 
 
 Example of loading and displaying a 3D model asset:
@@ -138,7 +138,7 @@ Cubemaps are a type of 3D texture used in reflections and skyboxes. Cubemaps can
 const skybox = await Cubemap.loadBoxNet(engine, '/textures/cubemaps/skybox.png');
 ```
 
-Cubemaps require specific layouts in the source image asset (e.g. `boxNet`). See [Cubemap](#cubemap) for more details.
+Cubemaps require specific layouts in the source image asset (e.g. `boxNet`). See {@link textures/Cubemap.Cubemap Cubemap} for more details.
 
 Support for different formats is based on the user's browser. See [MDN's guide on image formats](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Image_types) for more information. You can generally expect support for common image formats like:
 - JPEG
@@ -174,13 +174,13 @@ const playerModelDefinition = await GltfLoader.loadModel('/models/player.glb', f
 const playerModel = await Model.fromDefinition(engine, playerModelDefinition);
 ```
 
-A [Model](#model) instance stores all the geometry, [materials](#materials), and [animations](#animations) of a 3D asset. Models are comprised of a hierarchy of [ModelPart](#modelpart) objects, which may be comprised of many [MeshPrimitive](#meshprimitive) objects.
+A {@link models/Model.Model Model} instance stores all the geometry, [materials](#materials), and [animations](#animations) of a 3D asset. Models are comprised of a hierarchy of {@link models/ModelPart.ModelPart ModelPart} objects, which may be comprised of many {@link models/MeshPrimitive.MeshPrimitive MeshPrimitive} objects.
 
 ```
 Model -> (0..*) ModelPart -> (0..*) MeshPrimitive
 ```
 
-Model parts can be transformed separately to create different poses and animations. Furthermore, a model part may also define a [skin](#meshskin) to deform its mesh primitives based on other model parts (e.g. to transform a character model based on "bones").
+Model parts can be transformed separately to create different poses and animations. Furthermore, a model part may also define a {@link models/MeshSkin.MeshSkin MeshSkin} to deform its mesh primitives based on other model parts (e.g. to transform a character model based on "bones").
 
 ### Animations
 
@@ -189,7 +189,7 @@ Model parts can be transformed separately to create different poses and animatio
 Animations are stored as a set of keyframes containing transform changes for model parts over time (e.g. `at 0.6 seconds, part 'arm.r' should have rotation '0, 0.1, 0.23, 0.8'`). Animations are loaded as part of a model, not as a separate asset.
 
 
-You can play an animation on a [ModelNode](#modelnode) like so:
+You can play an animation on a {@link scene/nodes/ModelNode.ModelNode ModelNode} like so:
 
 ```typescript
 // Create ModelNode instance
@@ -216,15 +216,15 @@ Animations target model parts by name, so the skeleton/hierarchy has to match be
 
 ### Materials
 
-Individual [mesh primitives](#meshprimitive) are drawn using a single [Material](#material). Materials in LoPoly have a few simple properties:
+Individual {@link models/MeshPrimitive.MeshPrimitive MeshPrimitive}s are drawn using a single {@link materials/Material.Material Material}. Materials in LoPoly have a few simple properties:
 - Diffuse color
-  - A [Color4](#color4) "tint" applied to the mesh primitive
+  - A {@link @lopoly/core!math/Color4.Color4 Color4} "tint" applied to the mesh primitive
   - Multiplied with vertex color and diffuse texture
 - Diffuse texture
-  - A [Texture](#texture) to apply to the mesh primitive based on the vertices' texture coordinates
+  - A {@link textures/Texture.Texture Texture} to apply to the mesh primitive based on the vertices' texture coordinates
   - Multiplied with vertex color and diffuse color
 - Blending mode
-  - A [ShaderBlendingMode](#shaderblendingmode) specifying how each transparent pixel of the mesh primitive is written into the draw buffer. Since transparent materials are drawn after opaque materials, the blending mode specifies how the mesh primitive is "blended" with the data already in the draw buffer
+  - A {@link materials/ShaderBlendingMode.ShaderBlendingMode:var ShaderBlendingMode} specifying how each transparent pixel of the mesh primitive is written into the draw buffer. Since transparent materials are drawn after opaque materials, the blending mode specifies how the mesh primitive is "blended" with the data already in the draw buffer
   - **NOTE:** Opaque pixels ALWAYS overwrite the draw buffer (i.e. are NOT blended)
   - There are several blending modes:
     - **None**: All pixels are drawn directly to / overwrite the buffer (opaque)
@@ -232,11 +232,11 @@ Individual [mesh primitives](#meshprimitive) are drawn using a single [Material]
     - **Additive**: Transparent pixels are added to the contents of the draw buffer
     - **Subtractive**: Transparent pixels are subtracted from the contents of the draw buffer
     - **AlphaBlend**: Transparent pixels are combined with the contents of the draw buffer based on the pixel's alpha value (i.e. 0x00 = Fully transparent, 0xFF = Fully opaque)
-    - **AlphaClip**: Pixels either overwrite the draw buffer or are discarded based on whether their alpha value is above or below some threshold. NOTE that this makes `AlphaClip` an OPAQUE blending mode (see [ShaderBlendingMode](#shaderblendingmode) for more details)
+    - **AlphaClip**: Pixels either overwrite the draw buffer or are discarded based on whether their alpha value is above or below some threshold. NOTE that this makes `AlphaClip` an OPAQUE blending mode (see {@link materials/ShaderBlendingMode.ShaderBlendingMode:var ShaderBlendingMode} for more details)
 - Unlit
   - Whether lighting should be ignored when drawing the mesh primitive
 - Reflection cubemap
-  - A [Cubemap](#cubemap) to render as a reflection on the surface of the mesh primitive
+  - A {@link textures/Cubemap.Cubemap Cubemap} to render as a reflection on the surface of the mesh primitive
 - Reflection cubemap intensity
   - How visible the reflection is, if specified
 <!-- - @TODO Reflection blending mode -->
@@ -244,16 +244,16 @@ Individual [mesh primitives](#meshprimitive) are drawn using a single [Material]
 ### Collision handling
 
 LoPoly has a simple collision handling system that can detect and resolve collisions between a few types of shapes:
-  - [Box](#boxcollidernode)
+  - Box ({@link scene/nodes/BoxColliderNode.BoxColliderNode BoxColliderNode})
     - A box with x/y/z dimensions. Does not have to be axis-aligned.
-  - [Convex mesh](#convexmeshcollidernode)
-    - Any convex shape (specified via a [Model](#model)). A mesh is "convex" if any line passing through it can only intersect the shape once or, in other terms, any shape whose interior angles are all less than 180°
+  - Convex mesh ({@link scene/nodes/ConvexMeshColliderNode.ConvexMeshColliderNode ConvexMeshColliderNode})
+    - Any convex shape (specified via a {@link models/Model.Model Model}). A mesh is "convex" if any line passing through it can only intersect the shape once or, in other terms, any shape whose interior angles are all less than 180°
 
 #### Collision groups
 
-All colliders have a "collision group" which is a number between 0 (inclusive) and `CollisionSystem.MaxCollisionGroups` (exclusive - 32 by default). Collision groups are used to specify which colliders can interact. For example, if the player, monsters, and platforms all have different collision groups, one could specify that players can jump on platforms, but monsters cannot.
+All colliders have a "collision group" which is a number between 0 (inclusive) and {@link collision/CollisionSystem.CollisionSystem.MaxCollisionGroups CollisionSystem.MaxCollisionGroups} (exclusive - 32 by default). Collision groups are used to specify which colliders can interact. For example, if the player, monsters, and platforms all have different collision groups, one could specify that players can jump on platforms, but monsters cannot.
 
-Configuring the interactions between collision groups is done through the [CollisionSystem](#collisionsystem) object on `IEngine.collisionSystem`:
+Configuring the interactions between collision groups is done through the {@link collision/CollisionSystem.CollisionSystem CollisionSystem} instance on {@link Engine.IEngine.collisionSystem IEngine.collisionSystem}:
 
 ```typescript
 const { collisionSystem } = engine;
@@ -273,7 +273,7 @@ const playerCollisionGroup = 0;
 const playerCollider = new BoxColliderNode(scene, 'player:collider', playerCollisionGroup, { x: 30, y: 30, z: 70 });
 ```
 
-Colliders have a function called `move` that can compute a movement and apply it to a target. For example:
+Colliders have a function called {@link scene/nodes/ColliderNode.ColliderNode.move move()} that can compute a movement and apply it to a target. For example:
 
 ```typescript
 // Create player object
@@ -284,14 +284,14 @@ const playerCollider = new BoxColliderNode(scene, 'player:collider', 0, { x: 30,
 playerCollider.move(player, new Vector3(0, 5, 0));
 ```
 
-When calling `move(target, vector)`, the collider attempts to move by `vector`, resolving any collisions that may occur as a result of this movement, and then applies this result to `target`. Collisions are resolved using a "minimum translation vector" which produces a "sliding" effect when colliders intersect. You can also call `computeMove(vector)` which just does the calculation and returns the result, without applying it to anything.
+When calling {@link scene/nodes/ColliderNode.ColliderNode.move move(target, vector)}, the collider attempts to move by `vector`, resolving any collisions that may occur as a result of this movement, and then applies this result to `target`. Collisions are resolved using a "minimum translation vector" which produces a "sliding" effect when colliders intersect. You can also call {@link scene/nodes/ColliderNode.ColliderNode.computeMove computeMove(vector)} which just does the calculation and returns the result, without applying it to anything.
 
 ### Audio
 
 LoPoly features a simple but robust system for playing audio. There are three main components:
-  - The [AudioSystem](#audiosystem) itself (a singleton stored on Engine)
-  - [Audio clips](#audioclip) - individual sounds
-  - [AudioSourceNode](#audiosourcenode) instances - scene nodes used to play audio
+  - The {@link audio/AudioSystem.AudioSystem AudioSystem} itself (a singleton stored on Engine)
+  - {@link audio/AudioClip.AudioClip AudioClip}s - individual sounds
+  - {@link scene/nodes/AudioSourceNode.AudioSourceNode AudioSourceNode} instances - scene nodes used to play audio
 
 Audio clips are assets loaded from a file system and played through audio source nodes:
 
@@ -316,8 +316,7 @@ playerAudioSource.minRange = 10;
 playerAudioSource.maxRange = 50;
 ```
 
-Audio source nodes can also be configured to be "global" - playing all audio at the same volume everywhere - by setting the `global` property:
-<!-- You can disable this behaviour on an individual audio source node which will play sound at the same volume everywhere (useful for e.g. background music): -->
+Audio source nodes can also be configured to be "global" - playing all audio at the same volume everywhere - by setting the {@link scene/nodes/AudioSourceNode.AudioSourceNode.global global} property:
 
 ```typescript
 const musicSource = new AudioSourceNode(scene, 'music');
@@ -335,7 +334,7 @@ Audio clips are played with a priority of `0` by default. You can specify the pr
 playerAudioSource.playClip(playerJumpSound, { priority: 2 });
 ```
 
-The number of audio channels can be customised in the [Engine](#engine-1) constructor configuration:
+The number of audio channels can be customised in the {@link Engine.Engine Engine} constructor configuration:
 ```typescript
 // Set the number of audio channels to 40 (default: 24)
 const engine = new Engine(canvas, fileSystem, {
@@ -373,13 +372,13 @@ LoPoly supports many forms of input including gamepads, keyboard, and pointer de
 
 The input system is based around the concept of _Inputs_ which are labels given to controls in your game (e.g. `jump`, `player:x`, `back`, etc). An input can be defined as either a `button` or an `axis` type. Buttons are discrete inputs that are either on or off, and axes are continuous inputs that can be polled for their current value. A typical example of a button type input would be a pause button that opens the menu, and a typical example of an axis type input would be the horizontal component of the player's movement.
 
-Inputs can't do anything without _Input Bindings_ which tie inputs to the controls on a physical device such as `KeyCode.KeyW`, `GamepadAxis.JoyRightX` or `MouseButton.Left`.
+Inputs can't do anything without _Input Bindings_ which tie inputs to the controls on a physical device such as {@link input/enum/KeyCode.KeyCode KeyCode.KeyW}, {@link input/enum/GamepadAxis.GamepadAxis GamepadAxis.JoyRightX} or {@link input/enum/MouseButton.MouseButton MouseButton.Left}.
 
 Even though input bindings tend to function naturally as either a button or an axis, any input binding can be used for either type. Analog bindings can be bound to a button input (e.g. using an analog gamepad trigger like a button), and a pair of buttons can be bound to an axis input (e.g. using the arrow keys on a keyboard like a movement axis).
 
 #### Configuring inputs
 
-Inputs and input bindings can be configured all at once by calling `InputSystem.configure()`:
+Inputs and input bindings can be configured all at once by calling {@link input/InputSystem.InputSystem.configure InputSystem.configure()}:
 
 ```typescript
 const { inputSystem: input } = engine;
@@ -441,38 +440,38 @@ input.removeInputBinding({
 });
 ```
 
-Calling these methods updates the current input config, whereas calling `InputSystem.configure()` replaces it.
+Calling these methods updates the current input config, whereas calling {@link input/InputSystem.InputSystem.configure InputSystem.configure()} replaces it.
 
 The following inputs are configured by default:
 
-| Type | Name | Bindings |
-| ---- | ---- | -------- |
-| Button | `jump` | `KeyCode.Space` <br> `GamepadButton.South` |
-| Button | `action` | `KeyCode.KeyF` <br> `GamepadButton.West` |
-| Axis | `player:x` | `GamepadAxis.JoyLeftX` <br> `[KeyCode.KeyA, KeyCode.KeyD]` <br> `[KeyCode.ArrowLeft, KeyCode.ArrowRight]` |
-| Axis | `player:y` | `GamepadAxis.JoyLeftY` <br> `[KeyCode.KeyS, KeyCode.KeyW]` <br> `[KeyCode.ArrowDown, KeyCode.ArrowUp]` |
+| Type   | Name       | Bindings                                                                                                  |
+| ------ | ---------- | --------------------------------------------------------------------------------------------------------- |
+| Button | `jump`     | `KeyCode.Space` <br> `GamepadButton.South`                                                                |
+| Button | `action`   | `KeyCode.KeyF` <br> `GamepadButton.West`                                                                  |
+| Axis   | `player:x` | `GamepadAxis.JoyLeftX` <br> `[KeyCode.KeyA, KeyCode.KeyD]` <br> `[KeyCode.ArrowLeft, KeyCode.ArrowRight]` |
+| Axis   | `player:y` | `GamepadAxis.JoyLeftY` <br> `[KeyCode.KeyS, KeyCode.KeyW]` <br> `[KeyCode.ArrowDown, KeyCode.ArrowUp]`    |
 
 #### Input devices
 
 The following types of input device are supported:
 
 **Keyboard**
-- Input bindings are specified using {@link input.KeyCode KeyCode}.
+- Input bindings are specified using {@link input/enum/KeyCode.KeyCode KeyCode}.
 - Only 1 keyboard input is supported at a time.
 
 **Gamepad**
-- Input bindings are specified using {@link input.GamepadButton GamepadButton} or {@link input.GamepadAxis GamepadAxis}.
+- Input bindings are specified using {@link input/enum/GamepadButton.GamepadButton GamepadButton} or {@link input/enum/GamepadAxis.GamepadAxis GamepadAxis}.
 - Multiple gamepads are supported at a time. See [Multiple players](#multiple-players).
 - Any device that is detected by browsers as a [Standard Gamepad](https://w3c.github.io/gamepad/#dfn-standard-gamepad) is supported. This should include any modern gaming console controller.
 
 **Pointer (mouse and touch)**
-- Input bindings are specified using {@link input.MouseButton MouseButton}.
+- Input bindings are specified using {@link input/enum/MouseButton.MouseButton MouseButton}.
 - Touch inputs are registered as `MouseButton.Left`.
 - For simplicity, the Pointer device can only be assigned to a player in tandem with the keyboard device. A player cannot be assigned gamepad + pointer. See [Multiple players](#multiple-players).
 
 #### Button inputs
 
-Button type inputs are discrete - they're either pressed or not pressed. To check the state of a button you can call {@link input.IInputSystem.isButtonDown isButtonDown()}:
+Button type inputs are discrete - they're either pressed or not pressed. To check the state of a button you can call {@link input/InputSystem.IInputSystem.isButtonDown isButtonDown()}:
 
 ```typescript
 const isPressingJump = input.isButtonDown('player:jump');
@@ -487,7 +486,7 @@ const wasJumpReleased = input.wasButtonReleased('player:jump');
 
 These functions return `true` only on the frame that the input was pressed / released.
 
-If you want to use the value of a button in an equation (e.g. to multiply the speed of something by the value of a button), you can call {@link input.IInputSystem.getButtonValue getButtonValue()}:
+If you want to use the value of a button in an equation (e.g. to multiply the speed of something by the value of a button), you can call {@link input/InputSystem.IInputSystem.getButtonValue getButtonValue()}:
 
 ```typescript
 // Note: An Axis type input would be better suited for this specific scenario
@@ -496,7 +495,7 @@ const speedRight = input.getButtonValue('player:move.right');
 player.position.x += (speedRight - speedLeft) * PlayerSpeed;
 ```
 
-{@link input.IInputSystem.getButtonValue getButtonValue()} returns `1` if the button is pressed, or `0` otherwise.
+{@link input/InputSystem.IInputSystem.getButtonValue getButtonValue()} returns `1` if the button is pressed, or `0` otherwise.
 
 Button inputs can be defined as follows:
 
@@ -517,7 +516,7 @@ input.addInput({
 });
 ```
 
-When using an analog input binding as a button, the threshold for determining whether an axis is "pressed" is based on {@link input.IInputSystem.analogButtonPressedThreshold InputSystem.analogButtonPressedThreshold}, which can be configured:
+When using an analog input binding as a button, the threshold for determining whether an axis is "pressed" is based on {@link input/InputSystem.IInputSystem.analogButtonPressedThreshold InputSystem.analogButtonPressedThreshold}, which can be configured:
 
 ```typescript
 // Default value is 0.2
@@ -526,7 +525,7 @@ input.analogButtonPressedThreshold = 0.1;
 
 #### Axis inputs
 
-Axis type inputs are continuous - they are represented by a value between `-1` and `1`. To get the value of an axis you can call {@link input.IInputSystem.getAxisValue getAxisValue()}:
+Axis type inputs are continuous - they are represented by a value between `-1` and `1`. To get the value of an axis you can call {@link input/InputSystem.IInputSystem.getAxisValue getAxisValue()}:
 
 ```typescript
 const playerXInput = input.getAxisValue('player:x');
@@ -561,13 +560,13 @@ input.axisDeadZone = 0.2;
 
 #### Pointer input
 
-LoPoly supports reading input from a pointer device (e.g. mouse or touch input). This is a secondary type of input that represents a position on the screen. You can read the pointer input state by calling {@link input.IInputSystem.getPointer getPointer()}:
+LoPoly supports reading input from a pointer device (e.g. mouse or touch input). This is a secondary type of input that represents a position on the screen. You can read the pointer input state by calling {@link input/InputSystem.IInputSystem.getPointer getPointer()}:
 
 ```typescript
 const pointerState = input.getPointer();
 ```
 
-{@link input.IInputSystem.getPointer getPointer()} returns a {@link input.PointerState PointerState} object which has properties like {@link input.PointerState.x x} and {@link input.PointerState.y y} specifying the pointer's position on the screen in pixels. The pointer state also has delta properties {@link input.PointerState.xDelta xDelta} and {@link input.PointerState.yDelta yDelta} which represent how many pixels the pointer has moved since the previous frame. Pointer coordinates are relative to the top-left of the game canvas.
+{@link input/InputSystem.IInputSystem.getPointer getPointer()} returns a {@link input/InputSystem.PointerState PointerState} object which has properties like {@link input/InputSystem.PointerState.x x} and {@link input/InputSystem.PointerState.y y} specifying the pointer's position on the screen in pixels. The pointer state also has delta properties {@link input/InputSystem.PointerState.xDelta xDelta} and {@link input/InputSystem.PointerState.yDelta yDelta} which represent how many pixels the pointer has moved since the previous frame. Pointer coordinates are relative to the top-left of the game canvas.
 
 The pointer can also be "locked" which hides the cursor (if present) and prevents it from leaving the game canvas area. This is usually used for e.g. controlling a camera, where having a physical cursor on the screen is not desirable.
 
@@ -579,13 +578,14 @@ input.lockPointer();
 input.releasePointer();
 ```
 
-Locking the pointer often requires some input from the user so it might not lock immediately on calling `lockPointer()`. In this scenario it will be locked as soon as the player performs a pointer interaction (usually clicking on the game canvas).
+Locking the pointer often requires some input from the user so it might not lock immediately on calling {@link input/InputSystem.InputSystem.lockPointer lockPointer()}. In this scenario it will be locked as soon as the player performs a pointer interaction (usually clicking on the game canvas).
 
 #### Multiple players
+@TODO passing player number to functions
 
-LoPoly supports assigning different input devices to different players for creating multiplayer games. By default, all input devices are assigned to player 0 - the default player that is read when calling input methods like {@link input.IInputSystem.wasButtonPressed wasButtonPressed()}.
+LoPoly supports assigning different input devices to different players for creating multiplayer games. By default, all input devices are assigned to player 0 - the default player that is read when calling input methods like {@link input/InputSystem.IInputSystem.wasButtonPressed wasButtonPressed()}.
 
-A specific input device can be assigned to a player by calling {@link input.IInputSystem.assignInputDeviceToPlayer assignInputDeviceToPlayer()}:
+A specific input device can be assigned to a player by calling {@link input/InputSystem.IInputSystem.assignInputDeviceToPlayer assignInputDeviceToPlayer()}:
 
 ```typescript
 // Assign keyboard+mouse input device to player 2 (which has player index 1)
@@ -599,7 +599,7 @@ Assigning the Keyboard & Mouse input device is straightforward since there can o
 input.assignInputDeviceToPlayer(0, gamepadIndexToDeviceId(2));
 ```
 
-This gamepad index parameter is generally an arbitrary number with no bearing on the device to which it relates. To make it easier for developers to build user interfaces that map physical devices to input device IDs, LoPoly exposes a function called {@link input.IInputSystem.listenForDevices listenForDevices()}:
+This gamepad index parameter is generally an arbitrary number with no bearing on the device to which it relates. To make it easier for developers to build user interfaces that map physical devices to input device IDs, LoPoly exposes a function called {@link input/InputSystem.IInputSystem.listenForDevices listenForDevices()}:
 
 ```typescript
 // Start listening for input from all devices
@@ -629,66 +629,16 @@ input.listenForDevices((inputDeviceId) => {
 
 If you are familiar with Nintendo Switch, this allows you to build a system very similar to their player-assigning screen. This is the preferred way to assign input devices since it is more natural for players and easier to code (requiring no reference to specific input device IDs).
 
-Once all players have been assigned input devices, you can stop listening for inputs with {@link input.IInputSystem.stopListeningForDevices stopListeningForDevices()}:
+Once all players have been assigned input devices, you can stop listening for inputs with {@link input/InputSystem.IInputSystem.stopListeningForDevices stopListeningForDevices()}:
 
 ```typescript
 input.stopListeningForDevices();
 ```
 
-@TODO Change all references to these bad boys to docs references
-## API Reference
-
-### Engine
-### Scene
-### Transform
-### IFileSystem
-### WebFileSystem
-
-### SceneNode
-### CameraNode
-### ModelNode
-### PointLightNode
-### DirectionalLightNode
-### BoxColliderNode
-### ConvexMeshColliderNode
-### AudioSourceNode
-### ObjectNode
-
-### ModelDefinition
-
-### Model
-### ModelPart
-### MeshSkin
-### MeshPrimitiveCache
-### MeshPrimitive
-### Animation
-### AnimationChannel
-### Texture
-### Cubemap
-@TODO Boxnet, separate layouts
-### Material
-### ShaderBlendingMode
-
-### Color3
-### Color4
-### Vector3
-### Vector2
-### EulerVector3
-### Quaternion
-### Matrix3
-### Matrix4
-### Transform
-### Rotation
-
-### AudioClip
-
-### AudioSystem
-### CollisionSystem
-### ? other systems
-
-## @TODO
-- Computed properties?
-- Debug.___
-- Coordinate system: RH, Z-Up
-- Ensure everthing in EngineConfig is referenced somewhere
-- Using run callback + overriding onUpdate
+<!--
+  @TODO
+  - Computed properties?
+  - Coordinate system: RH, Z-Up
+  - Ensure everything in EngineConfig is referenced somewhere
+  - Using run callback + overriding onUpdate
+-->

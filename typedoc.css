@@ -10,3 +10,8 @@
   background: fuchsia !important;
   color: white !important;
 }
+
+/* Remove animated smooth scroll */
+html {
+  scroll-behavior: initial !important;
+}

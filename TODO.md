@@ -149,3 +149,4 @@ These items are roughly in priority order.
   - Support for touch inputs? how does that work?
   - Does `MouseButton` need to be renamed / refactored?
   - Should InputSystem config (for e.g. analog buttons etc) live in Engine Config?
+    - Also: `CollisionSystem.MaxCollisionGroups`
