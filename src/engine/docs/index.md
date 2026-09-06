@@ -17,7 +17,11 @@ LoPoly games are assembled from a small hierarchy of concepts:
         - [SceneNode](#scene-nodes) `(0..*)`
           - ...
 
-The Engine has many Scenes, each of which contain a hierarchy of many SceneNodes. If you have any experience with Godot, this should feel pretty familiar - except for the differentiation between scenes (levels / scenes) and scene nodes (the objects within a scene).
+The {@link Engine.Engine Engine} has many {@link scene/Scene.Scene Scenes}, each of which contain a hierarchy of many {@link scene/SceneNode.SceneNode SceneNodes}. If you have any experience with Godot, this should feel pretty familiar - except for the differentiation between scenes (levels / scenes) and scene nodes (the objects within a scene).
+
+LoPoly uses a Right-Handed, Z-up coordinate system. The benefits of this are:
+  - When implementing movement (e.g. player movement), you don't need to negate one of the input axes (e.g. `X=X`, `Y=-Y` as seen in RH Y-up or LH Z-up)
+  - When using 2D vectors (such as input from a controller), XY can be mapped directly to XY in 3 dimensions (don't have to map `X=X` `Z=Y` as seen in LH Y-up)
 
 #### Engine
 
@@ -62,6 +66,141 @@ When accessing a scene node's transform, you will note two versions of each prop
 Both properties are mutable. The absolute property (e.g. {@link @lopoly/core!transform/Transform.Transform.absolutePosition absolutePosition}) references the property irrespective of the hierarchy (e.g. the node's actual position within the scene), whereas the other property (e.g. {@link @lopoly/core!transform/Transform.Transform.position position}) references the property local to its parent (e.g. the node's position relative to its parent).
 
 **Note** that, unlike Unity, nodes don't have "components" or any other attributes. Rather, "game objects" are composed of hierarchies of different nodes.
+
+### Getting started
+
+Getting started is simple. The core primitive to LoPoly is an {@link Engine.Engine Engine}:
+
+
+```html
+<!-- index.html -->
+<!-- Size and style the canvas how you like -->
+<canvas
+  tabindex="0"
+  id="game"
+  width="480"
+  height="360"
+  class="[image-rendering:pixelated] w-full touch-none select-none"
+></canvas>
+```
+
+```typescript
+/* index.ts */
+const canvas = document.getElementById('game') as HTMLCanvasElement;
+const fileSystem = new WebFileSystem();
+const engine = new Engine(canvas, fileSystem);
+```
+
+Creating an {@link Engine.Engine Engine} needs a canvas element and a file system from which to read assets. You can use {@link filesystem/WebFileSystem.WebFileSystem WebFileSystem} to serve your game's assets from a web server.
+
+From there you can create a {@link scene/Scene.Scene Scene}:
+
+```typescript
+const scene = new Scene(engine);
+```
+
+Before you can populate the scene, you will need to load any assets you will be using:
+
+```typescript
+const playerModelDefinition = await GltfLoader.loadModel('/models/plat.glb', fileSystem);
+const playerModel = await Model.fromDefinition(engine, playerModelDefinition);
+```
+
+Models are first loaded as a "definition" before being created into an actual model asset. See [Loading assets](#models) more details on this.
+
+Now you can populate the scene:
+
+```typescript
+// Player model
+const player = new ModelNode(scene, 'player', playerModel);
+
+// Camera - position at (1,1,1) and point at the player
+const camera = new CameraNode(scene, 'camera', 70, 4 / 3);
+camera.position.setValue(1, 1, 1);
+camera.pointAt(player.position);
+
+// Sun light shining at a steep angle
+const sun = new DirectionalLightNode(scene, 'sun');
+sun.rotation.x = -70;
+```
+
+The last thing to add is a call to {@link Engine.Engine.run Engine.run()} to start the game:
+
+```typescript
+engine.run((dt) => {
+  // Slowly rotate the player character
+  player.rotation.z += 25 * dt;
+});
+```
+
+{@link Engine.Engine.run Engine.run()} takes a callback that is executed once per frame. This callback is passed a few parameters:
+- `dt`
+  - The number of **seconds** passed since the previous frame
+  - Use this parameter to write logic that is independent of the framerate
+- `time`
+  - The number of **seconds** passed since the start of the game i.e. since {@link Engine.Engine.run Engine.run()}
+  - Use this parameter to write logic that would normally keep a sum of `dt` e.g. animating something with {@link @lopoly/core!math/util.cos cos}
+- `stop`
+  - Stop the game application
+
+You may also implement your loops in a more robust / isolated manner by creating custom classes that inherit from {@link scene/SceneNode.SceneNode SceneNode}. Through this architecture, you can let objects manage their own loop:
+
+```typescript
+class Player extends ModelNode {
+  private readonly speed = 2;
+
+  // `onUpdate()` is automatically called by Engine
+  public override onUpdate(dt: number): void {
+    const moveInput = new Vector2(
+      this.input.getAxisValue('player:x'),
+      this.input.getAxisValue('player:y'),
+    ).normalizeSelf();
+
+    this.position.addSelf(moveInput.scaleSelf(this.speed * dt));
+  }
+
+  // Scene and Engine are available properties on SceneNode
+  public get input(): IInputSystem { return this.scene.engine.inputSystem; }
+}
+```
+
+Writing your entire game's code in {@link Engine.Engine.run Engine.run()} is mostly useful only for small concepts or ideas. Implementing your own meaningful classes for your game objects is the more scalable and preferred approach.
+
+Here is the full code sample for a simple game in LoPoly:
+
+```typescript
+import { Engine } from "@lopoly/engine/Engine";
+import { WebFileSystem } from "@lopoly/engine/filesystem";
+import { GltfLoader } from "@lopoly/engine/loaders/GltfLoader";
+import { Model } from "@lopoly/engine/models";
+import { Scene } from "@lopoly/engine/scene";
+import { CameraNode, DirectionalLightNode, ModelNode } from "@lopoly/engine/scene/nodes";
+
+const canvas = document.getElementById('game') as HTMLCanvasElement;
+
+// Setup
+const fileSystem = new WebFileSystem();
+const engine = new Engine(canvas, fileSystem);
+const scene = new Scene(engine);
+
+// Load assets
+const playerModelDefinition = await GltfLoader.loadModel('/models/plat.glb', fileSystem);
+const playerModel = await Model.fromDefinition(engine, playerModelDefinition);
+
+// Scene
+const player = new ModelNode(scene, 'player', playerModel);
+
+const camera = new CameraNode(scene, 'camera', 70, 4 / 3);
+camera.position.setValue(1, 1, 1);
+camera.pointAt(player.position);
+
+const sun = new DirectionalLightNode(scene, 'sun');
+sun.rotation.x = -70;
+
+engine.run((dt) => {
+  player.rotation.z += 25 * dt;
+});
+```
 
 ### Loading assets
 
@@ -216,7 +355,7 @@ Animations target model parts by name, so the skeleton/hierarchy has to match be
 
 ### Materials
 
-Individual {@link models/MeshPrimitive.MeshPrimitive MeshPrimitive}s are drawn using a single {@link materials/Material.Material Material}. Materials in LoPoly have a few simple properties:
+Individual {@link models/MeshPrimitive.MeshPrimitive MeshPrimitives} are drawn using a single {@link materials/Material.Material Material}. Materials in LoPoly have a few simple properties:
 - Diffuse color
   - A {@link @lopoly/core!math/Color4.Color4 Color4} "tint" applied to the mesh primitive
   - Multiplied with vertex color and diffuse texture
@@ -290,7 +429,7 @@ When calling {@link scene/nodes/ColliderNode.ColliderNode.move move(target, vect
 
 LoPoly features a simple but robust system for playing audio. There are three main components:
   - The {@link audio/AudioSystem.AudioSystem AudioSystem} itself (a singleton stored on Engine)
-  - {@link audio/AudioClip.AudioClip AudioClip}s - individual sounds
+  - {@link audio/AudioClip.AudioClip AudioClips} - individual sounds
   - {@link scene/nodes/AudioSourceNode.AudioSourceNode AudioSourceNode} instances - scene nodes used to play audio
 
 Audio clips are assets loaded from a file system and played through audio source nodes:
@@ -363,6 +502,64 @@ playerAudioSource.playClip(playerWalkSound, { speed: 2, speedRange: 0.5 });
 
 This is useful for making audio clips sound less repetitive (e.g. footsteps, gun shots, etc).
 
+### Lighting
+
+While many early 3D games did not support dynamic lighting (relying instead on vertex colors for static lighting), LoPoly supports a simple dynamic lighting system for more easily achieving common effects. Lighting is implemented as simple vertex-based Gouraud shading with ambient + diffuse components (no specular highlights).
+
+LoPoly supports 2 types of lights:
+
+- [Point lights](#point-lights)
+- [Directional lights](#directional-lights)
+
+Each light type has a maximum number of lights. Lights created in excess of the max will be inert i.e. they won't be considered as part of the lighting system. See [Config](#config) for more details.
+
+
+
+#### Point lights
+Point lights can be added to a scene with {@link scene/nodes/PointLightNode.PointLightNode PointLightNode}. Point lights emit light in all directions equally. They have the following properties:
+  - {@link scene/nodes/PointLightNode.PointLightNode.color color}
+    - The color of the light.
+  - {@link scene/nodes/PointLightNode.PointLightNode.intensity intensity}
+    - Scalar multiplier for the light's brightness between 0 and 1.
+  - {@link scene/nodes/PointLightNode.PointLightNode.range range}
+    - How far the light propagates in space.
+    - Lighting falloff is quadratic with no hard limit/cutoff, so this property dictates the point at which the light's intensity will be 10%. See {@link scene/nodes/PointLightNode.PointLightNode.range range} for more details.
+
+#### Directional lights
+Directional lights can be added to a scene with {@link scene/nodes/DirectionalLightNode.DirectionalLightNode DirectionalLightNode}. Directional lights emit light in a direction, with no specific position. They aren't like "spotlights" seen in other engines, they're more like light from the sun - visible everywhere from the same direction. Directional lights have the following properties:
+  - {@link scene/nodes/DirectionalLightNode.DirectionalLightNode.color color}
+    - The color of the light.
+  - {@link scene/nodes/DirectionalLightNode.DirectionalLightNode.intensity intensity}
+    - Scalar multiplier for the light's brightness between 0 and 1.
+
+A directional light's direction is determined by its {@link @lopoly/core!transform/Transform.Transform Transform}. By default, a {@link scene/nodes/DirectionalLightNode.DirectionalLightNode DirectionalLightNode} shines along {@link @lopoly/core!math/Vector3.Vector3.forward Vector3.forward()}.
+
+```typescript
+const sun = new DirectionalLightNode(scene, 'sun', { color: Color3.white() })
+// Point light straight down
+sun.rotation.x = -90;
+```
+
+#### **Config**
+
+The lighting system in LoPoly can be configured as part of the {@link Engine.Engine Engine} construction:
+
+```typescript
+const engine = new Engine(canvas, fileSystem, {
+  lighting: {
+    maxPointLights: 8,
+    // ...
+  }
+});
+```
+
+The following options are available:
+
+| Option | Description | Default |
+| ------ | ----------- | ------- |
+| maxPointLights | Maximum number of point lights active in the scene. | 4 |
+| defaultPointLightRange | Default range used in creation of point lights when no range option specified. | 10 |
+| maxDirectionalLights | Maximum number of directional lights active in the scene. | 2 |
 
 ### Input handling
 
@@ -465,9 +662,10 @@ The following types of input device are supported:
 - Any device that is detected by browsers as a [Standard Gamepad](https://w3c.github.io/gamepad/#dfn-standard-gamepad) is supported. This should include any modern gaming console controller.
 
 **Pointer (mouse and touch)**
-- Input bindings are specified using {@link input/enum/MouseButton.MouseButton MouseButton}.
+- Input bindings are specified using {@link input/enum/MouseButton.MouseButton MouseButton} and {@link input/enum/MouseWheelDirection.MouseWheelDirection MouseWheelDirection}.
 - Touch inputs are registered as `MouseButton.Left`.
 - For simplicity, the Pointer device can only be assigned to a player in tandem with the keyboard device. A player cannot be assigned gamepad + pointer. See [Multiple players](#multiple-players).
+- **Note** that {@link input/enum/MouseWheelDirection.MouseWheelDirection MouseWheelDirection} events DO NOT fire `released` events - they are instantaneous inputs only.
 
 #### Button inputs
 
@@ -581,7 +779,6 @@ input.releasePointer();
 Locking the pointer often requires some input from the user so it might not lock immediately on calling {@link input/InputSystem.InputSystem.lockPointer lockPointer()}. In this scenario it will be locked as soon as the player performs a pointer interaction (usually clicking on the game canvas).
 
 #### Multiple players
-@TODO passing player number to functions
 
 LoPoly supports assigning different input devices to different players for creating multiplayer games. By default, all input devices are assigned to player 0 - the default player that is read when calling input methods like {@link input/InputSystem.IInputSystem.wasButtonPressed wasButtonPressed()}.
 
@@ -596,6 +793,7 @@ Assigning the Keyboard & Mouse input device is straightforward since there can o
 
 ```typescript
 // Assign gamepad with index 2 to player 1
+// NOTE: There is an easier way to do this, see `listenForDevices()` below
 input.assignInputDeviceToPlayer(0, gamepadIndexToDeviceId(2));
 ```
 
@@ -608,21 +806,26 @@ input.listenForDevices((inputDeviceId) => {
 });
 ```
 
-While this function is "active", it's called every time any input is pressed on any device. The parameter is the input device ID on which the input was pressed. This can be used to assign input devices to players:
+While this function is active, it's called every time any input is pressed on any device. The parameter is the input device ID on which the input was pressed. This can be used to assign input devices to players:
+<!-- @TODO need to dogfood this i'm sure it doesn't quite work well -->
 
 ```typescript
+const assignedDevices = new Set<InputDeviceId>();
 let currentPlayer = 0;
 input.listenForDevices((inputDeviceId) => {
-  const player = currentPlayer++;
-  // Assign input device to player X
-  input.assignInputDeviceToPlayer(player, inputDeviceId);
+  if (!assignedDevices.has(inputDeviceId)) {
+    const player = currentPlayer++;
+    assignedDevices.add(inputDeviceId);
+    // Assign input device to player X
+    input.assignInputDeviceToPlayer(player, inputDeviceId);
 
-  // (Example) Show on the UI that player X was assigned device Y (e.g. keyboard / gamepad)
-  ui.setPlayerDevice(player, inputDeviceId.type);
+    // (Example) Show on the UI that player X was assigned device Y (e.g. keyboard / gamepad)
+    ui.setPlayerDevice(player, inputDeviceId.type);
 
-  // Stop listening once all players have been assigned
-  if (currentPlayer >= MaxPlayers) {
-    input.stopListeningForDevices();
+    // Stop listening once all players have been assigned
+    if (currentPlayer >= MaxPlayers) {
+      input.stopListeningForDevices();
+    }
   }
 });
 ```
@@ -635,10 +838,18 @@ Once all players have been assigned input devices, you can stop listening for in
 input.stopListeningForDevices();
 ```
 
-<!--
-  @TODO
-  - Computed properties?
-  - Coordinate system: RH, Z-Up
-  - Ensure everything in EngineConfig is referenced somewhere
-  - Using run callback + overriding onUpdate
--->
+Querying for input when dealing with multiple players is simple. All the normal functions take an optional `playerNumber` parameter:
+
+```typescript
+// Player 1 pressed button
+input.wasButtonPressed('player:jump', 0);
+// Player 2 released button
+input.wasButtonReleased('player:jump', 1);
+// Player 3 is holding button
+input.isButtonDown('player:attack', 2);
+// Player 4 state of button
+input.getButtonValue('player:strum', 3);
+// Player 2 state of axis
+input.getAxisValue('player:x', 1);
+// etc.
+```

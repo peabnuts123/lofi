@@ -150,3 +150,5 @@ These items are roughly in priority order.
   - Does `MouseButton` need to be renamed / refactored?
   - Should InputSystem config (for e.g. analog buttons etc) live in Engine Config?
     - Also: `CollisionSystem.MaxCollisionGroups`
+  - Dogfood multiplayer input handling - I'm sure it's not quite right
+  - (~BUG) Creating more lights than max -> destroy initial lights -> new lights don't "come alive"

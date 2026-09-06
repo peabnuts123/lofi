@@ -1040,18 +1040,21 @@ export class InputSystem implements IInputSystem {
     const absZ = Math.abs(e.deltaZ);
     let type: MouseWheelDirectionValue;
     if (absZ > absX && absZ > absY) {
+      /* Z is primary direction */
       if (e.deltaZ < 0) {
         type = 'back';
       } else {
         type = 'forward';
       }
     } else if (absX > absY && absX > absZ) {
+      /* X is primary direction */
       if (e.deltaX < 0) {
         type = 'left';
       } else {
         type = 'right';
       }
     } else {
+      /* Y is primary direction */
       if (e.deltaY < 0) {
         type = 'up';
       } else {
